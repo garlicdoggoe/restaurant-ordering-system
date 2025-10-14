@@ -8,6 +8,9 @@ const apiAny: any = api
 // Types
 export type OrderStatus = "pending" | "accepted" | "denied" | "completed" | "cancelled" | "in-transit" | "delivered"
 export type OrderType = "dine-in" | "takeaway" | "delivery" | "pre-order"
+export type PreOrderFulfillment = "pickup" | "delivery"
+export type PaymentPlan = "full" | "downpayment"
+export type RemainingPaymentMethod = "online" | "cash"
 export type RestaurantStatus = "open" | "closed" | "busy"
 export type VoucherType = "percentage" | "fixed"
 export type DiscountType = "percentage" | "fixed"
@@ -74,6 +77,13 @@ export interface Order {
   discount: number
   total: number
   orderType: OrderType
+  preOrderFulfillment?: PreOrderFulfillment
+  preOrderScheduledAt?: number
+  paymentPlan?: PaymentPlan
+  downpaymentAmount?: number
+  downpaymentProofUrl?: string
+  remainingPaymentMethod?: RemainingPaymentMethod
+  remainingPaymentProofUrl?: string
   status: OrderStatus
   paymentScreenshot?: string
   voucherCode?: string
@@ -261,6 +271,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     discount: o.discount,
     total: o.total,
     orderType: o.orderType,
+    preOrderFulfillment: o.preOrderFulfillment,
+    preOrderScheduledAt: o.preOrderScheduledAt,
+    paymentPlan: o.paymentPlan,
+    downpaymentAmount: o.downpaymentAmount,
+    downpaymentProofUrl: o.downpaymentProofUrl,
+    remainingPaymentMethod: o.remainingPaymentMethod,
+    remainingPaymentProofUrl: o.remainingPaymentProofUrl,
     status: o.status,
     paymentScreenshot: o.paymentScreenshot,
     voucherCode: o.voucherCode,
@@ -331,6 +348,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       discount: order.discount,
       total: order.total,
       orderType: order.orderType,
+      preOrderFulfillment: order.preOrderFulfillment as any,
+      preOrderScheduledAt: order.preOrderScheduledAt,
+      paymentPlan: order.paymentPlan as any,
+      downpaymentAmount: order.downpaymentAmount,
+      downpaymentProofUrl: order.downpaymentProofUrl,
+      remainingPaymentMethod: order.remainingPaymentMethod as any,
+      remainingPaymentProofUrl: order.remainingPaymentProofUrl,
       status: order.status,
       paymentScreenshot: order.paymentScreenshot,
       voucherCode: order.voucherCode,
@@ -343,6 +367,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       denialReason: data.denialReason,
       estimatedPrepTime: data.estimatedPrepTime,
       estimatedDeliveryTime: data.estimatedDeliveryTime,
+      preOrderFulfillment: data.preOrderFulfillment as any,
+      preOrderScheduledAt: data.preOrderScheduledAt,
+      paymentPlan: data.paymentPlan as any,
+      downpaymentAmount: data.downpaymentAmount,
+      downpaymentProofUrl: data.downpaymentProofUrl,
+      remainingPaymentMethod: data.remainingPaymentMethod as any,
+      remainingPaymentProofUrl: data.remainingPaymentProofUrl,
     } })
   }, [patchOrder])
 
@@ -351,7 +382,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [orders])
 
   const getCustomerPendingOrder = useCallback((customerId: string) => {
-    return (orders as any[]).find((o) => o.customerId === customerId && o.status === "pending")
+    return (orders as any[]).find((o) => o.customerId === customerId && o.status === "pending" && o.orderType !== "pre-order")
   }, [orders])
 
   const addVoucher = useCallback((voucher: Omit<Voucher, "_id">) => {

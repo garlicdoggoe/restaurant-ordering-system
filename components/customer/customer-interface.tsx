@@ -14,7 +14,7 @@ export type CustomerView = "menu" | "orders"
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
   const [cartItems, setCartItems] = useState<any[]>([])
-  const { getCustomerPendingOrder } = useData()
+  const { getCustomerPendingOrder, orders } = useData()
   const customerId = "customer1" // Demo customer ID
   const pendingOrder = getCustomerPendingOrder(customerId)
 
@@ -46,6 +46,9 @@ export function CustomerInterface() {
     setCartItems([])
   }
 
+  // Customer pre-orders (pending or accepted pre-orders)
+  const customerPreOrders = orders.filter((o) => o.customerId === customerId && o.orderType === "pre-order" && (o.status === "pending" || o.status === "accepted"))
+
   return (
     <div className="min-h-screen bg-background">
       <CustomerHeader currentView={currentView} onViewChange={setCurrentView} cartItemCount={pendingOrder ? 0 : cartItems.length} />
@@ -56,7 +59,7 @@ export function CustomerInterface() {
             <div className="lg:col-span-2">
               <MenuBrowser onAddToCart={addToCart} />
             </div>
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-6">
               {pendingOrder ? (
                 <PendingOrder orderId={pendingOrder._id} />
               ) : (

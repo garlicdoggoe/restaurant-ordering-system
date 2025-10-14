@@ -27,19 +27,27 @@ export function OrderHistory() {
   const [chatOpen, setChatOpen] = useState(false)
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders" | "order-tracking">("all")
 
-  const filteredOrders = orders
-    .filter((order) => {
-      if (order.customerId !== customerId) return false
-      if (statusFilter === "all") return true
-      return order.status === statusFilter
-    })
-    .sort((a, b) => {
-      // Sort by creation date in descending order (latest first)
-      // Use Convex built-in _creationTime instead of custom createdAt
-      return (b._creationTime ?? 0) - (a._creationTime ?? 0)
-    })
+  // Precompute customer orders and the current realtime order (non pre-order)
+  const customerOrders = orders.filter((o) => o.customerId === customerId)
+
+  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "in-transit", "delivered"]
+  const currentRealtimeOrder = customerOrders
+    .filter((o) => o.orderType !== "pre-order" && realtimeStatuses.includes(o.status as OrderStatus))
+    .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))[0]
+
+  const filteredOrders = (
+    statusFilter === "order-tracking"
+      ? (currentRealtimeOrder ? [currentRealtimeOrder] : [])
+      : customerOrders
+          .filter((order) => {
+            if (statusFilter === "all") return true
+            if (statusFilter === "pre-orders") return order.orderType === "pre-order"
+            return order.status === statusFilter
+          })
+          .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
+  )
 
   const handleCancelOrder = (orderId: string) => {
     updateOrder(orderId, { status: "cancelled" })
@@ -66,7 +74,6 @@ export function OrderHistory() {
     delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
   }
 
-  // Border colors for order cards based on status
   const getOrderBorderClass = (status: string) => {
     switch (status) {
       case "pending":
@@ -92,14 +99,13 @@ export function OrderHistory() {
       <h1 className="text-3xl font-bold">My Orders</h1>
 
       <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
+          <TabsTrigger value="order-tracking">Order Tracking</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="in-transit">In Transit</TabsTrigger>
-          <TabsTrigger value="delivered">Delivered</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
           <TabsTrigger value="denied">Denied</TabsTrigger>
+          <TabsTrigger value="pre-orders">Pre-orders</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -133,7 +139,34 @@ export function OrderHistory() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {/* Order Items */}
+                {statusFilter === "pre-orders" && (
+                  <div className="grid grid-cols-1 gap-1 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Type: </span>
+                      <span className="font-medium">{order.preOrderFulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
+                    </div>
+                    {order.preOrderScheduledAt && (
+                      <div>
+                        <span className="text-muted-foreground">Date: </span>
+                        <span className="font-medium">{new Date(order.preOrderScheduledAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    {order.preOrderFulfillment === "delivery" && order.customerAddress && (
+                      <div>
+                        <span className="text-muted-foreground">Address: </span>
+                        <span className="font-medium">{order.customerAddress}</span>
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-muted-foreground">Payment: </span>
+                      <span className="font-medium">{order.paymentPlan === "downpayment" ? "50% downpayment" : "Full"}</span>
+                    </div>
+                    {order.paymentScreenshot && (
+                      <div className="text-xs text-muted-foreground">Payment screenshot provided</div>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   {order.items.map((item, index) => (
                     <div key={index} className="flex justify-between text-sm">
@@ -147,7 +180,6 @@ export function OrderHistory() {
                 
                 <Separator />
                 
-                {/* Order Breakdown */}
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
@@ -174,28 +206,14 @@ export function OrderHistory() {
                       <span>-${order.discount.toFixed(2)}</span>
                     </div>
                   )}
-                  
-                  {order.voucherCode && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Voucher ({order.voucherCode})</span>
-                      <span>Applied</span>
-                    </div>
-                  )}
                 </div>
                 
                 <Separator />
                 
-                {/* Total */}
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
                   <span>${order.total.toFixed(2)}</span>
                 </div>
-                {order.status === "denied" && order.denialReason && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm text-red-800 font-medium">Denial Reason:</p>
-                    <p className="text-sm text-red-700">{order.denialReason}</p>
-                  </div>
-                )}
 
                 <div className="flex gap-2 pt-2">
                   <Button

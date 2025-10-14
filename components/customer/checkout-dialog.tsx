@@ -31,11 +31,25 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Pre-order fields
+  const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery">("pickup")
+  const [preOrderDate, setPreOrderDate] = useState<string>("") // ISO date
+  const [preOrderTime, setPreOrderTime] = useState<string>("") // HH:MM
+  const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment">("full")
+  const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
+  const [downpaymentProof, setDownpaymentProof] = useState<File | null>(null)
+
   const { addOrder } = useData()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setPaymentScreenshot(e.target.files[0])
+    }
+  }
+
+  const handleDownpaymentProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setDownpaymentProof(e.target.files[0])
     }
   }
 
@@ -57,11 +71,29 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
       // For demo, using placeholder for payment screenshot
       const paymentScreenshotUrl = paymentScreenshot ? "/menu-sample.jpg" : undefined
 
+      // Address logic
+      const effectiveAddress = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
+        ? customerAddress
+        : undefined
+
+      // Combine date + time into a single timestamp in local time
+      let preOrderScheduledAt: number | undefined = undefined
+      if (orderType === "pre-order" && preOrderDate) {
+        const dateObj = new Date(preOrderDate)
+        if (preOrderTime) {
+          const [hh, mm] = preOrderTime.split(":")
+          dateObj.setHours(Number(hh) || 0, Number(mm) || 0, 0, 0)
+        } else {
+          dateObj.setHours(0, 0, 0, 0)
+        }
+        preOrderScheduledAt = dateObj.getTime()
+      }
+
       addOrder({
         customerId,
         customerName,
         customerPhone,
-        customerAddress: orderType === "delivery" || orderType === "pre-order" ? customerAddress : undefined,
+        customerAddress: effectiveAddress,
         items: orderItems,
         subtotal,
         tax,
@@ -69,11 +101,16 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         discount: 0,
         total,
         orderType,
+        preOrderFulfillment: orderType === "pre-order" ? preOrderFulfillment : undefined,
+        preOrderScheduledAt,
+        paymentPlan: orderType === "pre-order" ? paymentPlan : undefined,
+        downpaymentAmount: orderType === "pre-order" && paymentPlan === "downpayment" ? total * 0.5 : undefined,
+        downpaymentProofUrl: undefined,
+        remainingPaymentMethod: orderType === "pre-order" && paymentPlan === "downpayment" ? (downpaymentMethod === "online" ? "online" : "cash") : undefined,
         status: "pending",
         paymentScreenshot: paymentScreenshotUrl,
       })
 
-      // Show success toast notification
       toast.success("Order placed successfully!", {
         description: `Your order for $${total.toFixed(2)} has been placed and is being processed.`,
         duration: 4000,
@@ -82,7 +119,6 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
       onSuccess()
     } catch (error) {
       console.error("Failed to create order:", error)
-      // Show error toast notification
       toast.error("Failed to place order", {
         description: "Please try again or contact support if the problem persists.",
         duration: 5000,
@@ -152,7 +188,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
             </RadioGroup>
           </div>
 
-          {(orderType === "delivery" || orderType === "pre-order") && (
+          {orderType === "delivery" && (
             <div className="space-y-2">
               <Label htmlFor="address">Delivery Address</Label>
               <Input
@@ -163,6 +199,115 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
                 required
               />
             </div>
+          )}
+
+          {orderType === "pre-order" && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <Label>Pre-order Fulfillment</Label>
+                <RadioGroup value={preOrderFulfillment} onValueChange={(v: any) => setPreOrderFulfillment(v)}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="pickup" id="pickup" />
+                    <Label htmlFor="pickup" className="font-normal cursor-pointer">Pickup</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="delivery" id="pre-delivery" />
+                    <Label htmlFor="pre-delivery" className="font-normal cursor-pointer">Delivery</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {preOrderFulfillment === "delivery" && (
+                <div className="space-y-2">
+                  <Label htmlFor="pre-address">Delivery Address</Label>
+                  <Input
+                    id="pre-address"
+                    placeholder="Enter delivery address"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="preorder-date">Pickup/Delivery Date</Label>
+                  <Input
+                    id="preorder-date"
+                    type="date"
+                    value={preOrderDate}
+                    onChange={(e) => setPreOrderDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="preorder-time">Time</Label>
+                  <Input
+                    id="preorder-time"
+                    type="time"
+                    value={preOrderTime}
+                    onChange={(e) => setPreOrderTime(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <Separator />
+              <div className="space-y-3">
+                <Label>Payment Plan</Label>
+                <RadioGroup value={paymentPlan} onValueChange={(v: any) => setPaymentPlan(v)}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="full" id="full" />
+                    <Label htmlFor="full" className="font-normal cursor-pointer">Pay in full</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="downpayment" id="downpayment" />
+                    <Label htmlFor="downpayment" className="font-normal cursor-pointer">50% downpayment</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {paymentPlan === "downpayment" && (
+                <>
+                  <div className="space-y-3">
+                    <Label>Remaining Payment Method</Label>
+                    <RadioGroup value={downpaymentMethod} onValueChange={(v: any) => setDownpaymentMethod(v)}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="online" id="dp-online" />
+                        <Label htmlFor="dp-online" className="font-normal cursor-pointer">Online</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="cash" id="dp-cash" />
+                        <Label htmlFor="dp-cash" className="font-normal cursor-pointer">Cash</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {downpaymentMethod === "cash" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="downpayment-proof">Downpayment Proof (optional)</Label>
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
+                        <input
+                          id="downpayment-proof"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleDownpaymentProofChange(e)}
+                          className="hidden"
+                        />
+                        <label htmlFor="downpayment-proof" className="cursor-pointer">
+                          <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">
+                            {downpaymentProof ? downpaymentProof.name : "Click to upload payment proof"}
+                          </p>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           )}
 
           <Separator />

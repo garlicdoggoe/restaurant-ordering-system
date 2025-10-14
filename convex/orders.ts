@@ -22,7 +22,8 @@ export const getCustomerPendingOrder = query({
       .query("orders")
       .withIndex("by_customerId", (q) => q.eq("customerId", customerId))
       .collect();
-    return orders.find((o) => o.status === "pending") ?? null;
+    // Return first non-preorder pending order (allow multiple pre-orders)
+    return orders.find((o) => o.status === "pending" && o.orderType !== "pre-order") ?? null;
   },
 });
 
@@ -46,6 +47,13 @@ export const create = mutation({
       v.literal("delivery"),
       v.literal("pre-order")
     ),
+    preOrderFulfillment: v.optional(v.union(v.literal("pickup"), v.literal("delivery"))),
+    preOrderScheduledAt: v.optional(v.number()),
+    paymentPlan: v.optional(v.union(v.literal("full"), v.literal("downpayment"))),
+    downpaymentAmount: v.optional(v.number()),
+    downpaymentProofUrl: v.optional(v.string()),
+    remainingPaymentMethod: v.optional(v.union(v.literal("online"), v.literal("cash"))),
+    remainingPaymentProofUrl: v.optional(v.string()),
     status: v.union(
       v.literal("pending"),
       v.literal("accepted"),
@@ -82,6 +90,13 @@ export const update = mutation({
       denialReason: v.optional(v.string()),
       estimatedPrepTime: v.optional(v.number()),
       estimatedDeliveryTime: v.optional(v.number()),
+      preOrderFulfillment: v.optional(v.union(v.literal("pickup"), v.literal("delivery"))),
+      preOrderScheduledAt: v.optional(v.number()),
+      paymentPlan: v.optional(v.union(v.literal("full"), v.literal("downpayment"))),
+      downpaymentAmount: v.optional(v.number()),
+      downpaymentProofUrl: v.optional(v.string()),
+      remainingPaymentMethod: v.optional(v.union(v.literal("online"), v.literal("cash"))),
+      remainingPaymentProofUrl: v.optional(v.string()),
     }),
   },
   handler: async (ctx, { id, data }) => {

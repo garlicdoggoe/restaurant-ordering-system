@@ -59,6 +59,14 @@ export default defineSchema({
       v.literal("delivery"),
       v.literal("pre-order")
     ),
+    // Pre-order specific fields
+    preOrderFulfillment: v.optional(v.union(v.literal("pickup"), v.literal("delivery"))),
+    preOrderScheduledAt: v.optional(v.number()),
+    paymentPlan: v.optional(v.union(v.literal("full"), v.literal("downpayment"))),
+    downpaymentAmount: v.optional(v.number()),
+    downpaymentProofUrl: v.optional(v.string()),
+    remainingPaymentMethod: v.optional(v.union(v.literal("online"), v.literal("cash"))),
+    remainingPaymentProofUrl: v.optional(v.string()),
     status: v.union(
       v.literal("pending"),
       v.literal("accepted"),

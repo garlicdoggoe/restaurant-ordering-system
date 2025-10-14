@@ -42,7 +42,10 @@ export function OrdersView() {
     return true
   })
 
-  const transformedOrders = filteredOrders.map((order) => ({
+  const nonPreOrders = filteredOrders.filter((o) => o.orderType !== "pre-order")
+  const preOrders = filteredOrders.filter((o) => o.orderType === "pre-order")
+
+  const toCard = (order: any) => ({
     id: order._id,
     customerName: order.customerName,
     customerPhone: order.customerPhone,
@@ -53,7 +56,7 @@ export function OrdersView() {
     total: order.total,
     paymentScreenshot: order.paymentScreenshot,
     status: order.status,
-  }))
+  })
 
   return (
     <div className="space-y-6">
@@ -120,7 +123,7 @@ export function OrdersView() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {transformedOrders.map((order) => (
+        {nonPreOrders.map((order) => toCard(order)).map((order) => (
           <OrderCard 
             key={order.id} 
             order={order} 
@@ -134,6 +137,28 @@ export function OrdersView() {
           />
         ))}
       </div>
+
+      {selectedStatus === "pending" && preOrders.length > 0 && (
+        <>
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold">Pre-orders</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {preOrders.map((order) => toCard(order)).map((order) => (
+              <OrderCard 
+                key={order.id} 
+                order={order} 
+                onClick={() => setSelectedOrderId(order.id)}
+                onStatusChange={() => {
+                  setSelectedOrderId(null)
+                }}
+                onDenyClick={(orderId) => setDenyOrderId(orderId)}
+                onAcceptClick={(orderId) => setAcceptOrderId(orderId)}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {selectedOrderId && <OrderDetails orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />}
       
