@@ -17,6 +17,7 @@ export function HistoricalOrdersView() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all")
   const [fromDate, setFromDate] = useState<string>("") // ISO string from <input type="datetime-local">
   const [toDate, setToDate] = useState<string>("")
+  const [search, setSearch] = useState<string>("")
 
   // Modal state
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -30,11 +31,9 @@ export function HistoricalOrdersView() {
     return map
   }, [menuItems])
 
-  // Historical orders assumption:
-  // Treat orders that are no longer in-progress as historical (completed, denied, cancelled).
-  // If you want to include all past orders regardless of status, remove the status filter.
+  // Include all orders regardless of status in history
   const historicalBase = useMemo(() => {
-    return orders.filter((o) => o.status === "completed" || o.status === "denied" || o.status === "cancelled")
+    return orders
   }, [orders])
 
   const filteredOrders = useMemo(() => {
@@ -51,6 +50,16 @@ export function HistoricalOrdersView() {
       if (fromTs !== null && createdTs < fromTs) return false
       if (toTs !== null && createdTs > toTs) return false
 
+      // Search filter: match last 6 of order ID, customer name, or phone
+      const q = search.trim().toLowerCase()
+      if (q) {
+        const idShort = (order._id || "").slice(-6).toLowerCase()
+        const name = (order.customerName || "").toLowerCase()
+        const phone = (order.customerPhone || "").toLowerCase()
+        const matches = idShort.includes(q) || name.includes(q) || phone.includes(q)
+        if (!matches) return false
+      }
+
       if (selectedCategoryId === "all") return true
 
       // Category filter: include order if ANY item belongs to the selected category
@@ -60,7 +69,18 @@ export function HistoricalOrdersView() {
       }
       return false
     })
-  }, [historicalBase, fromDate, toDate, selectedCategoryId, menuItemIdToCategoryId])
+  }, [historicalBase, fromDate, toDate, selectedCategoryId, search, menuItemIdToCategoryId])
+
+  // Status badge colors aligned across the app
+  const statusColors: Record<string, string> = {
+    completed: "bg-green-100 text-green-800 border-green-200",
+    accepted: "bg-green-100 text-green-800 border-green-200",
+    pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    denied: "bg-red-100 text-red-800 border-red-200",
+    cancelled: "bg-red-100 text-red-800 border-red-200",
+    "in-transit": "bg-purple-100 text-purple-800 border-purple-200",
+    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  }
 
   return (
     <div className="space-y-6">
@@ -70,6 +90,15 @@ export function HistoricalOrdersView() {
 
       {/* Filters Row */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Search</span>
+          <Input
+            placeholder="Search by #ID, name, or phone"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64"
+          />
+        </div>
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Category</span>
           <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
@@ -125,7 +154,8 @@ export function HistoricalOrdersView() {
                 <div className="text-sm font-semibold">${order.total.toFixed(2)}</div>
                 <div>
                   <Badge
-                    variant={order.status === "completed" ? "secondary" : order.status === "denied" ? "destructive" : "outline"}
+                    variant="outline"
+                    className={statusColors[order.status] ?? ""}
                   >
                     {order.status}
                   </Badge>

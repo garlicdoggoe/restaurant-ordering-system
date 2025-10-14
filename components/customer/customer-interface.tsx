@@ -5,14 +5,27 @@ import { CustomerHeader } from "./customer-header"
 import { MenuBrowser } from "./menu-browser"
 import { Cart } from "./cart"
 import { OrderHistory } from "./order-history"
+import { PendingOrder } from "./pending-order"
+import { useData } from "@/lib/data-context"
+import { toast } from "sonner"
 
 export type CustomerView = "menu" | "orders"
 
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
   const [cartItems, setCartItems] = useState<any[]>([])
+  const { getCustomerPendingOrder } = useData()
+  const customerId = "customer1" // Demo customer ID
+  const pendingOrder = getCustomerPendingOrder(customerId)
 
   const addToCart = (item: any) => {
+    if (pendingOrder) {
+      toast.info("You have a pending order", {
+        description: "Please wait for the restaurant to accept or deny before adding new items.",
+        duration: 3000,
+      })
+      return
+    }
     const existingItem = cartItems.find((i) => i.id === item.id)
     if (existingItem) {
       setCartItems(cartItems.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)))
@@ -35,7 +48,7 @@ export function CustomerInterface() {
 
   return (
     <div className="min-h-screen bg-background">
-      <CustomerHeader currentView={currentView} onViewChange={setCurrentView} cartItemCount={cartItems.length} />
+      <CustomerHeader currentView={currentView} onViewChange={setCurrentView} cartItemCount={pendingOrder ? 0 : cartItems.length} />
 
       <div className="container mx-auto p-6">
         {currentView === "menu" ? (
@@ -44,7 +57,11 @@ export function CustomerInterface() {
               <MenuBrowser onAddToCart={addToCart} />
             </div>
             <div className="lg:col-span-1">
-              <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} />
+              {pendingOrder ? (
+                <PendingOrder orderId={pendingOrder._id} />
+              ) : (
+                <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} />
+              )}
             </div>
           </div>
         ) : (
