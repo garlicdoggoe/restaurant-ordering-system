@@ -46,7 +46,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           <Image src={order.image || "/menu-sample.jpg"} alt="Order" fill className="object-cover" />
         </div>
 
-        <Badge variant="outline" className={cn("w-full justify-center", typeStyles[order.type])}>
+        <Badge variant="outline" className={cn("w-full justify-center text-base py-2", typeStyles[order.type])}>
           {typeLabels[order.type]}
         </Badge>
       </CardContent>
