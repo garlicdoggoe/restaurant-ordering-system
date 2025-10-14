@@ -64,7 +64,9 @@ export default defineSchema({
       v.literal("accepted"),
       v.literal("denied"),
       v.literal("completed"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
+      v.literal("in-transit"),
+      v.literal("delivered")
     ),
     paymentScreenshot: v.optional(v.string()),
     voucherCode: v.optional(v.string()),

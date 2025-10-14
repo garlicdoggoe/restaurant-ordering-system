@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban } from "lucide-react"
+import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
 import {
@@ -51,7 +51,9 @@ export function OrderHistory() {
     accepted: <CheckCircle className="w-4 h-4 text-green-600" />,
     pending: <Clock className="w-4 h-4 text-yellow-600" />,
     denied: <XCircle className="w-4 h-4 text-red-600" />,
-    cancelled: <Ban className="w-4 h-4 text-gray-600" />, // Added cancelled icon
+    cancelled: <Ban className="w-4 h-4 text-gray-600" />,
+    "in-transit": <Truck className="w-4 h-4 text-purple-600" />,
+    delivered: <Package className="w-4 h-4 text-emerald-600" />,
   }
 
   const statusColors = {
@@ -59,7 +61,9 @@ export function OrderHistory() {
     accepted: "bg-green-100 text-green-800 border-green-200",
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
     denied: "bg-red-100 text-red-800 border-red-200",
-    cancelled: "bg-gray-100 text-gray-800 border-gray-200", // Added cancelled color
+    cancelled: "bg-gray-100 text-gray-800 border-gray-200",
+    "in-transit": "bg-purple-100 text-purple-800 border-purple-200",
+    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
   }
 
   // Border colors for order cards based on status
@@ -74,6 +78,10 @@ export function OrderHistory() {
         return "border-red-500 border-2"
       case "cancelled":
         return "border-gray-500 border-2"
+      case "in-transit":
+        return "border-purple-500 border-2"
+      case "delivered":
+        return "border-emerald-500 border-2"
       default:
         return "border-2"
     }
@@ -84,10 +92,12 @@ export function OrderHistory() {
       <h1 className="text-3xl font-bold">My Orders</h1>
 
       <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
+          <TabsTrigger value="in-transit">In Transit</TabsTrigger>
+          <TabsTrigger value="delivered">Delivered</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
           <TabsTrigger value="denied">Denied</TabsTrigger>
         </TabsList>

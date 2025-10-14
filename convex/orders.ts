@@ -51,7 +51,9 @@ export const create = mutation({
       v.literal("accepted"),
       v.literal("denied"),
       v.literal("completed"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
+      v.literal("in-transit"),
+      v.literal("delivered")
     ),
     paymentScreenshot: v.optional(v.string()),
     voucherCode: v.optional(v.string()),
@@ -72,7 +74,9 @@ export const update = mutation({
           v.literal("accepted"),
           v.literal("denied"),
           v.literal("completed"),
-          v.literal("cancelled")
+          v.literal("cancelled"),
+          v.literal("in-transit"),
+          v.literal("delivered")
         )
       ),
       denialReason: v.optional(v.string()),

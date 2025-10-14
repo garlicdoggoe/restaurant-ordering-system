@@ -8,37 +8,51 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { OrderCard } from "./order-card"
 import { OrderDetails } from "./order-details"
+import { DenyOrderDialog } from "./deny-order-dialog"
+import { AcceptOrderDialog } from "./accept-order-dialog"
 
-type OrderStatus = "pending" | "preparing" | "cancelled" | "denied"
+type OrderStatus = "pending" | "preparing" | "completed" | "cancelled" | "denied" | "in-transit" | "delivered"
 
 export function OrdersView() {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending")
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [denyOrderId, setDenyOrderId] = useState<string | null>(null)
+  const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null)
 
   const { orders } = useData()
 
   const statusCounts = {
     pending: orders.filter((o) => o.status === "pending").length,
     preparing: orders.filter((o) => o.status === "accepted").length,
+    completed: orders.filter((o) => o.status === "completed").length,
     cancelled: orders.filter((o) => o.status === "cancelled").length,
     denied: orders.filter((o) => o.status === "denied").length,
+    "in-transit": orders.filter((o) => o.status === "in-transit").length,
+    delivered: orders.filter((o) => o.status === "delivered").length,
   }
 
   const filteredOrders = orders.filter((order) => {
     if (selectedStatus === "pending") return order.status === "pending"
     if (selectedStatus === "preparing") return order.status === "accepted"
+    if (selectedStatus === "completed") return order.status === "completed"
     if (selectedStatus === "cancelled") return order.status === "cancelled"
     if (selectedStatus === "denied") return order.status === "denied"
+    if (selectedStatus === "in-transit") return order.status === "in-transit"
+    if (selectedStatus === "delivered") return order.status === "delivered"
     return true
   })
 
   const transformedOrders = filteredOrders.map((order) => ({
     id: order._id,
-    tableNumber: "N/A",
-    orderNumber: order._id.slice(-4).toUpperCase(),
-    image: "/menu-sample.jpg",
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    customerAddress: order.customerAddress,
     type: (order.orderType as "dine-in" | "takeaway" | "delivery" | "pre-order"),
     time: new Date(order._creationTime ?? order.createdAt).toLocaleString(),
+    items: order.items,
+    total: order.total,
+    paymentScreenshot: order.paymentScreenshot,
+    status: order.status,
   }))
 
   return (
@@ -49,7 +63,7 @@ export function OrdersView() {
 
       <div className="flex items-center gap-4">
         <Tabs value={selectedStatus} onValueChange={(v) => setSelectedStatus(v as OrderStatus)}>
-          <TabsList className="bg-muted">
+          <TabsList className="bg-muted grid grid-cols-7 w-full">
             <TabsTrigger value="pending" className="gap-2">
               Pending
               <Badge variant="secondary" className="rounded-full bg-yellow-100 text-yellow-800">
@@ -60,6 +74,24 @@ export function OrdersView() {
               Preparing
               <Badge variant="secondary" className="rounded-full bg-blue-100 text-blue-800">
                 {statusCounts.preparing}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="gap-2">
+              Completed
+              <Badge variant="secondary" className="rounded-full bg-green-100 text-green-800">
+                {statusCounts.completed}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="in-transit" className="gap-2">
+              In Transit
+              <Badge variant="secondary" className="rounded-full bg-purple-100 text-purple-800">
+                {statusCounts["in-transit"]}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="delivered" className="gap-2">
+              Delivered
+              <Badge variant="secondary" className="rounded-full bg-emerald-100 text-emerald-800">
+                {statusCounts.delivered}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="cancelled" className="gap-2">
@@ -89,11 +121,43 @@ export function OrdersView() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {transformedOrders.map((order) => (
-          <OrderCard key={order.id} order={order} onClick={() => setSelectedOrderId(order.id)} />
+          <OrderCard 
+            key={order.id} 
+            order={order} 
+            onClick={() => setSelectedOrderId(order.id)}
+            onStatusChange={() => {
+              // Force re-render when order status changes
+              setSelectedOrderId(null)
+            }}
+            onDenyClick={(orderId) => setDenyOrderId(orderId)}
+            onAcceptClick={(orderId) => setAcceptOrderId(orderId)}
+          />
         ))}
       </div>
 
       {selectedOrderId && <OrderDetails orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />}
+      
+      {denyOrderId && (
+        <DenyOrderDialog
+          orderId={denyOrderId}
+          onClose={() => setDenyOrderId(null)}
+          onSuccess={() => {
+            setDenyOrderId(null)
+            setSelectedOrderId(null)
+          }}
+        />
+      )}
+
+      {acceptOrderId && (
+        <AcceptOrderDialog
+          orderId={acceptOrderId}
+          onClose={() => setAcceptOrderId(null)}
+          onSuccess={() => {
+            setAcceptOrderId(null)
+            setSelectedOrderId(null)
+          }}
+        />
+      )}
     </div>
   )
 }
