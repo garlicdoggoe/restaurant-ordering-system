@@ -10,24 +10,24 @@ interface OrderCardProps {
     id: string
     tableNumber: string
     image: string
-    status: "dine-in" | "served" | "wait-list" | "takeaway"
+    type: "dine-in" | "takeaway" | "delivery" | "pre-order"
     time: string
   }
   onClick: () => void
 }
 
-const statusStyles = {
+const typeStyles: Record<"dine-in" | "takeaway" | "delivery" | "pre-order", string> = {
   "dine-in": "bg-[#FFD93D] text-[#8B6914] border-[#FFD93D]",
-  served: "bg-[#4CAF50] text-white border-[#4CAF50]",
-  "wait-list": "bg-[#FF6B6B] text-white border-[#FF6B6B]",
   takeaway: "bg-[#4DD0E1] text-[#006064] border-[#4DD0E1]",
+  delivery: "bg-[#B39DDB] text-[#311B92] border-[#B39DDB]",
+  "pre-order": "bg-[#C5E1A5] text-[#33691E] border-[#C5E1A5]",
 }
 
-const statusLabels = {
+const typeLabels: Record<"dine-in" | "takeaway" | "delivery" | "pre-order", string> = {
   "dine-in": "Dine in",
-  served: "Served",
-  "wait-list": "Wait list",
   takeaway: "Take away",
+  delivery: "Delivery",
+  "pre-order": "Pre-order",
 }
 
 export function OrderCard({ order, onClick }: OrderCardProps) {
@@ -46,8 +46,8 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           <Image src={order.image || "/menu-sample.jpg"} alt="Order" fill className="object-cover" />
         </div>
 
-        <Badge variant="outline" className={cn("w-full justify-center", statusStyles[order.status])}>
-          {statusLabels[order.status]}
+        <Badge variant="outline" className={cn("w-full justify-center", typeStyles[order.type])}>
+          {typeLabels[order.type]}
         </Badge>
       </CardContent>
     </Card>

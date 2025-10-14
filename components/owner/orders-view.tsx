@@ -9,29 +9,27 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { OrderCard } from "./order-card"
 import { OrderDetails } from "./order-details"
 
-type OrderStatus = "all" | "dine-in" | "wait-list" | "takeaway" | "served"
+type OrderStatus = "pending" | "preparing" | "cancelled" | "denied"
 
 export function OrdersView() {
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("all")
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending")
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
 
   const { orders } = useData()
 
   const statusCounts = {
-    all: orders.length,
-    "dine-in": orders.filter((o) => o.orderType === "dine-in").length,
-    "wait-list": orders.filter((o) => o.status === "pending").length,
-    takeaway: orders.filter((o) => o.orderType === "takeaway").length,
-    served: orders.filter((o) => o.status === "completed").length,
+    pending: orders.filter((o) => o.status === "pending").length,
+    preparing: orders.filter((o) => o.status === "accepted").length,
+    cancelled: orders.filter((o) => o.status === "cancelled").length,
+    denied: orders.filter((o) => o.status === "denied").length,
   }
 
   const filteredOrders = orders.filter((order) => {
-    if (selectedStatus === "all") return true
-    if (selectedStatus === "dine-in") return order.orderType === "dine-in"
-    if (selectedStatus === "wait-list") return order.status === "pending"
-    if (selectedStatus === "takeaway") return order.orderType === "takeaway"
-    if (selectedStatus === "served") return order.status === "completed"
-    return false
+    if (selectedStatus === "pending") return order.status === "pending"
+    if (selectedStatus === "preparing") return order.status === "accepted"
+    if (selectedStatus === "cancelled") return order.status === "cancelled"
+    if (selectedStatus === "denied") return order.status === "denied"
+    return true
   })
 
   const transformedOrders = filteredOrders.map((order) => ({
@@ -39,15 +37,7 @@ export function OrdersView() {
     tableNumber: "N/A",
     orderNumber: order._id.slice(-4).toUpperCase(),
     image: "/menu-sample.jpg",
-    status: (
-      order.status === "pending"
-        ? "wait-list"
-        : order.orderType === "dine-in"
-          ? "dine-in"
-          : order.orderType === "takeaway"
-            ? "takeaway"
-            : "served"
-    ) as "dine-in" | "takeaway" | "wait-list" | "served",
+    type: (order.orderType as "dine-in" | "takeaway" | "delivery" | "pre-order"),
     time: new Date(order._creationTime ?? order.createdAt).toLocaleString(),
   }))
 
@@ -60,34 +50,28 @@ export function OrdersView() {
       <div className="flex items-center gap-4">
         <Tabs value={selectedStatus} onValueChange={(v) => setSelectedStatus(v as OrderStatus)}>
           <TabsList className="bg-muted">
-            <TabsTrigger value="all" className="gap-2">
-              All
-              <Badge variant="secondary" className="rounded-full">
-                {statusCounts.all}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="dine-in" className="gap-2">
-              Dine in
+            <TabsTrigger value="pending" className="gap-2">
+              Pending
               <Badge variant="secondary" className="rounded-full bg-yellow-100 text-yellow-800">
-                {statusCounts["dine-in"]}
+                {statusCounts.pending}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="wait-list" className="gap-2">
-              Wait list
-              <Badge variant="secondary" className="rounded-full bg-orange-100 text-orange-800">
-                {statusCounts["wait-list"]}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="takeaway" className="gap-2">
-              Take away
+            <TabsTrigger value="preparing" className="gap-2">
+              Preparing
               <Badge variant="secondary" className="rounded-full bg-blue-100 text-blue-800">
-                {statusCounts.takeaway}
+                {statusCounts.preparing}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="served" className="gap-2">
-              Served
-              <Badge variant="secondary" className="rounded-full bg-green-100 text-green-800">
-                {statusCounts.served}
+            <TabsTrigger value="cancelled" className="gap-2">
+              Cancelled
+              <Badge variant="secondary" className="rounded-full bg-gray-100 text-gray-800">
+                {statusCounts.cancelled}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="denied" className="gap-2">
+              Denied
+              <Badge variant="secondary" className="rounded-full bg-red-100 text-red-800">
+                {statusCounts.denied}
               </Badge>
             </TabsTrigger>
           </TabsList>

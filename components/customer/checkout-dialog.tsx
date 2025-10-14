@@ -24,7 +24,7 @@ interface CheckoutDialogProps {
 }
 
 export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose, onSuccess }: CheckoutDialogProps) {
-  const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery">("dine-in")
+  const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("dine-in")
   const [customerName, setCustomerName] = useState("John Doe")
   const [customerPhone, setCustomerPhone] = useState("+1234567890")
   const [customerAddress, setCustomerAddress] = useState("")
@@ -61,7 +61,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         customerId,
         customerName,
         customerPhone,
-        customerAddress: orderType === "delivery" ? customerAddress : undefined,
+        customerAddress: orderType === "delivery" || orderType === "pre-order" ? customerAddress : undefined,
         items: orderItems,
         subtotal,
         tax,
@@ -143,10 +143,16 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
                   Delivery
                 </Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="pre-order" id="pre-order" />
+                <Label htmlFor="pre-order" className="font-normal cursor-pointer">
+                  Pre-order
+                </Label>
+              </div>
             </RadioGroup>
           </div>
 
-          {orderType === "delivery" && (
+          {(orderType === "delivery" || orderType === "pre-order") && (
             <div className="space-y-2">
               <Label htmlFor="address">Delivery Address</Label>
               <Input

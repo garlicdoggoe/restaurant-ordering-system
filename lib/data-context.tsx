@@ -7,7 +7,7 @@ const apiAny: any = api
 
 // Types
 export type OrderStatus = "pending" | "accepted" | "denied" | "completed" | "cancelled" // Added cancelled status
-export type OrderType = "dine-in" | "takeaway" | "delivery"
+export type OrderType = "dine-in" | "takeaway" | "delivery" | "pre-order"
 export type RestaurantStatus = "open" | "closed" | "busy"
 export type VoucherType = "percentage" | "fixed"
 export type DiscountType = "percentage" | "fixed"

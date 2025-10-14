@@ -40,7 +40,12 @@ export const create = mutation({
     donation: v.number(),
     discount: v.number(),
     total: v.number(),
-    orderType: v.union(v.literal("dine-in"), v.literal("takeaway"), v.literal("delivery")),
+    orderType: v.union(
+      v.literal("dine-in"),
+      v.literal("takeaway"),
+      v.literal("delivery"),
+      v.literal("pre-order")
+    ),
     status: v.union(
       v.literal("pending"),
       v.literal("accepted"),
