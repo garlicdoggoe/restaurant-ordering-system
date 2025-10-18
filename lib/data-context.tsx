@@ -39,6 +39,14 @@ export interface Restaurant {
   averageDeliveryTime: number
 }
 
+export interface DeliveryFee {
+  _id: string
+  barangay: string
+  fee: number
+  createdAt: number
+  updatedAt: number
+}
+
 export interface Category {
   _id: string
   name: string
@@ -135,8 +143,6 @@ export interface ChatMessage {
   timestamp: number
 }
 
-// Backend-connected DataContext: removed dummy data and wired Convex queries/mutations.
-
 // Context
 interface DataContextType {
   // User
@@ -145,6 +151,12 @@ interface DataContextType {
   // Restaurant
   restaurant: Restaurant
   updateRestaurant: (data: Partial<Restaurant>) => void
+
+  // Delivery Fees
+  deliveryFees: DeliveryFee[]
+  updateDeliveryFee: (barangay: string, fee: number) => void
+  bulkUpdateDeliveryFees: (fees: { barangay: string; fee: number }[]) => void
+  removeDeliveryFee: (barangay: string) => void
 
   // Categories
   categories: Category[]
@@ -199,6 +211,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Queries
   const restaurantDoc = useQuery(apiAny.restaurant?.get) ?? null
+  const deliveryFeesDocs = useQuery(apiAny.delivery_fees?.list) ?? []
   const categoriesDocs = useQuery(apiAny.menu?.getCategories) ?? []
   const menuDocs = useQuery(apiAny.menu?.getMenuItems, {}) ?? []
   const ordersDocs = useQuery(apiAny.orders?.list) ?? []
@@ -213,6 +226,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Mutations
   const upsertRestaurant = useMutation(apiAny.restaurant?.upsert)
+  const upsertDeliveryFee = useMutation(apiAny.delivery_fees?.upsert)
+  const bulkUpsertDeliveryFees = useMutation(apiAny.delivery_fees?.bulkUpsert)
+  const removeDeliveryFeeMut = useMutation(apiAny.delivery_fees?.remove)
   const createMenuItem = useMutation(apiAny.menu?.addMenuItem)
   const patchMenuItem = useMutation(apiAny.menu?.updateMenuItem)
   const removeMenuItem = useMutation(apiAny.menu?.deleteMenuItem)
@@ -254,6 +270,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
         averagePrepTime: 0,
         averageDeliveryTime: 0,
       } as Restaurant)
+
+  const deliveryFees: DeliveryFee[] = deliveryFeesDocs.map((df: any) => ({
+    _id: df._id as string,
+    barangay: df.barangay,
+    fee: df.fee,
+    createdAt: df.createdAt,
+    updatedAt: df.updatedAt,
+  }))
 
   const categories: Category[] = categoriesDocs.map((c: any) => ({ _id: c._id as string, name: c.name, icon: c.icon, order: c.order }))
   const menuItems: MenuItem[] = menuDocs.map((m: any) => ({ _id: m._id as string, name: m.name, description: m.description, price: m.price, category: m.category, image: m.image, available: m.available }))
@@ -308,6 +332,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     void upsertRestaurant(body)
   }, [restaurant, upsertRestaurant])
+
+  const updateDeliveryFee = useCallback((barangay: string, fee: number) => {
+    void upsertDeliveryFee({ barangay, fee })
+  }, [upsertDeliveryFee])
+
+  const bulkUpdateDeliveryFees = useCallback((fees: { barangay: string; fee: number }[]) => {
+    void bulkUpsertDeliveryFees({ fees })
+  }, [bulkUpsertDeliveryFees])
+
+  const removeDeliveryFee = useCallback((barangay: string) => {
+    void removeDeliveryFeeMut({ barangay })
+  }, [removeDeliveryFeeMut])
 
   const addMenuItem = useCallback((item: Omit<MenuItem, "_id">) => {
     void createMenuItem({
@@ -447,6 +483,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     currentUser,
     restaurant,
     updateRestaurant,
+    deliveryFees,
+    updateDeliveryFee,
+    bulkUpdateDeliveryFees,
+    removeDeliveryFee,
     categories,
     menuItems,
     addMenuItem,

@@ -128,6 +128,13 @@ export default defineSchema({
     message: v.string(),
     timestamp: v.number(),
   }).index("by_orderId", ["orderId"]).index("by_timestamp", ["timestamp"]),
+
+  delivery_fees: defineTable({
+    barangay: v.string(),
+    fee: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_barangay", ["barangay"]),
 });
 
 

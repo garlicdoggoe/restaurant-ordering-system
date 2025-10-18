@@ -29,12 +29,19 @@ export function OrderHistory() {
 
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders" | "order-tracking">("all")
 
-  // Precompute customer orders and the current realtime order (non pre-order)
+  // Precompute customer orders and the current realtime order
   const customerOrders = orders.filter((o) => o.customerId === customerId)
 
-  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "in-transit", "delivered"]
+  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "in-transit"]
   const currentRealtimeOrder = customerOrders
-    .filter((o) => o.orderType !== "pre-order" && realtimeStatuses.includes(o.status as OrderStatus))
+    .filter((o) => {
+      // For pre-orders: start tracking only once accepted (preparing) or later
+      if (o.orderType === "pre-order") {
+        return o.status !== "pending" && realtimeStatuses.includes(o.status as OrderStatus)
+      }
+      // For regular orders: track pending/accepted/in-transit
+      return realtimeStatuses.includes(o.status as OrderStatus)
+    })
     .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))[0]
 
   const filteredOrders = (
@@ -43,7 +50,9 @@ export function OrderHistory() {
       : customerOrders
           .filter((order) => {
             if (statusFilter === "all") return true
-            if (statusFilter === "pre-orders") return order.orderType === "pre-order"
+            // Pre-orders tab shows only pending pre-orders; accepted/in-transit pre-orders move to Order Tracking
+            if (statusFilter === "pre-orders") return order.orderType === "pre-order" && order.status === "pending"
+            if (statusFilter === "completed") return order.status === "completed" || order.status === "delivered"
             return order.status === statusFilter
           })
           .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
