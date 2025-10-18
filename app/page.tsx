@@ -1,7 +1,6 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Store, User } from "lucide-react"
+import { AuthButtons } from "@/components/auth-buttons"
 
 export default function HomePage() {
   return (
@@ -22,11 +21,7 @@ export default function HomePage() {
               <CardDescription>Manage your restaurant, menu, orders, and more</CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/owner" className="block">
-                <Button className="w-full" size="lg">
-                  Owner Dashboard
-                </Button>
-              </Link>
+              <AuthButtons userType="owner" />
             </CardContent>
           </Card>
 
@@ -39,11 +34,7 @@ export default function HomePage() {
               <CardDescription>Browse menu, place orders, and track your orders</CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/customer" className="block">
-                <Button className="w-full" size="lg" variant="secondary">
-                  Start Ordering
-                </Button>
-              </Link>
+              <AuthButtons userType="customer" />
             </CardContent>
           </Card>
         </div>

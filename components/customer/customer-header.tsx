@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { UserButton } from "@clerk/nextjs"
 import { ShoppingCart, History, UtensilsCrossed } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import type { CustomerView } from "./customer-interface"
@@ -67,9 +67,7 @@ export function CustomerHeader({ currentView, onViewChange, cartItemCount }: Cus
             My Orders
           </Button>
 
-          <Avatar className="w-9 h-9">
-            <AvatarFallback className="bg-primary text-primary-foreground text-sm">JD</AvatarFallback>
-          </Avatar>
+          <UserButton />
         </div>
       </div>
     </header>
