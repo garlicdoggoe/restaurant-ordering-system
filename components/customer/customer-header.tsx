@@ -2,9 +2,9 @@
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { UserButton } from "@clerk/nextjs"
 import { ShoppingCart, History, UtensilsCrossed } from "lucide-react"
 import { useData } from "@/lib/data-context"
+import { UserProfileDropdown } from "@/components/user-profile-dropdown"
 import type { CustomerView } from "./customer-interface"
 
 interface CustomerHeaderProps {
@@ -67,7 +67,7 @@ export function CustomerHeader({ currentView, onViewChange, cartItemCount }: Cus
             My Orders
           </Button>
 
-          <UserButton />
+          <UserProfileDropdown />
         </div>
       </div>
     </header>

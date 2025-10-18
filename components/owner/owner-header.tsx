@@ -2,14 +2,10 @@
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Bell } from "lucide-react"
+import { UserProfileDropdown } from "@/components/user-profile-dropdown"
 
 export function OwnerHeader() {
-  // For demo purposes, using first owner user
-  const ownerId = "jh7d5xqxqxqxqxqxqxqxqxqxqxqxqx" as any
-
   return (
     <header className="h-16 border-b bg-background px-6 flex items-center justify-end">
       <div className="flex items-center gap-4">
@@ -20,24 +16,7 @@ export function OwnerHeader() {
           </Badge>
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm">SM</AvatarFallback>
-              </Avatar>
-              <div className="text-left">
-                <div className="text-sm font-medium">Sakib Mahamud</div>
-                <div className="text-xs text-muted-foreground">Sales Manager</div>
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Logout</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <UserProfileDropdown />
       </div>
     </header>
   )

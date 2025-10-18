@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
 import { useQuery, useMutation } from "convex/react"
+import { useUser } from "@clerk/nextjs"
 import { api } from "@/convex/_generated/api"
 const apiAny: any = api
 
@@ -17,11 +18,16 @@ export type DiscountType = "percentage" | "fixed"
 
 export interface User {
   _id: string
-  name: string
+  clerkId: string
   email: string
+  firstName: string
+  lastName: string
   role: "owner" | "customer"
   phone?: string
   address?: string
+  profileComplete: boolean
+  createdAt: number
+  updatedAt: number
 }
 
 export interface Restaurant {
@@ -146,7 +152,7 @@ export interface ChatMessage {
 // Context
 interface DataContextType {
   // User
-  currentUser: User
+  currentUser: User | null
 
   // Restaurant
   restaurant: Restaurant
@@ -206,8 +212,25 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined)
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  // Current user placeholder (no auth yet)
-  const [currentUser] = useState<User>({ _id: "user1", name: "Foodies Owner", email: "owner@example.com", role: "owner", phone: "+1234567890" })
+  const { user: clerkUser } = useUser()
+  
+  // Get current user from Convex
+  const currentUserDoc = useQuery(apiAny.users?.getCurrentUser)
+  
+  // Transform Convex user data to our User interface
+  const currentUser: User | null = currentUserDoc ? {
+    _id: currentUserDoc._id,
+    clerkId: currentUserDoc.clerkId,
+    email: currentUserDoc.email,
+    firstName: currentUserDoc.firstName,
+    lastName: currentUserDoc.lastName,
+    role: currentUserDoc.role,
+    phone: currentUserDoc.phone,
+    address: currentUserDoc.address,
+    profileComplete: currentUserDoc.profileComplete,
+    createdAt: currentUserDoc.createdAt,
+    updatedAt: currentUserDoc.updatedAt,
+  } : null
 
   // Queries
   const restaurantDoc = useQuery(apiAny.restaurant?.get) ?? null

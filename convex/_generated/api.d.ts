@@ -20,6 +20,7 @@ import type * as menu from "../menu.js";
 import type * as orders from "../orders.js";
 import type * as promotions from "../promotions.js";
 import type * as restaurant from "../restaurant.js";
+import type * as users from "../users.js";
 import type * as vouchers from "../vouchers.js";
 
 /**
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   orders: typeof orders;
   promotions: typeof promotions;
   restaurant: typeof restaurant;
+  users: typeof users;
   vouchers: typeof vouchers;
 }>;
 export declare const api: FilterApi<

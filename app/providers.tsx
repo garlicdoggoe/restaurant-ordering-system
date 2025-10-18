@@ -2,7 +2,9 @@
 
 import type React from "react"
 import { Suspense } from "react"
-import { ConvexProvider, ConvexReactClient } from "convex/react"
+import { ConvexReactClient } from "convex/react"
+import { ConvexProviderWithClerk } from "convex/react-clerk"
+import { useAuth } from "@clerk/nextjs"
 import { DataProvider } from "@/lib/data-context"
 import { Toaster } from "sonner"
 
@@ -10,14 +12,14 @@ const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL as strin
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ConvexProvider client={convex}>
+    <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
       <Suspense>
         <DataProvider>
           {children}
           <Toaster position="top-right" />
         </DataProvider>
       </Suspense>
-    </ConvexProvider>
+    </ConvexProviderWithClerk>
   )
 }
 
