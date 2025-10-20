@@ -55,6 +55,20 @@ export function OrdersView() {
     items: order.items,
     total: order.total,
     paymentScreenshot: order.paymentScreenshot,
+    // Include fields needed to compute payment status
+    paymentPlan: order.paymentPlan,
+    remainingPaymentMethod: order.remainingPaymentMethod,
+    remainingPaymentProofUrl: order.remainingPaymentProofUrl,
+    // Compute payment status for pre-orders with downpayment and online remaining payment
+    paymentStatus: (() => {
+      const isEligible = order.orderType === "pre-order" && order.paymentPlan === "downpayment" && order.remainingPaymentMethod === "online"
+      if (!isEligible) return undefined
+      const hasInitial = Boolean(order.paymentScreenshot)
+      const hasRemaining = Boolean(order.remainingPaymentProofUrl)
+      if (hasInitial && hasRemaining) return "Fully paid"
+      if (hasInitial) return "Initially paid"
+      return undefined
+    })(),
     status: order.status,
   })
 
@@ -124,9 +138,15 @@ export function OrdersView() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {nonPreOrders.map((order) => toCard(order)).map((order) => (
-          <OrderCard 
-            key={order.id} 
-            order={order} 
+          <OrderCard
+            key={order.id}
+            order={{
+              ...order,
+              paymentStatus:
+                order.paymentStatus === "Fully paid" || order.paymentStatus === "Initially paid"
+                  ? order.paymentStatus
+                  : undefined,
+            }}
             onClick={() => setSelectedOrderId(order.id)}
             onStatusChange={() => {
               // Force re-render when order status changes
@@ -147,7 +167,13 @@ export function OrdersView() {
             {preOrders.map((order) => toCard(order)).map((order) => (
               <OrderCard 
                 key={order.id} 
-                order={order} 
+                order={{
+                  ...order,
+                  paymentStatus:
+                    order.paymentStatus === "Fully paid" || order.paymentStatus === "Initially paid"
+                      ? order.paymentStatus
+                      : undefined,
+                }}
                 onClick={() => setSelectedOrderId(order.id)}
                 onStatusChange={() => {
                   setSelectedOrderId(null)

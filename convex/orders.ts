@@ -176,17 +176,40 @@ export const update = mutation({
       return id;
     }
 
-    // Customer path: allow cancelling their own order
+    // Customer path: allow cancelling their own order or updating remaining payment proof
     if (existing.customerId !== (currentUser._id as unknown as string)) {
       throw new Error("Unauthorized to update this order");
     }
 
-    const allowedCustomerUpdate = data.status === "cancelled" && existing.status === "pending";
-    if (!allowedCustomerUpdate) {
-      throw new Error("Customers can only cancel pending orders");
+    // Allow customers to cancel pending orders
+    const allowedCancelUpdate = data.status === "cancelled" && existing.status === "pending";
+    // Allow customers to update remaining payment proof URL for their own orders
+    const allowedPaymentProofUpdate = data.remainingPaymentProofUrl !== undefined && 
+      Object.keys(data).length === 1; // Only updating remainingPaymentProofUrl
+
+    if (!allowedCancelUpdate && !allowedPaymentProofUpdate) {
+      throw new Error("Customers can only cancel pending orders or update remaining payment proof");
     }
 
-    await ctx.db.patch(id, { status: "cancelled", updatedAt: Date.now() });
+    if (allowedCancelUpdate) {
+      await ctx.db.patch(id, { status: "cancelled", updatedAt: Date.now() });
+    } else if (allowedPaymentProofUpdate) {
+      // If the client sent a Convex storageId instead of a URL, resolve it to a URL
+      let remainingPaymentProofUrl = data.remainingPaymentProofUrl;
+      if (
+        typeof remainingPaymentProofUrl === "string" &&
+        remainingPaymentProofUrl.length > 0 &&
+        !remainingPaymentProofUrl.startsWith("http")
+      ) {
+        const resolvedUrl = await ctx.storage.getUrl(remainingPaymentProofUrl as any);
+        if (resolvedUrl) {
+          remainingPaymentProofUrl = resolvedUrl;
+        }
+      }
+
+      await ctx.db.patch(id, { remainingPaymentProofUrl, updatedAt: Date.now() });
+    }
+    
     return id;
   },
 });

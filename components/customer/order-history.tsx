@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -20,6 +21,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useMutation, useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { toast } from "sonner"
 
 export function OrderHistory() {
   const { orders, updateOrder, currentUser } = useData()
@@ -31,6 +35,13 @@ export function OrderHistory() {
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders" | "order-tracking">("all")
+
+  // State for remaining payment proof upload - per order
+  const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
+  const [orderUploadStates, setOrderUploadStates] = useState<Record<string, { file: File | null; storageId: string | null }>>({})
+
+  // Convex mutations and queries for file upload
+  const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
 
   // Precompute customer orders and the current realtime order
   const customerOrders = orders.filter((o) => o.customerId === customerId)
@@ -64,6 +75,42 @@ export function OrderHistory() {
   const handleCancelOrder = (orderId: string) => {
     updateOrder(orderId, { status: "cancelled" })
     setCancelOrderId(null)
+  }
+
+  // Handle remaining payment proof file upload
+  const handleRemainingPaymentProofChange = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setUploadingOrderId(orderId)
+      
+      try {
+        // Generate upload URL and upload file
+        const uploadUrl = await generateUploadUrl({})
+        const res = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+          body: file,
+        })
+        const json = await res.json()
+        const storageId = json.storageId as string
+        
+        // Store the upload state for this order
+        setOrderUploadStates(prev => ({
+          ...prev,
+          [orderId]: { file, storageId }
+        }))
+        
+        // Update the order with the storage ID - Convex will handle URL generation
+        updateOrder(orderId, { remainingPaymentProofUrl: storageId })
+        
+        toast.success("Remaining payment proof uploaded successfully")
+        setUploadingOrderId(null)
+      } catch (err) {
+        console.error("Upload failed", err)
+        toast.error("Failed to upload remaining payment proof")
+        setUploadingOrderId(null)
+      }
+    }
   }
 
   const statusIcons = {
@@ -176,6 +223,7 @@ export function OrderHistory() {
                     {order.paymentScreenshot && (
                       <div className="text-xs text-muted-foreground">Payment screenshot provided</div>
                     )}
+                    
                   </div>
                 )}
 
@@ -227,6 +275,54 @@ export function OrderHistory() {
                   <span>${order.total.toFixed(2)}</span>
                 </div>
 
+                {/* Remaining Payment Proof Upload for Pre-orders */}
+                {order.paymentPlan === "downpayment" && order.remainingPaymentMethod === "online" && (
+                  <div className="space-y-2 mt-3">
+                    <Label className="text-sm font-medium">
+                      Remaining Payment Proof
+                    </Label>
+                    
+                    {/* Show upload dock only if no image is uploaded yet */}
+                    {!order.remainingPaymentProofUrl && (
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
+                        <input
+                          id={`remaining-payment-proof-${order._id}`}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleRemainingPaymentProofChange(e, order._id)}
+                          className="hidden"
+                          disabled={uploadingOrderId === order._id}
+                        />
+                        <label htmlFor={`remaining-payment-proof-${order._id}`} className="cursor-pointer">
+                          <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            {uploadingOrderId === order._id 
+                              ? "Uploading..." 
+                              : "Click to upload remaining payment proof"
+                            }
+                          </p>
+                        </label>
+                      </div>
+                    )}
+                    
+                    {/* Show uploaded image and status */}
+                    {order.remainingPaymentProofUrl && (
+                      <div className="space-y-2">
+                        <div className="text-xs text-green-600">
+                          ✓ Remaining payment proof provided
+                        </div>
+                        <div className="w-full">
+                          <img 
+                            src={order.remainingPaymentProofUrl} 
+                            alt="Remaining Payment Proof" 
+                            className="w-full rounded border object-contain max-h-32" 
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-2 pt-2">
                   <Button
                     variant="outline"
@@ -250,6 +346,19 @@ export function OrderHistory() {
                       }}
                     >
                       View Payment
+                    </Button>
+                  )}
+
+                  {order.remainingPaymentProofUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPaymentUrl(order.remainingPaymentProofUrl || null)
+                        setPaymentOpen(true)
+                      }}
+                    >
+                      View Remaining Payment
                     </Button>
                   )}
 
@@ -293,12 +402,12 @@ export function OrderHistory() {
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Payment Screenshot</DialogTitle>
+            <DialogTitle>Payment Proof</DialogTitle>
           </DialogHeader>
           {paymentUrl ? (
-            <img src={paymentUrl} alt="Payment Screenshot" className="w-full rounded border object-contain" />
+            <img src={paymentUrl} alt="Payment Proof" className="w-full rounded border object-contain" />
           ) : (
-            <p className="text-sm text-muted-foreground">No payment screenshot available.</p>
+            <p className="text-sm text-muted-foreground">No payment proof available.</p>
           )}
         </DialogContent>
       </Dialog>

@@ -44,7 +44,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   const [preOrderTime, setPreOrderTime] = useState<string>("") // HH:MM
   const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment">("full")
   const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
-  const [downpaymentProof, setDownpaymentProof] = useState<File | null>(null)
+
 
   // Keep phone/address synced from profile on open/switches
   useEffect(() => {
@@ -83,12 +83,6 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         console.error("Upload failed", err)
         toast.error("Failed to upload payment screenshot")
       }
-    }
-  }
-
-  const handleDownpaymentProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setDownpaymentProof(e.target.files[0])
     }
   }
 
@@ -326,27 +320,6 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
                       </div>
                     </RadioGroup>
                   </div>
-
-                  {downpaymentMethod === "cash" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="downpayment-proof">Downpayment Proof (optional)</Label>
-                      <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
-                        <input
-                          id="downpayment-proof"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleDownpaymentProofChange(e)}
-                          className="hidden"
-                        />
-                        <label htmlFor="downpayment-proof" className="cursor-pointer">
-                          <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            {downpaymentProof ? downpaymentProof.name : "Click to upload payment proof"}
-                          </p>
-                        </label>
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
             </>

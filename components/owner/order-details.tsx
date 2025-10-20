@@ -61,6 +61,19 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
               </div>
             )}
 
+            {order.remainingPaymentProofUrl && (
+              <div className="space-y-2">
+                <h3 className="font-semibold">Remaining Payment Screenshot</h3>
+                <div className="relative aspect-video rounded-lg overflow-hidden border">
+                  <Image
+                    src={order.remainingPaymentProofUrl || "/menu-sample.jpg"}
+                    alt="Remaining payment proof"
+                    fill
+                    className="object-contain bg-muted" />
+                </div>
+              </div>
+            )}
+
             <div>
               <h3 className="font-semibold mb-3">Ordered Items ({order.items.length})</h3>
               <div className="space-y-2">

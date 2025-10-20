@@ -24,6 +24,7 @@ interface OrderCardProps {
     }>
     total: number
     paymentScreenshot?: string
+    paymentStatus?: "Initially paid" | "Fully paid"
     status: string
   }
   onClick: () => void
@@ -147,6 +148,13 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
           <span className="text-sm font-medium">Total:</span>
           <span className="text-sm font-bold">₱{order.total.toFixed(2)}</span>
         </div>
+
+        {/* Payment Status for pre-order downpayment online */}
+        {order.paymentStatus && (
+          <Badge variant="outline" className="w-full justify-center text-xs py-1 border-green-200 bg-green-50 text-green-800">
+            {order.paymentStatus}
+          </Badge>
+        )}
 
         {/* Order Type Badge */}
         <Badge variant="outline" className={cn("w-full justify-center text-base py-2", typeStyles[order.type])}>
