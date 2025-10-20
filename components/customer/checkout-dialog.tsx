@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Upload } from "lucide-react"
 import { useData } from "@/lib/data-context"
+import { useMutation, useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 
 interface CheckoutDialogProps {
@@ -31,6 +33,9 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   const [customerPhone, setCustomerPhone] = useState(() => currentUser?.phone ?? "")
   const [customerAddress, setCustomerAddress] = useState(() => currentUser?.address ?? "")
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
+  const [paymentScreenshotId, setPaymentScreenshotId] = useState<string | null>(null)
+  const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
+  const paymentScreenshotUrl = useQuery((api as any).files?.getUrl, paymentScreenshotId ? { storageId: paymentScreenshotId as any } : (undefined as any)) as string | undefined | null
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Pre-order fields
@@ -41,11 +46,43 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
   const [downpaymentProof, setDownpaymentProof] = useState<File | null>(null)
 
-  
+  // Keep phone/address synced from profile on open/switches
+  useEffect(() => {
+    if (currentUser?.phone) {
+      setCustomerPhone((prev) => prev || currentUser.phone as string)
+    }
+    if (currentUser && (currentUser.firstName || currentUser.lastName)) {
+      const n = `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim()
+      setCustomerName((prev) => prev || n)
+    }
+  }, [currentUser])
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const wantsDelivery = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
+    if (wantsDelivery && currentUser?.address) {
+      setCustomerAddress((prev) => prev || (currentUser.address as string))
+    }
+  }, [orderType, preOrderFulfillment, currentUser?.address])
+
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setPaymentScreenshot(e.target.files[0])
+      const file = e.target.files[0]
+      setPaymentScreenshot(file)
+      try {
+        const uploadUrl = await generateUploadUrl({})
+        const res = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+          body: file,
+        })
+        const json = await res.json()
+        const storageId = json.storageId as string
+        setPaymentScreenshotId(storageId)
+      } catch (err) {
+        console.error("Upload failed", err)
+        toast.error("Failed to upload payment screenshot")
+      }
     }
   }
 
@@ -72,8 +109,8 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         quantity: item.quantity,
       }))
 
-      // For demo, using placeholder for payment screenshot
-      const paymentScreenshotUrl = paymentScreenshot ? "/menu-sample.jpg" : undefined
+      // Use uploaded storage file URL if present; fallback to no screenshot
+      const screenshotUrl = paymentScreenshotId ? paymentScreenshotUrl ?? undefined : undefined
 
       // Address logic
       const effectiveAddress = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
@@ -113,7 +150,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         downpaymentProofUrl: undefined,
         remainingPaymentMethod: orderType === "pre-order" && paymentPlan === "downpayment" ? (downpaymentMethod === "online" ? "online" : "cash") : undefined,
         status: "pending",
-        paymentScreenshot: paymentScreenshotUrl,
+        paymentScreenshot: screenshotUrl,
       })
 
       toast.success("Order placed successfully!", {
@@ -142,7 +179,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">Name <span className="text-red-500">*</span></Label>
             <Input
               id="name"
               value={customerName}
@@ -153,7 +190,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
+            <Label htmlFor="phone">Phone<span className="text-red-500">*</span></Label>
             <Input
               id="phone"
               value={customerPhone}
@@ -195,7 +232,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
 
           {orderType === "delivery" && (
             <div className="space-y-2">
-              <Label htmlFor="address">Delivery Address</Label>
+              <Label htmlFor="address">Delivery Address <span className="text-red-500">*</span></Label>
               <Input
                 id="address"
                 placeholder="Enter delivery address"
@@ -225,7 +262,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
 
               {preOrderFulfillment === "delivery" && (
                 <div className="space-y-2">
-                  <Label htmlFor="pre-address">Delivery Address</Label>
+                  <Label htmlFor="pre-address">Delivery Address <span className="text-red-500">*</span></Label>
                   <Input
                     id="pre-address"
                     placeholder="Enter delivery address"
@@ -237,8 +274,8 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
               )}
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="preorder-date">Pickup/Delivery Date</Label>
+              <div className="space-y-2">
+                <Label htmlFor="preorder-date">Pickup/Delivery Date <span className="text-red-500">*</span></Label>
                   <Input
                     id="preorder-date"
                     type="date"
@@ -248,7 +285,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="preorder-time">Time</Label>
+                <Label htmlFor="preorder-time">Time <span className="text-red-500">*</span></Label>
                   <Input
                     id="preorder-time"
                     type="time"
@@ -334,6 +371,11 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
                 </p>
               </label>
             </div>
+            {paymentScreenshotUrl && (
+              <div className="mt-2 w-full">
+                <img src={paymentScreenshotUrl} alt="Payment" className="w-full rounded border object-contain" />
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -341,20 +383,16 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>₱{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax</span>
-              <span>${tax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Donation</span>
-              <span>${donation.toFixed(2)}</span>
+              <span className="text-muted-foreground">Platform fee</span>
+              <span>₱{donation.toFixed(2)}</span>
             </div>
             <Separator />
             <div className="flex justify-between font-semibold text-base">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>₱{total.toFixed(2)}</span>
             </div>
           </div>
 

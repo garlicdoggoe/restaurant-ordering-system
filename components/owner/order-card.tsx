@@ -136,7 +136,7 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
             {order.items.map((item, index) => (
               <div key={index} className="flex justify-between text-xs">
                 <span>{item.quantity}x {item.name}</span>
-                <span>${(item.price * item.quantity).toFixed(2)}</span>
+                <span>₱{(item.price * item.quantity).toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -145,7 +145,7 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
         {/* Total Amount */}
         <div className="flex justify-between items-center border-t pt-2">
           <span className="text-sm font-medium">Total:</span>
-          <span className="text-sm font-bold">${order.total.toFixed(2)}</span>
+          <span className="text-sm font-bold">₱{order.total.toFixed(2)}</span>
         </div>
 
         {/* Order Type Badge */}

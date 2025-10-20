@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export function OrderHistory() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders" | "order-tracking">("all")
 
@@ -237,6 +240,19 @@ export function OrderHistory() {
                     Chat with Restaurant
                   </Button>
 
+                  {order.paymentScreenshot && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPaymentUrl(order.paymentScreenshot || null)
+                        setPaymentOpen(true)
+                      }}
+                    >
+                      View Payment
+                    </Button>
+                  )}
+
                   {order.status === "pending" && (
                     <Button
                       variant="outline"
@@ -273,6 +289,19 @@ export function OrderHistory() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Payment Screenshot</DialogTitle>
+          </DialogHeader>
+          {paymentUrl ? (
+            <img src={paymentUrl} alt="Payment Screenshot" className="w-full rounded border object-contain" />
+          ) : (
+            <p className="text-sm text-muted-foreground">No payment screenshot available.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

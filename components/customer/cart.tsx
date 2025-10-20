@@ -29,9 +29,8 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
   const hasPendingOrder = !!pendingOrder
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const tax = subtotal * 0.1 // 10% tax
-  const donation = 5.99
-  const total = subtotal + tax + donation
+  const platformFee = 10
+  const total = subtotal + platformFee
 
   if (items.length === 0) {
     return (
@@ -59,7 +58,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
               <div key={item.id} className="flex items-center gap-3">
                 <div className="flex-1">
                   <p className="font-medium text-sm">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">₱{item.price.toFixed(2)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -89,20 +88,16 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>₱{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax (10%)</span>
-              <span>${tax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Donation</span>
-              <span>${donation.toFixed(2)}</span>
+              <span className="text-muted-foreground">Platform fee</span>
+              <span>₱{platformFee.toFixed(2)}</span>
             </div>
             <Separator />
             <div className="flex justify-between font-semibold text-base">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>₱{total.toFixed(2)}</span>
             </div>
           </div>
 
@@ -113,6 +108,12 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
                 <p className="text-xs text-yellow-700 mt-1">
                   Please wait for your current order to be confirmed before placing a new one.
                 </p>
+                {pendingOrder?.paymentScreenshot && (
+                  <div className="mt-2">
+                    <p className="text-xs text-muted-foreground mb-1">Payment Screenshot:</p>
+                    <img src={pendingOrder.paymentScreenshot} alt="Payment" className="w-full rounded border object-contain" />
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -133,8 +134,8 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
         <CheckoutDialog
           items={items}
           subtotal={subtotal}
-          tax={tax}
-          donation={donation}
+          tax={0}
+          donation={platformFee}
           total={total}
           onClose={() => setShowCheckout(false)}
           onSuccess={() => {
