@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { OrderDetails } from "./order-details"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // Historical orders list for owners.
 // Displays orders in a row-based layout with filters for category and time range.
@@ -21,6 +23,8 @@ export function HistoricalOrdersView() {
 
   // Modal state
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
 
   // Build a lookup from menuItemId -> categoryId for efficient category filtering.
   const menuItemIdToCategoryId = useMemo(() => {
@@ -127,13 +131,14 @@ export function HistoricalOrdersView() {
 
       {/* Rows Header */}
       <div className="rounded-lg border overflow-hidden">
-        <div className="grid grid-cols-6 gap-2 bg-muted px-4 py-3 text-sm font-medium">
+        <div className="grid grid-cols-7 gap-2 bg-muted px-4 py-3 text-sm font-medium">
           <div>Order ID</div>
           <div>Customer</div>
           <div>Contact</div>
           <div>Placed At</div>
           <div>Total</div>
           <div>Status</div>
+          <div>Payment</div>
         </div>
 
         {/* Rows */}
@@ -144,14 +149,14 @@ export function HistoricalOrdersView() {
             return (
               <button
                 key={order._id}
-                className="grid grid-cols-6 gap-2 w-full text-left px-4 py-3 hover:bg-accent/40 transition-colors"
+                className="grid grid-cols-7 gap-2 w-full text-left px-4 py-3 hover:bg-accent/40 transition-colors"
                 onClick={() => setSelectedOrderId(order._id)}
               >
                 <div className="font-mono text-sm">#{idShort}</div>
                 <div className="text-sm">{order.customerName}</div>
                 <div className="text-sm text-muted-foreground">{order.customerPhone}</div>
                 <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
-                <div className="text-sm font-semibold">${order.total.toFixed(2)}</div>
+                <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
                 <div>
                   <Badge
                     variant="outline"
@@ -159,6 +164,22 @@ export function HistoricalOrdersView() {
                   >
                     {order.status}
                   </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  {order.paymentScreenshot && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setPaymentUrl(order.paymentScreenshot || null)
+                        setPaymentOpen(true)
+                      }}
+                    >
+                      View Payment
+                    </Button>
+                  )}
                 </div>
               </button>
             )
@@ -173,6 +194,19 @@ export function HistoricalOrdersView() {
       {selectedOrderId && (
         <OrderDetails orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />
       )}
+
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Payment Screenshot</DialogTitle>
+          </DialogHeader>
+          {paymentUrl ? (
+            <img src={paymentUrl} alt="Payment Screenshot" className="w-full rounded border object-contain" />
+          ) : (
+            <p className="text-sm text-muted-foreground">No payment screenshot available.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
