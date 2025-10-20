@@ -25,9 +25,11 @@ interface CheckoutDialogProps {
 
 export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose, onSuccess }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("dine-in")
-  const [customerName, setCustomerName] = useState("John Doe")
-  const [customerPhone, setCustomerPhone] = useState("+1234567890")
-  const [customerAddress, setCustomerAddress] = useState("")
+  const { addOrder, currentUser } = useData()
+  // Initialize form fields from current user when available; fall back to empty
+  const [customerName, setCustomerName] = useState(() => `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim())
+  const [customerPhone, setCustomerPhone] = useState(() => currentUser?.phone ?? "")
+  const [customerAddress, setCustomerAddress] = useState(() => currentUser?.address ?? "")
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -39,7 +41,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
   const [downpaymentProof, setDownpaymentProof] = useState<File | null>(null)
 
-  const { addOrder } = useData()
+  
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -58,7 +60,9 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
     setIsSubmitting(true)
 
     try {
-      const customerId = "customer1" // Demo customer ID
+      if (!currentUser?._id) {
+        throw new Error("Not authenticated")
+      }
 
       // Transform cart items to order items
       const orderItems = items.map((item) => ({
@@ -90,7 +94,8 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
       }
 
       addOrder({
-        customerId,
+        // Backend enforces and overrides customerId to the authenticated user; provide for types
+        customerId: currentUser._id,
         customerName,
         customerPhone,
         customerAddress: effectiveAddress,

@@ -14,9 +14,9 @@ export type CustomerView = "menu" | "orders"
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
   const [cartItems, setCartItems] = useState<any[]>([])
-  const { getCustomerPendingOrder, orders } = useData()
-  const customerId = "customer1" // Demo customer ID
-  const pendingOrder = getCustomerPendingOrder(customerId)
+  const { getCustomerPendingOrder, orders, currentUser } = useData()
+  const customerId = currentUser?._id || ""
+  const pendingOrder = customerId ? getCustomerPendingOrder(customerId) : undefined
 
   const addToCart = (item: any) => {
     if (pendingOrder) {

@@ -20,13 +20,13 @@ interface ChatDialogProps {
 }
 
 export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
-  const { sendMessage, getOrderById } = useData()
+  const { sendMessage, getOrderById, currentUser } = useData()
   const [message, setMessage] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const order = getOrderById(orderId)
   const messages = useQuery(api.chat.listByOrder as any, { orderId }) ?? []
-  const customerId = "customer1"
+  const customerId = currentUser?._id || ""
   const customerName = order?.customerName || "Customer"
 
   useEffect(() => {
@@ -38,6 +38,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const handleSend = () => {
     if (!message.trim()) return
 
+    if (!customerId) return
     sendMessage(orderId, customerId, customerName, "customer", message)
     setMessage("")
   }

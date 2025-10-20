@@ -23,9 +23,9 @@ interface CartProps {
 export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
   const [showCheckout, setShowCheckout] = useState(false)
 
-  const { getCustomerPendingOrder } = useData()
-  const customerId = "customer1" // Demo customer ID
-  const pendingOrder = getCustomerPendingOrder(customerId)
+  const { getCustomerPendingOrder, currentUser } = useData()
+  const customerId = currentUser?._id || ""
+  const pendingOrder = customerId ? getCustomerPendingOrder(customerId) : undefined
   const hasPendingOrder = !!pendingOrder
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)

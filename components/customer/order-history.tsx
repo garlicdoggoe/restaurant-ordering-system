@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export function OrderHistory() {
-  const { orders, updateOrder } = useData()
-  const customerId = "customer1" // Demo customer ID
+  const { orders, updateOrder, currentUser } = useData()
+  const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)

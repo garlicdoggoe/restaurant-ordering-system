@@ -4,14 +4,52 @@ import { v } from "convex/values";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("orders").collect();
+    // Access control: customers see only their orders; owners see all orders
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    // When unauthenticated (e.g., public homepage), return empty list instead of throwing
+    if (!clerkId) return [];
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!currentUser) throw new Error("User not found");
+
+    if (currentUser.role === "owner") {
+      return await ctx.db.query("orders").collect();
+    }
+
+    // Customer: only own orders
+    return await ctx.db
+      .query("orders")
+      .withIndex("by_customerId", (q) => q.eq("customerId", currentUser._id as unknown as string))
+      .collect();
   },
 });
 
 export const getById = query({
   args: { id: v.id("orders") },
   handler: async (ctx, { id }) => {
-    return await ctx.db.get(id);
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    const order = await ctx.db.get(id);
+    if (!order) return null;
+
+    if (currentUser.role === "owner" || order.customerId === (currentUser._id as unknown as string)) {
+      return order;
+    }
+
+    throw new Error("Unauthorized to view this order");
   },
 });
 
@@ -29,6 +67,7 @@ export const getCustomerPendingOrder = query({
 
 export const create = mutation({
   args: {
+    // customerId is derived from the authenticated user to prevent spoofing
     customerId: v.string(),
     customerName: v.string(),
     customerPhone: v.string(),
@@ -67,8 +106,26 @@ export const create = mutation({
     voucherCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    // Only customers can create orders; force customerId to current user's id
+    if (currentUser.role !== "customer") throw new Error("Only customers can create orders");
+
     const now = Date.now();
-    return await ctx.db.insert("orders", { ...args, createdAt: now, updatedAt: now });
+    return await ctx.db.insert("orders", {
+      ...args,
+      customerId: currentUser._id as unknown as string,
+      createdAt: now,
+      updatedAt: now,
+    });
   },
 });
 
@@ -100,7 +157,36 @@ export const update = mutation({
     }),
   },
   handler: async (ctx, { id, data }) => {
-    await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    const existing = await ctx.db.get(id);
+    if (!existing) throw new Error("Order not found");
+
+    // Owners can update any order status; customers can only cancel their own pending orders
+    if (currentUser.role === "owner") {
+      await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
+      return id;
+    }
+
+    // Customer path: allow cancelling their own order
+    if (existing.customerId !== (currentUser._id as unknown as string)) {
+      throw new Error("Unauthorized to update this order");
+    }
+
+    const allowedCustomerUpdate = data.status === "cancelled" && existing.status === "pending";
+    if (!allowedCustomerUpdate) {
+      throw new Error("Customers can only cancel pending orders");
+    }
+
+    await ctx.db.patch(id, { status: "cancelled", updatedAt: Date.now() });
     return id;
   },
 });

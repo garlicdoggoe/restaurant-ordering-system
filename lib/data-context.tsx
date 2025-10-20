@@ -212,7 +212,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined)
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user: clerkUser } = useUser()
+  const { user: clerkUser, isLoaded } = useUser()
   
   // Get current user from Convex
   const currentUserDoc = useQuery(apiAny.users?.getCurrentUser)
@@ -237,7 +237,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const deliveryFeesDocs = useQuery(apiAny.delivery_fees?.list) ?? []
   const categoriesDocs = useQuery(apiAny.menu?.getCategories) ?? []
   const menuDocs = useQuery(apiAny.menu?.getMenuItems, {}) ?? []
-  const ordersDocs = useQuery(apiAny.orders?.list) ?? []
+  // Orders are role-filtered server-side. This returns either all orders (owner) or only the current customer's orders.
+  // Avoid querying when unauthenticated (e.g., homepage before login or after logout redirect)
+  const shouldFetchOrders = !!clerkUser && !!isLoaded
+  const ordersDocs = useQuery(apiAny.orders?.list, shouldFetchOrders ? {} : undefined) ?? []
   const vouchersDocs = useQuery(apiAny.vouchers?.list) ?? []
   const promotionsDocs = useQuery(apiAny.promotions?.list) ?? []
   const denialReasonsDocs = useQuery(apiAny.denial_reasons?.list) ?? []
@@ -396,6 +399,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const addOrder = useCallback((order: Omit<Order, "_id" | "createdAt" | "updatedAt">) => {
     void createOrder({
+      // Backend will override customerId based on the authenticated user; we still pass for type compatibility
       customerId: order.customerId,
       customerName: order.customerName,
       customerPhone: order.customerPhone,
@@ -441,6 +445,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [orders])
 
   const getCustomerPendingOrder = useCallback((customerId: string) => {
+    // Since orders are already filtered by role on the server, customers' lists only include their orders.
+    // We still filter by customerId for safety when called by UI using explicit id.
     return (orders as any[]).find((o) => o.customerId === customerId && o.status === "pending" && o.orderType !== "pre-order")
   }, [orders])
 
