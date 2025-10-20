@@ -119,9 +119,24 @@ export const create = mutation({
     // Only customers can create orders; force customerId to current user's id
     if (currentUser.role !== "customer") throw new Error("Only customers can create orders");
 
+    // If client sent a Convex storageId instead of a URL for payment screenshot, resolve it to a URL
+    // This allows clients to pass a storage reference without extra round trips for URL resolution
+    let resolvedPaymentScreenshot = args.paymentScreenshot;
+    if (
+      typeof resolvedPaymentScreenshot === "string" &&
+      resolvedPaymentScreenshot.length > 0 &&
+      !resolvedPaymentScreenshot.startsWith("http")
+    ) {
+      const url = await ctx.storage.getUrl(resolvedPaymentScreenshot as any);
+      if (url) {
+        resolvedPaymentScreenshot = url;
+      }
+    }
+
     const now = Date.now();
     return await ctx.db.insert("orders", {
       ...args,
+      paymentScreenshot: resolvedPaymentScreenshot,
       customerId: currentUser._id as unknown as string,
       createdAt: now,
       updatedAt: now,

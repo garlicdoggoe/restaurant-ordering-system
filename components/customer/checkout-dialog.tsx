@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Upload } from "lucide-react"
 import { useData } from "@/lib/data-context"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 
@@ -33,9 +33,8 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   const [customerPhone, setCustomerPhone] = useState(() => currentUser?.phone ?? "")
   const [customerAddress, setCustomerAddress] = useState(() => currentUser?.address ?? "")
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
-  const [paymentScreenshotId, setPaymentScreenshotId] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
-  const paymentScreenshotUrl = useQuery((api as any).files?.getUrl, paymentScreenshotId ? { storageId: paymentScreenshotId as any } : (undefined as any)) as string | undefined | null
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Pre-order fields
@@ -64,25 +63,57 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
     }
   }, [orderType, preOrderFulfillment, currentUser?.address])
 
+  // Restore any pending image from localStorage (if available)
+  useEffect(() => {
+    const key = "checkout_payment_image"
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null
+    if (!raw) return
+    try {
+      const stored = JSON.parse(raw) as { name: string; type: string; dataUrl: string }
+      if (!stored?.dataUrl) return
+      setPreviewUrl(stored.dataUrl)
+      // Recreate File from data URL so submit flow can upload it
+      fetch(stored.dataUrl)
+        .then((r) => r.blob())
+        .then((blob) => {
+          const file = new File([blob], stored.name || "payment.jpg", { type: stored.type || blob.type })
+          setPaymentScreenshot(file)
+        })
+        .catch(() => {
+          // If reconstruction fails, just clear the preview
+          setPreviewUrl(null)
+        })
+    } catch {
+      // Ignore corrupted localStorage
+    }
+  }, [])
+
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setPaymentScreenshot(file)
-      try {
-        const uploadUrl = await generateUploadUrl({})
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-          body: file,
-        })
-        const json = await res.json()
-        const storageId = json.storageId as string
-        setPaymentScreenshotId(storageId)
-      } catch (err) {
-        console.error("Upload failed", err)
-        toast.error("Failed to upload payment screenshot")
-      }
+    if (!e.target.files || !e.target.files[0]) return
+    const file = e.target.files[0]
+    setPaymentScreenshot(file)
+    try {
+      // Create immediate preview and persist temporarily in localStorage
+      const dataUrl = await fileToDataUrl(file)
+      setPreviewUrl((prev) => {
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev)
+        return dataUrl
+      })
+      const key = "checkout_payment_image"
+      const payload = { name: file.name, type: file.type, dataUrl }
+      window.localStorage.setItem(key, JSON.stringify(payload))
+    } catch (err) {
+      console.error("Failed to prepare image preview", err)
+      toast.error("Failed to prepare image preview")
     }
   }
 
@@ -103,8 +134,25 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         quantity: item.quantity,
       }))
 
-      // Use uploaded storage file URL if present; fallback to no screenshot
-      const screenshotUrl = paymentScreenshotId ? paymentScreenshotUrl ?? undefined : undefined
+      // Upload image only now (on submit). We pass storageId; server resolves to URL.
+      let paymentScreenshotStorageId: string | undefined = undefined
+      if (paymentScreenshot) {
+        try {
+          const uploadUrl = await generateUploadUrl({})
+          const res = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": paymentScreenshot.type || "application/octet-stream" },
+            body: paymentScreenshot,
+          })
+          const json = await res.json()
+          paymentScreenshotStorageId = json.storageId as string
+        } catch (err) {
+          console.error("Upload failed", err)
+          toast.error("Failed to upload payment screenshot")
+          setIsSubmitting(false)
+          return
+        }
+      }
 
       // Address logic
       const effectiveAddress = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
@@ -144,7 +192,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         downpaymentProofUrl: undefined,
         remainingPaymentMethod: orderType === "pre-order" && paymentPlan === "downpayment" ? (downpaymentMethod === "online" ? "online" : "cash") : undefined,
         status: "pending",
-        paymentScreenshot: screenshotUrl,
+        paymentScreenshot: paymentScreenshotStorageId,
       })
 
       toast.success("Order placed successfully!", {
@@ -152,6 +200,13 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         duration: 4000,
       })
 
+      // Clear the temporarily saved image from localStorage after success
+      try {
+        window.localStorage.removeItem("checkout_payment_image")
+      } catch {}
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl)
+      }
       onSuccess()
     } catch (error) {
       console.error("Failed to create order:", error)
@@ -344,9 +399,9 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
                 </p>
               </label>
             </div>
-            {paymentScreenshotUrl && (
+            {previewUrl && (
               <div className="mt-2 w-full">
-                <img src={paymentScreenshotUrl} alt="Payment" className="w-full rounded border object-contain" />
+                <img src={previewUrl} alt="Payment" className="w-full rounded border object-contain" />
               </div>
             )}
           </div>

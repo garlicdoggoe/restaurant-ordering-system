@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 
@@ -38,7 +38,8 @@ export function OrderHistory() {
 
   // State for remaining payment proof upload - per order
   const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
-  const [orderUploadStates, setOrderUploadStates] = useState<Record<string, { file: File | null; storageId: string | null }>>({})
+  const [orderUploadStates, setOrderUploadStates] = useState<Record<string, { file: File | null; previewUrl: string | null }>>({})
+  const [hasRestoredFromStorage, setHasRestoredFromStorage] = useState(false)
 
   // Convex mutations and queries for file upload
   const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
@@ -72,45 +73,123 @@ export function OrderHistory() {
           .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
   )
 
+  // Restore pending proofs from localStorage for each order
+  // Key format: remaining_payment_proof_<orderId>
+  // Only restore once on mount to avoid re-restoring after cancel
+  React.useEffect(() => {
+    if (hasRestoredFromStorage) return
+
+    try {
+      const nextState: Record<string, { file: File | null; previewUrl: string | null }> = {}
+      filteredOrders.forEach((order) => {
+        if (order.remainingPaymentProofUrl) return
+        const key = `remaining_payment_proof_${order._id}`
+        const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null
+        if (!raw) return
+        try {
+          const stored = JSON.parse(raw) as { name: string; type: string; dataUrl: string }
+          if (!stored?.dataUrl) return
+          // Recreate File from data URL so confirm flow can upload it later
+          nextState[order._id] = { file: null, previewUrl: stored.dataUrl }
+          fetch(stored.dataUrl)
+            .then((r) => r.blob())
+            .then((blob) => {
+              const file = new File([blob], stored.name || "remaining-payment.jpg", { type: stored.type || blob.type })
+              setOrderUploadStates((prev) => ({ ...prev, [order._id]: { file, previewUrl: stored.dataUrl } }))
+            })
+            .catch(() => {
+              // Ignore failures, user can reselect
+            })
+        } catch {
+          // Ignore corrupted entry
+        }
+      })
+      if (Object.keys(nextState).length > 0) {
+        setOrderUploadStates((prev) => ({ ...nextState, ...prev }))
+      }
+      setHasRestoredFromStorage(true)
+    } catch {
+      // Ignore
+    }
+  }, [hasRestoredFromStorage, filteredOrders])
+
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   const handleCancelOrder = (orderId: string) => {
     updateOrder(orderId, { status: "cancelled" })
     setCancelOrderId(null)
   }
 
-  // Handle remaining payment proof file upload
+  // Handle remaining payment proof selection (deferred upload with confirmation)
   const handleRemainingPaymentProofChange = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setUploadingOrderId(orderId)
-      
-      try {
-        // Generate upload URL and upload file
-        const uploadUrl = await generateUploadUrl({})
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-          body: file,
-        })
-        const json = await res.json()
-        const storageId = json.storageId as string
-        
-        // Store the upload state for this order
-        setOrderUploadStates(prev => ({
-          ...prev,
-          [orderId]: { file, storageId }
-        }))
-        
-        // Update the order with the storage ID - Convex will handle URL generation
-        updateOrder(orderId, { remainingPaymentProofUrl: storageId })
-        
-        toast.success("Remaining payment proof uploaded successfully")
-        setUploadingOrderId(null)
-      } catch (err) {
-        console.error("Upload failed", err)
-        toast.error("Failed to upload remaining payment proof")
-        setUploadingOrderId(null)
-      }
+    if (!e.target.files || !e.target.files[0]) return
+    const file = e.target.files[0]
+    try {
+      const dataUrl = await fileToDataUrl(file)
+      setOrderUploadStates((prev) => ({
+        ...prev,
+        [orderId]: { file, previewUrl: dataUrl },
+      }))
+      const key = `remaining_payment_proof_${orderId}`
+      const payload = { name: file.name, type: file.type, dataUrl }
+      window.localStorage.setItem(key, JSON.stringify(payload))
+      toast.success("Image ready. Click Confirm Upload to finalize.")
+    } catch (err) {
+      console.error("Failed to prepare image preview", err)
+      toast.error("Failed to prepare image preview")
     }
+  }
+
+  const handleConfirmRemainingPaymentUpload = async (orderId: string) => {
+    const pending = orderUploadStates[orderId]
+    if (!pending?.file) {
+      toast.error("No image selected to upload")
+      return
+    }
+    setUploadingOrderId(orderId)
+    try {
+      const uploadUrl = await generateUploadUrl({})
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": pending.file.type || "application/octet-stream" },
+        body: pending.file,
+      })
+      const json = await res.json()
+      const storageId = json.storageId as string
+
+      // Update the order with the storage ID - Convex will resolve to URL
+      updateOrder(orderId, { remainingPaymentProofUrl: storageId })
+
+      // Clear local pending state and storage
+      try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
+      setOrderUploadStates((prev) => {
+        const { [orderId]: _, ...rest } = prev
+        return rest
+      })
+      toast.success("Remaining payment proof uploaded successfully")
+    } catch (err) {
+      console.error("Upload failed", err)
+      toast.error("Failed to upload remaining payment proof")
+    } finally {
+      setUploadingOrderId(null)
+    }
+  }
+
+  const handleCancelPendingRemainingPayment = (orderId: string) => {
+    // Clear localStorage immediately to prevent re-restoration by useEffect
+    try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
+    // Clear from state synchronously to update UI immediately
+    setOrderUploadStates((prev) => {
+      const { [orderId]: _, ...rest } = prev
+      return rest
+    })
   }
 
   const statusIcons = {
@@ -282,27 +361,55 @@ export function OrderHistory() {
                       Remaining Payment Proof
                     </Label>
                     
-                    {/* Show upload dock only if no image is uploaded yet */}
+                    {/* If no finalized URL yet, show either pending preview + actions or the upload dock */}
                     {!order.remainingPaymentProofUrl && (
-                      <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
-                        <input
-                          id={`remaining-payment-proof-${order._id}`}
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleRemainingPaymentProofChange(e, order._id)}
-                          className="hidden"
-                          disabled={uploadingOrderId === order._id}
-                        />
-                        <label htmlFor={`remaining-payment-proof-${order._id}`} className="cursor-pointer">
-                          <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-xs text-muted-foreground">
-                            {uploadingOrderId === order._id 
-                              ? "Uploading..." 
-                              : "Click to upload remaining payment proof"
-                            }
-                          </p>
-                        </label>
-                      </div>
+                      <>
+                        {orderUploadStates[order._id]?.previewUrl ? (
+                          <div className="space-y-2">
+                            <div className="w-full">
+                              <img 
+                                src={orderUploadStates[order._id]?.previewUrl || ""} 
+                                alt="Remaining Payment Preview" 
+                                className="w-full rounded border object-contain max-h-32" 
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm"
+                                onClick={() => handleConfirmRemainingPaymentUpload(order._id)}
+                                disabled={uploadingOrderId === order._id}
+                              >
+                                {uploadingOrderId === order._id ? "Uploading..." : "Confirm Upload"}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleCancelPendingRemainingPayment(order._id)}
+                                disabled={uploadingOrderId === order._id}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
+                            <input
+                              id={`remaining-payment-proof-${order._id}`}
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleRemainingPaymentProofChange(e, order._id)}
+                              className="hidden"
+                              disabled={uploadingOrderId === order._id}
+                            />
+                            <label htmlFor={`remaining-payment-proof-${order._id}`} className="cursor-pointer">
+                              <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-xs text-muted-foreground">
+                                Click to select remaining payment proof
+                              </p>
+                            </label>
+                          </div>
+                        )}
+                      </>
                     )}
                     
                     {/* Show uploaded image and status */}
