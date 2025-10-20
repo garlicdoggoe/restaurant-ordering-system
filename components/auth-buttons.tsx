@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { SignInButton, SignUpButton, useAuth } from '@clerk/nextjs'
 import { useEffect } from 'react'
+import { OwnerSignupDialog } from './owner-signup-dialog'
 
 interface AuthButtonsProps {
   userType: 'owner' | 'customer'
@@ -23,27 +24,45 @@ export function AuthButtons({ userType }: AuthButtonsProps) {
 
   if (userType === 'owner') {
     return (
-      <SignInButton 
-        mode="modal"
-        signUpForceRedirectUrl="/owner"
-        signUpFallbackRedirectUrl="/owner"
-      >
-        <Button className="w-full" size="lg">
-          Owner Dashboard
-        </Button>
-      </SignInButton>
+      <div className="space-y-3">
+        <SignInButton 
+          mode="modal"
+          forceRedirectUrl="/owner"
+          fallbackRedirectUrl="/owner"
+        >
+          <Button className="w-full" size="lg">
+            Login
+          </Button>
+        </SignInButton>
+        <OwnerSignupDialog>
+          <Button className="w-full" size="lg" variant="outline">
+            Sign up
+          </Button>
+        </OwnerSignupDialog>
+      </div>
     )
   }
 
   return (
-    <SignUpButton 
-      mode="modal"
-      forceRedirectUrl="/customer"
-      fallbackRedirectUrl="/customer"
-    >
-      <Button className="w-full" size="lg" variant="secondary">
-        Start Ordering
-      </Button>
-    </SignUpButton>
+    <div className="space-y-3">
+      <SignInButton 
+        mode="modal"
+        forceRedirectUrl="/customer"
+        fallbackRedirectUrl="/customer"
+      >
+        <Button className="w-full" size="lg">
+          Login
+        </Button>
+      </SignInButton>
+      <SignUpButton 
+        mode="modal"
+        forceRedirectUrl="/customer"
+        fallbackRedirectUrl="/customer"
+      >
+        <Button className="w-full" size="lg" variant="outline">
+          Sign up
+        </Button>
+      </SignUpButton>
+    </div>
   )
 }

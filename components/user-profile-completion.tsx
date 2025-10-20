@@ -23,13 +23,16 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
 
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
-  const upsertUser = useMutation(api.users.upsertUser)
   const updateProfile = useMutation(api.users.updateUserProfile)
 
   // If user profile is already complete, don't show this component
   if (currentUser?.profileComplete) {
     return null
   }
+
+  // Debug logging
+  console.log("ProfileCompletion - currentUser:", currentUser)
+  console.log("ProfileCompletion - user:", user)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,23 +43,17 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
         throw new Error("User not found")
       }
 
-      // If user doesn't exist in Convex yet, create them
+      // ProfileCompletion should only update existing users, not create new ones
+      // New user creation is handled by SignupCallback component
       if (!currentUser) {
-        await upsertUser({
-          email: user.emailAddresses[0]?.emailAddress || "",
-          firstName: user.firstName || "",
-          lastName: user.lastName || "",
-          role: "customer", // Default role for new signups
-          phone: phone.trim(),
-          address: address.trim(),
-        })
-      } else {
-        // Update existing user profile
-        await updateProfile({
-          phone: phone.trim(),
-          address: address.trim(),
-        })
+        throw new Error("User not found in database. Please refresh the page.")
       }
+
+      // Update existing user profile
+      await updateProfile({
+        phone: phone.trim(),
+        address: address.trim(),
+      })
 
       toast.success("Profile completed successfully!")
       onComplete?.()

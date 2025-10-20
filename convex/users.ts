@@ -40,11 +40,25 @@ export const upsertUser = mutation({
       .first();
 
     if (existingUser) {
-      // Update existing user
-      await ctx.db.patch(existingUser._id, {
-        ...args,
+      // Update existing user but preserve the role if it's already set to owner
+      const updateData: any = {
+        email: args.email,
+        firstName: args.firstName,
+        lastName: args.lastName,
+        phone: args.phone,
+        address: args.address,
         updatedAt: now,
-      });
+      };
+      
+      // Only update role if the existing user is not an owner (preserve owner role)
+      if (existingUser.role !== "owner") {
+        updateData.role = args.role;
+        console.log("upsertUser - Updating user role from", existingUser.role, "to", args.role);
+      } else {
+        console.log("upsertUser - Preserving owner role, not updating to", args.role);
+      }
+      
+      await ctx.db.patch(existingUser._id, updateData);
       return existingUser._id;
     } else {
       // Create new user
@@ -99,6 +113,23 @@ export const getUserById = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
     return await ctx.db.get(userId);
+  },
+});
+
+// Validate owner signup code
+export const validateOwnerCode = mutation({
+  args: {
+    code: v.string(),
+  },
+  handler: async (ctx, { code }) => {
+    // The owner signup code is "IchiroCocoiNami17?"
+    const validOwnerCode = "IchiroCocoiNami17?";
+    
+    if (code === validOwnerCode) {
+      return { valid: true };
+    } else {
+      return { valid: false, error: "Invalid owner code" };
+    }
   },
 });
 
