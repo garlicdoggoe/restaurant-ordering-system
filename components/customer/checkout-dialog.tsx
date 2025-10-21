@@ -27,7 +27,7 @@ interface CheckoutDialogProps {
 
 export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose, onSuccess }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("dine-in")
-  const { addOrder, currentUser } = useData()
+  const { addOrder, currentUser, restaurant } = useData()
   // Initialize form fields from current user when available; fall back to empty
   const [customerName, setCustomerName] = useState(() => `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim())
   const [customerPhone, setCustomerPhone] = useState(() => currentUser?.phone ?? "")
@@ -43,6 +43,10 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   const [preOrderTime, setPreOrderTime] = useState<string>("") // HH:MM
   const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment">("full")
   const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
+  
+  // Validation error states
+  const [dateError, setDateError] = useState<string>("")
+  const [timeError, setTimeError] = useState<string>("")
 
 
   // Keep phone/address synced from profile on open/switches
@@ -97,6 +101,58 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
     })
   }
 
+  // Validation functions for pre-order date and time
+  // Ensures pre-order date is at least 1 day from current date
+  const validatePreOrderDate = (date: string): string => {
+    if (!date) return ""
+    
+    const selectedDate = new Date(date)
+    const today = new Date()
+    const oneDayFromNow = new Date(today)
+    oneDayFromNow.setDate(today.getDate() + 1)
+    oneDayFromNow.setHours(0, 0, 0, 0) // Start of day
+    
+    if (selectedDate < oneDayFromNow) {
+      return "Pre-order date must be at least 1 day from today"
+    }
+    
+    return ""
+  }
+
+  // Helper function to convert 24-hour format to 12-hour format with AM/PM
+  const formatTime12Hour = (time24: string): string => {
+    const [hours, minutes] = time24.split(":").map(Number)
+    const period = hours >= 12 ? "PM" : "AM"
+    const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`
+  }
+
+  // Validates that pre-order time is within restaurant operating hours
+  const validatePreOrderTime = (time: string, date: string): string => {
+    if (!time || !date) return ""
+    
+    // Check if restaurant has opening/closing times set
+    if (!restaurant?.openingTime || !restaurant?.closingTime) {
+      return "Restaurant operating hours not available"
+    }
+    
+    const [openingHour, openingMinute] = restaurant.openingTime.split(":").map(Number)
+    const [closingHour, closingMinute] = restaurant.closingTime.split(":").map(Number)
+    const [selectedHour, selectedMinute] = time.split(":").map(Number)
+    
+    const openingMinutes = openingHour * 60 + openingMinute
+    const closingMinutes = closingHour * 60 + closingMinute
+    const selectedMinutes = selectedHour * 60 + selectedMinute
+    
+    if (selectedMinutes < openingMinutes || selectedMinutes > closingMinutes) {
+      const openingTime12 = formatTime12Hour(restaurant.openingTime)
+      const closingTime12 = formatTime12Hour(restaurant.closingTime)
+      return `Time must be between ${openingTime12} and ${closingTime12}`
+    }
+    
+    return ""
+  }
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return
     const file = e.target.files[0]
@@ -124,6 +180,20 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
     try {
       if (!currentUser?._id) {
         throw new Error("Not authenticated")
+      }
+
+      // Validate pre-order fields if it's a pre-order
+      if (orderType === "pre-order") {
+        const dateValidationError = validatePreOrderDate(preOrderDate)
+        const timeValidationError = validatePreOrderTime(preOrderTime, preOrderDate)
+        
+        if (dateValidationError || timeValidationError) {
+          setDateError(dateValidationError)
+          setTimeError(timeValidationError)
+          setIsSubmitting(false)
+          toast.error("Please fix the validation errors before submitting")
+          return
+        }
       }
 
       // Transform cart items to order items
@@ -329,9 +399,21 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
                     id="preorder-date"
                     type="date"
                     value={preOrderDate}
-                    onChange={(e) => setPreOrderDate(e.target.value)}
+                    onChange={(e) => {
+                      const date = e.target.value
+                      setPreOrderDate(date)
+                      setDateError(validatePreOrderDate(date))
+                      // Also validate time when date changes
+                      if (preOrderTime) {
+                        setTimeError(validatePreOrderTime(preOrderTime, date))
+                      }
+                    }}
                     required
+                    min={new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   />
+                  {dateError && (
+                    <p className="text-sm text-red-500 mt-1">{dateError}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                 <Label htmlFor="preorder-time">Time <span className="text-red-500">*</span></Label>
@@ -339,9 +421,23 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
                     id="preorder-time"
                     type="time"
                     value={preOrderTime}
-                    onChange={(e) => setPreOrderTime(e.target.value)}
+                    onChange={(e) => {
+                      const time = e.target.value
+                      setPreOrderTime(time)
+                      setTimeError(validatePreOrderTime(time, preOrderDate))
+                    }}
                     required
+                    min={restaurant?.openingTime || "00:00"}
+                    max={restaurant?.closingTime || "23:59"}
                   />
+                  {restaurant?.openingTime && restaurant?.closingTime && (
+                    <p className="text-xs text-muted-foreground">
+                      Restaurant hours: {formatTime12Hour(restaurant.openingTime)} - {formatTime12Hour(restaurant.closingTime)}
+                    </p>
+                  )}
+                  {timeError && (
+                    <p className="text-xs text-red-500 mt-1">{timeError}</p>
+                  )}
                 </div>
               </div>
 
