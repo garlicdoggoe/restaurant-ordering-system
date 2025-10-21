@@ -13,12 +13,14 @@ export function SignupCallback() {
   useEffect(() => {
     console.log("SignupCallback useEffect - isLoaded:", isLoaded, "user:", user, "currentUser:", currentUser)
     
-    if (!isLoaded || !user) {
+    // Wait until Clerk is loaded and Convex user query has resolved (undefined -> loading, null -> not found)
+    if (!isLoaded || !user || currentUser === undefined) {
       console.log("SignupCallback - Skipping: not loaded or no user")
       return
     }
 
-    if (currentUser) {
+    // If a user doc exists (not null), do nothing to avoid overwriting fields on reload
+    if (currentUser !== null) {
       console.log("SignupCallback - Skipping: user already exists with role:", currentUser.role)
       return
     }
@@ -41,13 +43,12 @@ export function SignupCallback() {
           console.log("SignupCallback - Cleaned up localStorage code")
         }
 
+        // Only pass fields we actually know at signup time; do not send undefineds
         await upsertUser({
           email: user.emailAddresses[0]?.emailAddress || "",
           firstName: user.firstName || "",
           lastName: user.lastName || "",
-          role: isOwnerSignup ? "owner" : "customer", 
-          phone: undefined,
-          address: undefined,
+          role: isOwnerSignup ? "owner" : "customer",
         })
         
         console.log("SignupCallback - User created with role:", isOwnerSignup ? "owner" : "customer")

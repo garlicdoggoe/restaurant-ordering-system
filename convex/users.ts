@@ -41,14 +41,15 @@ export const upsertUser = mutation({
 
     if (existingUser) {
       // Update existing user but preserve the role if it's already set to owner
+      // IMPORTANT: Do not overwrite phone/address with undefined (e.g., from signup callback)
       const updateData: any = {
         email: args.email,
         firstName: args.firstName,
         lastName: args.lastName,
-        phone: args.phone,
-        address: args.address,
         updatedAt: now,
       };
+      if (args.phone !== undefined) updateData.phone = args.phone;
+      if (args.address !== undefined) updateData.address = args.address;
       
       // Only update role if the existing user is not an owner (preserve owner role)
       if (existingUser.role !== "owner") {

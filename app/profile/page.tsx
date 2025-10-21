@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -38,13 +38,14 @@ function ProfilePageContent() {
   const currentUser = useQuery(api.users.getCurrentUser)
   const updateProfile = useMutation(api.users.updateUserProfile)
   
-  // Initialize form with existing data
-  useState(() => {
+  // Initialize and keep form data in sync with server state
+  // Mirrors the data handling approach in `components/owner/restaurant-settings.tsx`
+  useEffect(() => {
     if (currentUser) {
       setPhone(currentUser.phone || "")
       setAddress(currentUser.address || "")
     }
-  })
+  }, [currentUser])
 
   if (!user) {
     return (
