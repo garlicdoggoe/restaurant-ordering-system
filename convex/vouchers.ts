@@ -64,7 +64,7 @@ export const validate = query({
     if (voucher.usageCount >= voucher.usageLimit)
       return { valid: false, discount: 0, message: "Voucher usage limit reached" };
     if (orderAmount < voucher.minOrderAmount)
-      return { valid: false, discount: 0, message: `Minimum order amount is $${voucher.minOrderAmount}` };
+      return { valid: false, discount: 0, message: `Minimum order amount is ₱${voucher.minOrderAmount}` };
 
     let discount = 0;
     if (voucher.type === "fixed") {

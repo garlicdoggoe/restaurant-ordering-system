@@ -282,7 +282,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
       })
 
       toast.success("Order placed successfully!", {
-        description: `Your order for $${total.toFixed(2)} has been placed and is being processed.`,
+        description: `Your order for ₱${total.toFixed(2)} has been placed and is being processed.`,
         duration: 4000,
       })
 

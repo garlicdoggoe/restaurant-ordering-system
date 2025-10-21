@@ -54,8 +54,8 @@ export function VouchersView() {
                       {isExpired && <Badge variant="destructive">Expired</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {voucher.type === "percentage" ? `${voucher.value}% off` : `$${voucher.value} off`}
-                      {voucher.minOrderAmount && ` on orders over $${voucher.minOrderAmount}`}
+                      {voucher.type === "percentage" ? `${voucher.value}% off` : `₱${voucher.value} off`}
+                      {voucher.minOrderAmount && ` on orders over ₱${voucher.minOrderAmount}`}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -97,13 +97,13 @@ export function VouchersView() {
                   <div>
                     <p className="text-muted-foreground">Discount</p>
                     <p className="font-semibold">
-                      {voucher.type === "percentage" ? `${voucher.value}%` : `$${voucher.value}`}
+                      {voucher.type === "percentage" ? `${voucher.value}%` : `₱${voucher.value}`}
                     </p>
                   </div>
                   {voucher.minOrderAmount && (
                     <div>
                       <p className="text-muted-foreground">Min Order</p>
-                      <p className="font-semibold">${voucher.minOrderAmount}</p>
+                      <p className="font-semibold">₱{voucher.minOrderAmount}</p>
                     </div>
                   )}
                   <div>

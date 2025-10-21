@@ -113,13 +113,13 @@ export function PromotionDialog({ promotion, onClose }: PromotionDialogProps) {
                 className="w-full px-3 py-2 border rounded-md"
               >
                 <option value="percentage">Percentage (%)</option>
-                <option value="fixed">Fixed Amount ($)</option>
+                <option value="fixed">Fixed Amount (₱)</option>
               </select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="discount-value">
-                Discount Value {formData.discountType === "percentage" ? "(%)" : "($)"}
+                Discount Value {formData.discountType === "percentage" ? "(%)" : "(₱)"}
               </Label>
               <Input
                 id="discount-value"

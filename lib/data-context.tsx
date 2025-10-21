@@ -486,7 +486,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!voucher) return { valid: false, discount: 0, message: "Invalid voucher code" }
     if (voucher.expiresAt < Date.now()) return { valid: false, discount: 0, message: "Voucher has expired" }
     if (voucher.usageCount >= voucher.usageLimit) return { valid: false, discount: 0, message: "Voucher usage limit reached" }
-    if (orderAmount < voucher.minOrderAmount) return { valid: false, discount: 0, message: `Minimum order amount is $${voucher.minOrderAmount}` }
+    if (orderAmount < voucher.minOrderAmount) return { valid: false, discount: 0, message: `Minimum order amount is ₱${voucher.minOrderAmount}` }
     let discount = voucher.type === "fixed" ? voucher.value : Math.min((orderAmount * voucher.value) / 100, voucher.maxDiscount ?? Number.POSITIVE_INFINITY)
     return { valid: true, discount }
   }, [vouchers])

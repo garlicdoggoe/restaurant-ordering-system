@@ -92,7 +92,7 @@ export function VoucherDialog({ voucher, onClose }: VoucherDialogProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="percentage">Percentage (%)</SelectItem>
-                  <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                  <SelectItem value="fixed">Fixed Amount (₱)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -100,7 +100,7 @@ export function VoucherDialog({ voucher, onClose }: VoucherDialogProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="discount-value">Discount Value {formData.type === "percentage" ? "(%)" : "($)"}</Label>
+              <Label htmlFor="discount-value">Discount Value {formData.type === "percentage" ? "(%)" : "(₱)"}</Label>
               <Input
                 id="discount-value"
                 type="number"
@@ -112,7 +112,7 @@ export function VoucherDialog({ voucher, onClose }: VoucherDialogProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="min-order">Min Order Amount ($)</Label>
+              <Label htmlFor="min-order">Min Order Amount (₱)</Label>
               <Input
                 id="min-order"
                 type="number"
@@ -126,7 +126,7 @@ export function VoucherDialog({ voucher, onClose }: VoucherDialogProps) {
 
           {formData.type === "percentage" && (
             <div className="space-y-2">
-              <Label htmlFor="max-discount">Max Discount Amount ($)</Label>
+              <Label htmlFor="max-discount">Max Discount Amount (₱)</Label>
               <Input
                 id="max-discount"
                 type="number"

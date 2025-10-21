@@ -5,9 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload } from "lucide-react"
+import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -34,7 +33,19 @@ export function OrderHistory() {
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders" | "order-tracking">("all")
+  // Set default filter based on current order existence
+  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "ready", "in-transit"]
+  const hasCurrentOrder = orders.filter((o) => o.customerId === customerId)
+    .some((o) => {
+      if (o.orderType === "pre-order") {
+        return o.status !== "pending" && realtimeStatuses.includes(o.status as OrderStatus)
+      }
+      return realtimeStatuses.includes(o.status as OrderStatus)
+    })
+  
+  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders" | "order-tracking">(
+    hasCurrentOrder ? "order-tracking" : "all"
+  )
 
   // State for remaining payment proof upload - per order
   const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
@@ -46,8 +57,6 @@ export function OrderHistory() {
 
   // Precompute customer orders and the current realtime order
   const customerOrders = orders.filter((o) => o.customerId === customerId)
-
-  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "ready", "in-transit"]
   const currentRealtimeOrder = customerOrders
     .filter((o) => {
       // For pre-orders: start tracking only once accepted (preparing) or later
@@ -237,269 +246,363 @@ export function OrderHistory() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold">My Orders</h1>
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Navigation Bar */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" className="p-2">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">My Orders</h1>
+            <p className="text-sm text-gray-500">Order Management</p>
+          </div>
+        </div>
+      </div>
 
-      <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="order-tracking">Order Tracking</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
-          <TabsTrigger value="denied">Denied</TabsTrigger>
-          <TabsTrigger value="pre-orders">Pre-orders</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {filteredOrders.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">No orders found</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {filteredOrders.map((order) => (
-            <Card 
-              key={order._id} 
-              className={getOrderBorderClass(order.status)}
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(order._creationTime ?? order.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className={statusColors[order.status as keyof typeof statusColors]}>
-                    <span className="flex items-center gap-1">
-                      {statusIcons[order.status as keyof typeof statusIcons]}
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </span>
-                  </Badge>
+      <div className="flex h-[calc(100vh-80px)]">
+        {/* Left Sidebar */}
+        <div className="w-1/5 bg-white border-r border-gray-200 p-6">
+          {/* Navigation Items */}
+          <nav className="space-y-2">
+            {/* Filter Navigation */}
+            <div className="mt-6">
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">FILTERS</div>
+              <div className="space-y-1">
+                <div 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    statusFilter === "all" 
+                      ? "bg-purple-100 text-purple-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setStatusFilter("all")}
+                >
+                  <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                  <span className="text-sm">All</span>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {statusFilter === "pre-orders" && (
-                  <div className="grid grid-cols-1 gap-1 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Type: </span>
-                      <span className="font-medium">{order.preOrderFulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
-                    </div>
-                    {order.preOrderScheduledAt && (
-                      <div>
-                        <span className="text-muted-foreground">Date: </span>
-                        <span className="font-medium">{new Date(order.preOrderScheduledAt).toLocaleDateString()}</span>
+                <div 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    statusFilter === "order-tracking" 
+                      ? "bg-purple-100 text-purple-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setStatusFilter("order-tracking")}
+                >
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm">Order Tracking</span>
+                </div>
+                <div 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    statusFilter === "completed" 
+                      ? "bg-purple-100 text-purple-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setStatusFilter("completed")}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm">Completed</span>
+                </div>
+                <div 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    statusFilter === "cancelled" 
+                      ? "bg-purple-100 text-purple-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setStatusFilter("cancelled")}
+                >
+                  <Ban className="w-4 h-4" />
+                  <span className="text-sm">Cancelled</span>
+                </div>
+                <div 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    statusFilter === "denied" 
+                      ? "bg-purple-100 text-purple-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setStatusFilter("denied")}
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span className="text-sm">Denied</span>
+                </div>
+                <div 
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    statusFilter === "pre-orders" 
+                      ? "bg-purple-100 text-purple-700" 
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setStatusFilter("pre-orders")}
+                >
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm">Pre-orders</span>
+                </div>
+              </div>
+            </div>
+          </nav>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 p-6">
+          {filteredOrders.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+              <p className="text-gray-500">No orders found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredOrders.map((order) => (
+                <div 
+                  key={order._id} 
+                  className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow"
+                >
+                  {/* Order Header */}
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <Package className="w-4 h-4 text-gray-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-900">Order #{order._id.slice(-6).toUpperCase()}</h3>
+                          <p className="text-xs text-gray-500">
+                            {new Date(order._creationTime ?? order.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                    )}
-                    {order.preOrderFulfillment === "delivery" && order.customerAddress && (
-                      <div>
-                        <span className="text-muted-foreground">Address: </span>
-                        <span className="font-medium">{order.customerAddress}</span>
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[order.status as keyof typeof statusColors]}`}>
+                        <span className="flex items-center gap-1">
+                          {statusIcons[order.status as keyof typeof statusIcons]}
+                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </span>
                       </div>
-                    )}
-                    <div>
-                      <span className="text-muted-foreground">Payment: </span>
-                      <span className="font-medium">{order.paymentPlan === "downpayment" ? "50% downpayment" : "Full"}</span>
                     </div>
-                    {order.paymentScreenshot && (
-                      <div className="text-xs text-muted-foreground">Payment screenshot provided</div>
-                    )}
-                    
                   </div>
-                )}
 
-                {/* GCash Number Display */}
-                {order.gcashNumber && (
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-800 font-medium">
-                      💳 GCash Number Used: (+63) {order.gcashNumber}
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {order.items.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <span>
-                        {item.quantity}x {item.name}
-                      </span>
-                      <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-                
-                <Separator />
-                
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>${order.subtotal.toFixed(2)}</span>
-                  </div>
-                  
-                  {order.tax > 0 && (
-                    <div className="flex justify-between">
-                      <span>Tax</span>
-                      <span>${order.tax.toFixed(2)}</span>
-                    </div>
-                  )}
-                  
-                  {order.donation > 0 && (
-                    <div className="flex justify-between">
-                      <span>Donation</span>
-                      <span>${order.donation.toFixed(2)}</span>
-                    </div>
-                  )}
-                  
-                  {order.discount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Discount</span>
-                      <span>-${order.discount.toFixed(2)}</span>
-                    </div>
-                  )}
-                </div>
-                
-                <Separator />
-                
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Total</span>
-                  <span>${order.total.toFixed(2)}</span>
-                </div>
-
-                {/* Remaining Payment Proof Upload for Pre-orders */}
-                {order.paymentPlan === "downpayment" && order.remainingPaymentMethod === "online" && (
-                  <div className="space-y-2 mt-3">
-                    <Label className="text-sm font-medium">
-                      Remaining Payment Proof
-                    </Label>
-                    
-                    {/* If no finalized URL yet, show either pending preview + actions or the upload dock */}
-                    {!order.remainingPaymentProofUrl && (
-                      <>
-                        {orderUploadStates[order._id]?.previewUrl ? (
-                          <div className="space-y-2">
-                            <div className="w-full">
-                              <img 
-                                src={orderUploadStates[order._id]?.previewUrl || ""} 
-                                alt="Remaining Payment Preview" 
-                                className="w-full rounded border object-contain max-h-32" 
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <Button 
-                                size="sm"
-                                onClick={() => handleConfirmRemainingPaymentUpload(order._id)}
-                                disabled={uploadingOrderId === order._id}
-                              >
-                                {uploadingOrderId === order._id ? "Uploading..." : "Confirm Upload"}
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleCancelPendingRemainingPayment(order._id)}
-                                disabled={uploadingOrderId === order._id}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
-                            <input
-                              id={`remaining-payment-proof-${order._id}`}
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handleRemainingPaymentProofChange(e, order._id)}
-                              className="hidden"
-                              disabled={uploadingOrderId === order._id}
-                            />
-                            <label htmlFor={`remaining-payment-proof-${order._id}`} className="cursor-pointer">
-                              <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                              <p className="text-xs text-muted-foreground">
-                                Click to select remaining payment proof
-                              </p>
-                            </label>
+                  {/* Order Content */}
+                  <div className="p-4 space-y-3">
+                    {/* Pre-order Details */}
+                    {statusFilter === "pre-orders" && (
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Type:</span>
+                          <span className="font-medium">{order.preOrderFulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
+                        </div>
+                        {order.preOrderScheduledAt && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Date:</span>
+                            <span className="font-medium">{new Date(order.preOrderScheduledAt).toLocaleDateString()}</span>
                           </div>
                         )}
-                      </>
-                    )}
-                    
-                    {/* Show uploaded image and status */}
-                    {order.remainingPaymentProofUrl && (
-                      <div className="space-y-2">
-                        <div className="text-xs text-green-600">
-                          ✓ Remaining payment proof provided
+                        {order.preOrderFulfillment === "delivery" && order.customerAddress && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Address:</span>
+                            <span className="font-medium text-right max-w-32 truncate">{order.customerAddress}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Payment:</span>
+                          <span className="font-medium">{order.paymentPlan === "downpayment" ? "50% downpayment" : "Full"}</span>
                         </div>
-                        <div className="w-full">
-                          <img 
-                            src={order.remainingPaymentProofUrl} 
-                            alt="Remaining Payment Proof" 
-                            className="w-full rounded border object-contain max-h-32" 
-                          />
-                        </div>
+                        {order.paymentScreenshot && (
+                          <div className="text-xs text-green-600">✓ Payment screenshot provided</div>
+                        )}
                       </div>
                     )}
+
+                    {/* GCash Number Display */}
+                    {order.gcashNumber && (
+                      <div className="p-2 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-xs text-blue-800 font-medium">
+                          💳 GCash Number: (+63) {order.gcashNumber}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Order Items */}
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-medium text-gray-900">Items</h4>
+                      {order.items.map((item, index) => (
+                        <div key={index} className="flex justify-between text-xs">
+                          <span className="text-gray-600">
+                            {item.quantity}x {item.name}
+                          </span>
+                          <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="border-t border-gray-100 pt-2 space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Subtotal</span>
+                        <span>₱{order.subtotal.toFixed(2)}</span>
+                      </div>
+                      
+                      {order.tax > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Tax</span>
+                          <span>₱{order.tax.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {order.donation > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Donation</span>
+                          <span>₱{order.donation.toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {order.discount > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Discount</span>
+                          <span>-₱{order.discount.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-between font-semibold text-sm border-t border-gray-100 pt-2">
+                      <span>Total</span>
+                      <span className="text-purple-600">₱{order.total.toFixed(2)}</span>
+                    </div>
+
+                    {/* Remaining Payment Proof Upload for Pre-orders */}
+                    {order.paymentPlan === "downpayment" && order.remainingPaymentMethod === "online" && (
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium text-gray-900">
+                          Remaining Payment Proof
+                        </Label>
+                        
+                        {/* If no finalized URL yet, show either pending preview + actions or the upload dock */}
+                        {!order.remainingPaymentProofUrl && (
+                          <>
+                            {orderUploadStates[order._id]?.previewUrl ? (
+                              <div className="space-y-3">
+                                <div className="w-full">
+                                  <img 
+                                    src={orderUploadStates[order._id]?.previewUrl || ""} 
+                                    alt="Remaining Payment Preview" 
+                                    className="w-full rounded-lg border object-contain max-h-32" 
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm"
+                                    onClick={() => handleConfirmRemainingPaymentUpload(order._id)}
+                                    disabled={uploadingOrderId === order._id}
+                                    className="bg-purple-600 hover:bg-purple-700"
+                                  >
+                                    {uploadingOrderId === order._id ? "Uploading..." : "Confirm Upload"}
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => handleCancelPendingRemainingPayment(order._id)}
+                                    disabled={uploadingOrderId === order._id}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-purple-400 transition-colors cursor-pointer">
+                                <input
+                                  id={`remaining-payment-proof-${order._id}`}
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleRemainingPaymentProofChange(e, order._id)}
+                                  className="hidden"
+                                  disabled={uploadingOrderId === order._id}
+                                />
+                                <label htmlFor={`remaining-payment-proof-${order._id}`} className="cursor-pointer">
+                                  <Upload className="w-6 h-6 mx-auto mb-2 text-gray-400" />
+                                  <p className="text-xs text-gray-500">
+                                    Click to select remaining payment proof
+                                  </p>
+                                </label>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Show uploaded image and status */}
+                        {order.remainingPaymentProofUrl && (
+                          <div className="space-y-2">
+                            <div className="text-xs text-green-600 font-medium">
+                              ✓ Remaining payment proof provided
+                            </div>
+                            <div className="w-full">
+                              <img 
+                                src={order.remainingPaymentProofUrl} 
+                                alt="Remaining Payment Proof" 
+                                className="w-full rounded-lg border object-contain max-h-32" 
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedOrderId(order._id)
+                          setChatOpen(true)
+                        }}
+                        className="flex-1"
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Chat
+                      </Button>
+
+                      {order.paymentScreenshot && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPaymentUrl(order.paymentScreenshot || null)
+                            setPaymentOpen(true)
+                          }}
+                          className="flex-1"
+                        >
+                          View Payment
+                        </Button>
+                      )}
+
+                      {order.remainingPaymentProofUrl && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPaymentUrl(order.remainingPaymentProofUrl || null)
+                            setPaymentOpen(true)
+                          }}
+                          className="flex-1"
+                        >
+                          View Remaining
+                        </Button>
+                      )}
+
+                      {order.status === "pending" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCancelOrderId(order._id)}
+                          className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Ban className="w-4 h-4 mr-2" />
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedOrderId(order._id)
-                      setChatOpen(true)
-                    }}
-                  >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Chat with Restaurant
-                  </Button>
-
-                  {order.paymentScreenshot && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setPaymentUrl(order.paymentScreenshot || null)
-                        setPaymentOpen(true)
-                      }}
-                    >
-                      View Payment
-                    </Button>
-                  )}
-
-                  {order.remainingPaymentProofUrl && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setPaymentUrl(order.remainingPaymentProofUrl || null)
-                        setPaymentOpen(true)
-                      }}
-                    >
-                      View Remaining Payment
-                    </Button>
-                  )}
-
-                  {order.status === "pending" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCancelOrderId(order._id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Ban className="w-4 h-4 mr-2" />
-                      Cancel Order
-                    </Button>
-                  )}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
+      {/* Dialogs */}
       {selectedOrderId && <ChatDialog orderId={selectedOrderId} open={chatOpen} onOpenChange={setChatOpen} />}
 
       <AlertDialog open={!!cancelOrderId} onOpenChange={() => setCancelOrderId(null)}>

@@ -38,10 +38,10 @@ export function CustomerInterface() {
     <div className="min-h-screen bg-background">
       <CustomerHeader currentView={currentView} onViewChange={setCurrentView} cartItemCount={pendingOrder ? 0 : getCartItemCount()} />
 
-      <div className="container mx-auto p-6">
-        {currentView === "menu" ? (
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
+      {currentView === "menu" ? (
+        <div className="w-full p-6">
+          <div className="grid lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-3">
               <MenuBrowser onAddToCart={addToCart} />
             </div>
             <div className="lg:col-span-1 space-y-6">
@@ -52,10 +52,10 @@ export function CustomerInterface() {
               )}
             </div>
           </div>
-        ) : (
-          <OrderHistory />
-        )}
-      </div>
+        </div>
+      ) : (
+        <OrderHistory />
+      )}
     </div>
   )
 }

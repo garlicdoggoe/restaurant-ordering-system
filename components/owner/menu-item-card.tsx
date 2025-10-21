@@ -59,7 +59,7 @@ export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-lg font-bold">${item.price.toFixed(2)}</span>
+            <span className="text-lg font-bold">₱{item.price.toFixed(2)}</span>
             <div className="text-xs text-muted-foreground capitalize">{item.category}</div>
           </div>
           <div className="flex gap-2">

@@ -63,7 +63,7 @@ export function PendingOrder({ orderId }: PendingOrderProps) {
               <span>
                 {item.quantity}x {item.name}
               </span>
-              <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
+              <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
             </div>
           ))}
         </div>
@@ -73,24 +73,24 @@ export function PendingOrder({ orderId }: PendingOrderProps) {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span>Subtotal</span>
-            <span>${order.subtotal.toFixed(2)}</span>
+            <span>₱{order.subtotal.toFixed(2)}</span>
           </div>
           {order.tax > 0 && (
             <div className="flex justify-between">
               <span>Tax</span>
-              <span>${order.tax.toFixed(2)}</span>
+              <span>₱{order.tax.toFixed(2)}</span>
             </div>
           )}
           {order.donation > 0 && (
             <div className="flex justify-between">
               <span>Donation</span>
-              <span>${order.donation.toFixed(2)}</span>
+              <span>₱{order.donation.toFixed(2)}</span>
             </div>
           )}
           {order.discount > 0 && (
             <div className="flex justify-between text-green-600">
               <span>Discount</span>
-              <span>-${order.discount.toFixed(2)}</span>
+              <span>-₱{order.discount.toFixed(2)}</span>
             </div>
           )}
         </div>
@@ -99,7 +99,7 @@ export function PendingOrder({ orderId }: PendingOrderProps) {
 
         <div className="flex justify-between font-semibold text-lg">
           <span>Total</span>
-          <span>${order.total.toFixed(2)}</span>
+          <span>₱{order.total.toFixed(2)}</span>
         </div>
 
         {order.paymentScreenshot && (

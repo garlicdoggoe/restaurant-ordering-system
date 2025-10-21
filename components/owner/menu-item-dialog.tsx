@@ -168,7 +168,7 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price">Price ($) *</Label>
+              <Label htmlFor="price">Price (₱) *</Label>
               <Input
                 id="price"
                 type="number"

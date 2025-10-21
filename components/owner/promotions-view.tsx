@@ -111,7 +111,7 @@ export function PromotionsView() {
                         <p className="font-medium">
                           {promotion.discountType === "percentage"
                             ? `${promotion.discountValue}%`
-                            : `$${promotion.discountValue}`}{" "}
+                            : `₱${promotion.discountValue}`}{" "}
                           off
                         </p>
                       </div>
