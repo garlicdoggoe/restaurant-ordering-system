@@ -85,10 +85,13 @@ export const seedDefaultCategories = mutation({
       const defaultCategories = [
         { name: "Pasta", icon: "🍝", order: 1 },
         { name: "Pizza", icon: "🍕", order: 2 },
-        { name: "Steak", icon: "🥩", order: 3 },
-        { name: "Rice", icon: "🍚", order: 4 },
-        { name: "Noodle", icon: "🍜", order: 5 },
-        { name: "Salad", icon: "🥗", order: 6 },
+        { name: "Rice Meals", icon: "🍚", order: 3 },
+        { name: "Bilao", icon: "🍜", order: 4 },
+        { name: "Bundles", icon: "🍽️", order: 5 },
+        { name: "Burger", icon: "🍔", order: 6 },
+        { name: "Snacks", icon: "🍟", order: 7 },
+        { name: "Chillers", icon: "🍮", order: 8 },
+        { name: "Salad", icon: "🥗", order: 9 },
       ];
 
       for (const category of defaultCategories) {

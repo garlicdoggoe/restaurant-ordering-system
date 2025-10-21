@@ -117,9 +117,12 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
                     <>
                       <SelectItem value="pasta">🍝 Pasta</SelectItem>
                       <SelectItem value="pizza">🍕 Pizza</SelectItem>
-                      <SelectItem value="steak">🥩 Steak</SelectItem>
-                      <SelectItem value="rice">🍚 Rice</SelectItem>
-                      <SelectItem value="noodle">🍜 Noodle</SelectItem>
+                      <SelectItem value="rice meals">🍚 Rice Meals</SelectItem>
+                      <SelectItem value="bilao">🍜 Bilao</SelectItem>
+                      <SelectItem value="bundles">🍽️ Bundles</SelectItem>
+                      <SelectItem value="burger">🍔 Burger</SelectItem>
+                      <SelectItem value="snacks">🍟 Snacks</SelectItem>
+                      <SelectItem value="chillers">🍮 Chillers</SelectItem>
                       <SelectItem value="salad">🥗 Salad</SelectItem>
                     </>
                   )}

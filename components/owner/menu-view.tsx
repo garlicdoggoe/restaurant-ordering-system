@@ -32,10 +32,13 @@ export function MenuView() {
   const availableCategories = categories.length > 0 ? categories : [
     { _id: "1", name: "Pasta", icon: "🍝", order: 1 },
     { _id: "2", name: "Pizza", icon: "🍕", order: 2 },
-    { _id: "3", name: "Steak", icon: "🥩", order: 3 },
-    { _id: "4", name: "Rice", icon: "🍚", order: 4 },
-    { _id: "5", name: "Noodle", icon: "🍜", order: 5 },
-    { _id: "6", name: "Salad", icon: "🥗", order: 6 },
+    { _id: "3", name: "Rice Meals", icon: "🍚", order: 3 },
+    { _id: "4", name: "Bilao", icon: "🍜", order: 4 },
+    { _id: "5", name: "Bundles", icon: "🍽️", order: 5 },
+    { _id: "6", name: "Burger", icon: "🍔", order: 6 },
+    { _id: "7", name: "Snacks", icon: "🍟", order: 7 },
+    { _id: "8", name: "Chillers", icon: "🍮", order: 8 },
+    { _id: "9", name: "Salad", icon: "🥗", order: 9 },
   ]
 
   const allCategories = [
