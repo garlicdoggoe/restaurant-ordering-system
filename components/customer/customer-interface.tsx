@@ -54,7 +54,7 @@ export function CustomerInterface() {
           </div>
         </div>
       ) : (
-        <OrderHistory />
+        <OrderHistory onBackToMenu={() => setCurrentView("menu")} />
       )}
     </div>
   )

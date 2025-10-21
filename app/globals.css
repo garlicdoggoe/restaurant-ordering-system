@@ -8,8 +8,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.35 0.08 285);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.7 0.15 85);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -20,12 +20,12 @@
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.35 0.08 285);
+  --ring: oklch(0.7 0.15 85);
   --radius: 0.75rem;
   --sidebar: oklch(0.22 0.02 270);
   --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.35 0.08 285);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.7 0.15 85);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.28 0.02 270);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.28 0.02 270);
@@ -34,10 +34,10 @@
 
 @theme inline {
   /* Updated color palette to match reference design */
-  /* Primary - Dark Purple for buttons and accents */
-  --color-primary: #4a3f5c;
-  --color-primary-hover: #3d3349;
-  --color-primary-foreground: #ffffff;
+  /* Primary - Yellow for buttons and accents */
+  --color-primary: #fbbf24;
+  --color-primary-hover: #f59e0b;
+  --color-primary-foreground: #1a1a1a;
 
   /* Status Colors - Matching reference design exactly */
   --color-status-dine-in: #ffd93d;
@@ -64,9 +64,9 @@
   --color-accent-foreground: #1a1a1a;
   --color-border: #e5e7eb;
   --color-input: #e5e7eb;
-  --color-ring: #4a3f5c;
+  --color-ring: #fbbf24;
 
-  /* Sidebar - Dark purple/navy matching reference */
+  /* Sidebar - Dark yellow/navy matching reference */
   --color-sidebar: #2d2d3d;
   --color-sidebar-foreground: #e5e7eb;
   --color-sidebar-accent: #3a3a4d;

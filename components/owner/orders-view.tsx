@@ -110,7 +110,7 @@ export function OrdersView() {
             </TabsTrigger>
             <TabsTrigger value="in-transit" className="gap-2">
               In Transit
-              <Badge variant="secondary" className="rounded-full bg-purple-100 text-purple-800">
+              <Badge variant="secondary" className="rounded-full bg-yellow-100 text-yellow-800">
                 {statusCounts["in-transit"]}
               </Badge>
             </TabsTrigger>

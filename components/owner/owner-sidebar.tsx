@@ -36,7 +36,7 @@ export function OwnerSidebar({ currentView, onViewChange }: OwnerSidebarProps) {
             className={cn(
               "w-12 h-12 rounded-xl transition-colors",
               currentView === item.id
-                ? "bg-[#4A3F5C] text-white hover:bg-[#3d3349]"
+                ? "bg-[#fbbf24] text-black hover:bg-[#f59e0b]"
                 : "text-gray-400 hover:text-white hover:bg-white/10",
             )}
             onClick={() => onViewChange(item.id)}

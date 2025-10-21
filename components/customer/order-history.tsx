@@ -24,7 +24,11 @@ import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 
-export function OrderHistory() {
+interface OrderHistoryProps {
+  onBackToMenu: () => void
+}
+
+export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
   const { orders, updateOrder, currentUser } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -208,7 +212,7 @@ export function OrderHistory() {
     pending: <Clock className="w-4 h-4 text-yellow-600" />,
     denied: <XCircle className="w-4 h-4 text-red-600" />,
     cancelled: <Ban className="w-4 h-4 text-gray-600" />,
-    "in-transit": <Truck className="w-4 h-4 text-purple-600" />,
+    "in-transit": <Truck className="w-4 h-4 text-yellow-600" />,
     delivered: <Package className="w-4 h-4 text-emerald-600" />,
   }
 
@@ -219,7 +223,7 @@ export function OrderHistory() {
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
     denied: "bg-red-100 text-red-800 border-red-200",
     cancelled: "bg-gray-100 text-gray-800 border-gray-200",
-    "in-transit": "bg-purple-100 text-purple-800 border-purple-200",
+    "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
     delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
   }
 
@@ -237,7 +241,7 @@ export function OrderHistory() {
       case "cancelled":
         return "border-gray-500 border-2"
       case "in-transit":
-        return "border-purple-500 border-2"
+        return "border-yellow-500 border-2"
       case "delivered":
         return "border-emerald-500 border-2"
       default:
@@ -250,7 +254,7 @@ export function OrderHistory() {
       {/* Top Navigation Bar */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="p-2">
+          <Button variant="ghost" size="sm" className="p-2" onClick={onBackToMenu}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
@@ -272,7 +276,7 @@ export function OrderHistory() {
                 <div 
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     statusFilter === "all" 
-                      ? "bg-purple-100 text-purple-700" 
+                      ? "bg-yellow-100 text-yellow-700" 
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                   onClick={() => setStatusFilter("all")}
@@ -283,7 +287,7 @@ export function OrderHistory() {
                 <div 
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     statusFilter === "order-tracking" 
-                      ? "bg-purple-100 text-purple-700" 
+                      ? "bg-yellow-100 text-yellow-700" 
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                   onClick={() => setStatusFilter("order-tracking")}
@@ -294,7 +298,7 @@ export function OrderHistory() {
                 <div 
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     statusFilter === "completed" 
-                      ? "bg-purple-100 text-purple-700" 
+                      ? "bg-yellow-100 text-yellow-700" 
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                   onClick={() => setStatusFilter("completed")}
@@ -305,7 +309,7 @@ export function OrderHistory() {
                 <div 
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     statusFilter === "cancelled" 
-                      ? "bg-purple-100 text-purple-700" 
+                      ? "bg-yellow-100 text-yellow-700" 
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                   onClick={() => setStatusFilter("cancelled")}
@@ -316,7 +320,7 @@ export function OrderHistory() {
                 <div 
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     statusFilter === "denied" 
-                      ? "bg-purple-100 text-purple-700" 
+                      ? "bg-yellow-100 text-yellow-700" 
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                   onClick={() => setStatusFilter("denied")}
@@ -327,7 +331,7 @@ export function OrderHistory() {
                 <div 
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     statusFilter === "pre-orders" 
-                      ? "bg-purple-100 text-purple-700" 
+                      ? "bg-yellow-100 text-yellow-700" 
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                   onClick={() => setStatusFilter("pre-orders")}
@@ -459,7 +463,7 @@ export function OrderHistory() {
                     
                     <div className="flex justify-between font-semibold text-sm border-t border-gray-100 pt-2">
                       <span>Total</span>
-                      <span className="text-purple-600">₱{order.total.toFixed(2)}</span>
+                      <span className="text-yellow-600">₱{order.total.toFixed(2)}</span>
                     </div>
 
                     {/* Remaining Payment Proof Upload for Pre-orders */}
@@ -486,7 +490,7 @@ export function OrderHistory() {
                                     size="sm"
                                     onClick={() => handleConfirmRemainingPaymentUpload(order._id)}
                                     disabled={uploadingOrderId === order._id}
-                                    className="bg-purple-600 hover:bg-purple-700"
+                                    className="bg-yellow-600 hover:bg-yellow-700"
                                   >
                                     {uploadingOrderId === order._id ? "Uploading..." : "Confirm Upload"}
                                   </Button>
@@ -501,7 +505,7 @@ export function OrderHistory() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-purple-400 transition-colors cursor-pointer">
+                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-yellow-400 transition-colors cursor-pointer">
                                 <input
                                   id={`remaining-payment-proof-${order._id}`}
                                   type="file"
