@@ -68,7 +68,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
               <DialogTitle>Chat with {order.customerName}</DialogTitle>
               <p className="text-sm text-muted-foreground">Order #{orderId.slice(-6).toUpperCase()}</p>
             </div>
-            <Badge variant="outline" className={statusColors[order.status]}>
+            <Badge variant="outline" className={statusColors[order.status as keyof typeof statusColors]}>
               {order.status}
             </Badge>
           </div>
