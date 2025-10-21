@@ -147,13 +147,22 @@ export function HistoricalOrdersView() {
             const createdTs = (order._creationTime ?? order.createdAt) || 0
             const idShort = order._id.slice(-6).toUpperCase()
             return (
-              <button
+              <div
                 key={order._id}
-                className="grid grid-cols-7 gap-2 w-full text-left px-4 py-3 hover:bg-accent/40 transition-colors"
-                onClick={() => setSelectedOrderId(order._id)}
+                className="grid grid-cols-7 gap-2 w-full px-4 py-3 hover:bg-accent/40 transition-colors"
               >
-                <div className="font-mono text-sm">#{idShort}</div>
-                <div className="text-sm">{order.customerName}</div>
+                <button
+                  className="text-left font-mono text-sm hover:text-primary"
+                  onClick={() => setSelectedOrderId(order._id)}
+                >
+                  #{idShort}
+                </button>
+                <button
+                  className="text-left text-sm hover:text-primary"
+                  onClick={() => setSelectedOrderId(order._id)}
+                >
+                  {order.customerName}
+                </button>
                 <div className="text-sm text-muted-foreground">{order.customerPhone}</div>
                 <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
                 <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
@@ -171,8 +180,7 @@ export function HistoricalOrdersView() {
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation()
+                      onClick={() => {
                         setPaymentUrl(order.paymentScreenshot || null)
                         setPaymentOpen(true)
                       }}
@@ -181,7 +189,7 @@ export function HistoricalOrdersView() {
                     </Button>
                   )}
                 </div>
-              </button>
+              </div>
             )
           })}
 

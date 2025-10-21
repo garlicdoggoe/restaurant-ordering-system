@@ -158,7 +158,7 @@ export function OrdersView() {
         ))}
       </div>
 
-      {(selectedStatus === "pending" || selectedStatus === "preparing") && preOrders.length > 0 && (
+      {preOrders.length > 0 && (
         <>
           <div className="mt-6">
             <h2 className="text-xl font-semibold">Pre-orders</h2>
