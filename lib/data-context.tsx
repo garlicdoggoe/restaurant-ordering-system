@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
 import { useQuery, useMutation } from "convex/react"
 import { useUser } from "@clerk/nextjs"
 import { api } from "@/convex/_generated/api"
@@ -196,6 +196,7 @@ interface DataContextType {
   // Denial Reasons
   denialReasons: DenialReason[]
   addDenialReason: (reason: string) => void
+  initializePresetReasons: () => void
 
   // Chat Messages
   chatMessages: ChatMessage[]
@@ -238,8 +239,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const categoriesDocs = useQuery(apiAny.menu?.getCategories) ?? []
   const menuDocs = useQuery(apiAny.menu?.getMenuItems, {}) ?? []
   // Orders are role-filtered server-side. This returns either all orders (owner) or only the current customer's orders.
-  // Avoid querying when unauthenticated (e.g., homepage before login or after logout redirect)
-  const shouldFetchOrders = !!clerkUser && !!isLoaded
+  // Avoid querying when unauthenticated or before the Convex user doc exists on first login.
+  // currentUserDoc === undefined => loading; null => not found yet
+  const hasConvexUser = currentUserDoc !== undefined && currentUserDoc !== null
+  const shouldFetchOrders = !!clerkUser && !!isLoaded && hasConvexUser
   const ordersDocs = useQuery(apiAny.orders?.list, shouldFetchOrders ? {} : undefined) ?? []
   const vouchersDocs = useQuery(apiAny.vouchers?.list) ?? []
   const promotionsDocs = useQuery(apiAny.promotions?.list) ?? []
@@ -267,6 +270,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updatePromotionMut = useMutation(apiAny.promotions?.update)
   const deletePromotionMut = useMutation(apiAny.promotions?.remove)
   const addDenialReasonMut = useMutation(apiAny.denial_reasons?.add)
+  const initializePresetReasonsMut = useMutation(apiAny.denial_reasons?.initializePresetReasons)
   const sendChatMut = useMutation(apiAny.chat?.send)
 
   // Mapped values
@@ -498,6 +502,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
     void addDenialReasonMut({ reason, isPreset: false })
   }, [addDenialReasonMut])
 
+  const initializePresetReasons = useCallback(() => {
+    void initializePresetReasonsMut({})
+  }, [initializePresetReasonsMut])
+
+  // Initialize preset denial reasons when component mounts
+  useEffect(() => {
+    if (denialReasons.length === 0) {
+      initializePresetReasons()
+    }
+  }, [denialReasons.length, initializePresetReasons])
+
   const chatMessages: ChatMessage[] = []
   const sendMessage = useCallback((orderId: string, senderId: string, senderName: string, senderRole: "owner" | "customer", message: string) => {
     void sendChatMut({ orderId, senderId, senderName, senderRole, message })
@@ -537,6 +552,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     deletePromotion,
     denialReasons,
     addDenialReason,
+    initializePresetReasons,
     chatMessages,
     sendMessage,
     getOrderMessages,

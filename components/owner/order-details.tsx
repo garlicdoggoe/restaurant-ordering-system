@@ -10,6 +10,7 @@ import { AcceptOrderDialog } from "./accept-order-dialog"
 import { DenyOrderDialog } from "./deny-order-dialog"
 import { useData } from "@/lib/data-context"
 import Image from "next/image"
+import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
 interface OrderDetailsProps {
   orderId: string
@@ -39,7 +40,7 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
               </Button>
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              {order.customerName} - {order.customerPhone}
+              {order.customerName} - {formatPhoneForDisplay(order.customerPhone)}
             </p>
             <p className="text-xs text-muted-foreground">
               Ordered: {new Date(order._creationTime ?? order.createdAt).toLocaleString()}

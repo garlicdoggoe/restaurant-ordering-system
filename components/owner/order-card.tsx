@@ -8,6 +8,7 @@ import { Check, X, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 import { useData } from "@/lib/data-context"
 import Image from "next/image"
+import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
 interface OrderCardProps {
   order: {
@@ -119,7 +120,7 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
         {/* Customer Information */}
         <div className="space-y-1">
           <p className="text-sm font-medium">{order.customerName}</p>
-          <p className="text-xs text-muted-foreground">{order.customerPhone}</p>
+          <p className="text-xs text-muted-foreground">{formatPhoneForDisplay(order.customerPhone)}</p>
           {order.customerAddress && (order.type === "delivery" || order.type === "pre-order") && (
             <p className="text-xs text-muted-foreground">{order.customerAddress}</p>
           )}

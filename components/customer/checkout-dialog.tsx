@@ -14,6 +14,8 @@ import { useData } from "@/lib/data-context"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 
 interface CheckoutDialogProps {
   items: any[]
@@ -52,7 +54,11 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   // Keep phone/address synced from profile on open/switches
   useEffect(() => {
     if (currentUser?.phone) {
-      setCustomerPhone((prev) => prev || currentUser.phone as string)
+      // Strip +63 prefix from phone number for display in input field
+      const phoneWithoutPrefix = currentUser.phone.startsWith('+63') 
+        ? currentUser.phone.substring(3) 
+        : currentUser.phone
+      setCustomerPhone((prev) => prev || phoneWithoutPrefix)
     }
     if (currentUser && (currentUser.firstName || currentUser.lastName)) {
       const n = `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim()
@@ -182,6 +188,13 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         throw new Error("Not authenticated")
       }
 
+      // Validate phone number
+      if (!isValidPhoneNumber(customerPhone)) {
+        toast.error("Please enter a valid phone number")
+        setIsSubmitting(false)
+        return
+      }
+
       // Validate pre-order fields if it's a pre-order
       if (orderType === "pre-order") {
         const dateValidationError = validatePreOrderDate(preOrderDate)
@@ -242,11 +255,14 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         preOrderScheduledAt = dateObj.getTime()
       }
 
+      // Normalize phone number before saving (add +63 prefix to 10-digit number)
+      const normalizedPhone = `+63${customerPhone}`
+
       addOrder({
         // Backend enforces and overrides customerId to the authenticated user; provide for types
         customerId: currentUser._id,
         customerName,
-        customerPhone,
+        customerPhone: normalizedPhone,
         customerAddress: effectiveAddress,
         items: orderItems,
         subtotal,
@@ -308,16 +324,13 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone<span className="text-red-500">*</span></Label>
-            <Input
-              id="phone"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Your phone number"
-              required
-            />
-          </div>
+          <PhoneInput
+            id="phone"
+            label="Phone"
+            value={customerPhone}
+            onChange={setCustomerPhone}
+            required
+          />
 
           <div className="space-y-3">
             <Label>Order Type</Label>

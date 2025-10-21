@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useData } from "@/lib/data-context"
+import { PhoneInput } from "@/components/ui/phone-input"
+import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 
 // Source for barangay list: DILG Region V (Camarines Sur - Libmanan)
 const LIBMANAN_BARANGAYS = [
@@ -112,11 +114,16 @@ export function RestaurantSettings() {
 
   // Update form data when restaurant data changes from Convex
   useEffect(() => {
+    // Strip +63 prefix from phone number for display in input field
+    const phoneWithoutPrefix = restaurant.phone?.startsWith('+63') 
+      ? restaurant.phone.substring(3) 
+      : restaurant.phone || ""
+    
     setFormData({
       name: restaurant.name || "",
       description: restaurant.description || "",
       address: restaurant.address || "",
-      phone: restaurant.phone || "",
+      phone: phoneWithoutPrefix,
       email: restaurant.email || "",
       preparationTime: restaurant.averagePrepTime?.toString() || "0",
       deliveryTime: restaurant.averageDeliveryTime?.toString() || "0",
@@ -216,11 +223,20 @@ export function RestaurantSettings() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Validate phone number
+    if (formData.phone && !isValidPhoneNumber(formData.phone)) {
+      alert("Please enter a valid phone number")
+      return
+    }
+
+    // Normalize phone number before saving (add +63 prefix to 10-digit number)
+    const normalizedPhone = formData.phone ? `+63${formData.phone}` : ""
+
     updateRestaurant({
       name: formData.name,
       description: formData.description,
       address: formData.address,
-      phone: formData.phone,
+      phone: normalizedPhone,
       email: formData.email,
       logo: formData.logo,
       openingTime: formData.openingTime,
@@ -429,14 +445,12 @@ export function RestaurantSettings() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
+              <PhoneInput
+                id="phone"
+                label="Phone"
+                value={formData.phone}
+                onChange={(value) => setFormData({ ...formData, phone: value })}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

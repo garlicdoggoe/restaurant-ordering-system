@@ -15,7 +15,9 @@ export const list = query({
       .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
       .first();
 
-    if (!currentUser) throw new Error("User not found");
+    // During first sign-in, the Clerk account may exist before the Convex user doc is created.
+    // Return an empty list instead of throwing to allow the client to proceed to profile completion.
+    if (!currentUser) return [];
 
     if (currentUser.role === "owner") {
       return await ctx.db.query("orders").collect();

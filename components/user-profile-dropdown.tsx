@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
 import { User, LogOut, Settings, MapPin, Phone, Mail } from "lucide-react"
+import { formatPhoneForDisplay } from "@/lib/phone-validation"
 import { SignOutButton } from "@clerk/nextjs"
 
 export function UserProfileDropdown() {
@@ -77,7 +78,7 @@ export function UserProfileDropdown() {
                 {currentUser?.phone && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="h-4 w-4" />
-                    <span>{currentUser.phone}</span>
+                    <span>{formatPhoneForDisplay(currentUser.phone)}</span>
                   </div>
                 )}
                 

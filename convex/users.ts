@@ -25,6 +25,7 @@ export const upsertUser = mutation({
     role: v.union(v.literal("customer"), v.literal("owner")),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    gcashNumber: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -41,7 +42,7 @@ export const upsertUser = mutation({
 
     if (existingUser) {
       // Update existing user but preserve the role if it's already set to owner
-      // IMPORTANT: Do not overwrite phone/address with undefined (e.g., from signup callback)
+      // IMPORTANT: Do not overwrite phone/address/gcashNumber with undefined (e.g., from signup callback)
       const updateData: any = {
         email: args.email,
         firstName: args.firstName,
@@ -50,6 +51,7 @@ export const upsertUser = mutation({
       };
       if (args.phone !== undefined) updateData.phone = args.phone;
       if (args.address !== undefined) updateData.address = args.address;
+      if (args.gcashNumber !== undefined) updateData.gcashNumber = args.gcashNumber;
       
       // Only update role if the existing user is not an owner (preserve owner role)
       if (existingUser.role !== "owner") {
@@ -66,7 +68,7 @@ export const upsertUser = mutation({
       return await ctx.db.insert("users", {
         clerkId,
         ...args,
-        profileComplete: args.role === "owner" || !!(args.phone && args.address), // Owner is always complete, customer needs phone+address
+        profileComplete: args.role === "owner" || !!(args.phone && args.address && args.gcashNumber), // Owner is always complete, customer needs phone+address+gcashNumber
         createdAt: now,
         updatedAt: now,
       });
@@ -79,6 +81,7 @@ export const updateUserProfile = mutation({
   args: {
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    gcashNumber: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -101,7 +104,8 @@ export const updateUserProfile = mutation({
     if (user.role === "customer") {
       const phone = args.phone ?? user.phone;
       const address = args.address ?? user.address;
-      updatedData.profileComplete = !!(phone && address);
+      const gcashNumber = args.gcashNumber ?? user.gcashNumber;
+      updatedData.profileComplete = !!(phone && address && gcashNumber);
     }
 
     await ctx.db.patch(user._id, updatedData);

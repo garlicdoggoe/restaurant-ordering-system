@@ -11,10 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Save, User, Mail, Phone, MapPin, Shield } from "lucide-react"
+import { ArrowLeft, Save, User, Mail, Phone, MapPin, Shield, CreditCard } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { SignupCallback } from "@/components/signup-callback"
+import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
+import { normalizePhoneNumber, isValidPhoneNumber, formatPhoneForDisplay } from "@/lib/phone-validation"
 
 export default function ProfilePage() {
   return (
@@ -33,6 +35,7 @@ function ProfilePageContent() {
   // Form state
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
+  const [gcashNumber, setGcashNumber] = useState("")
   
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
@@ -42,8 +45,17 @@ function ProfilePageContent() {
   // Mirrors the data handling approach in `components/owner/restaurant-settings.tsx`
   useEffect(() => {
     if (currentUser) {
-      setPhone(currentUser.phone || "")
+      // Strip +63 prefix from phone numbers for display in input fields
+      const phoneWithoutPrefix = currentUser.phone?.startsWith('+63') 
+        ? currentUser.phone.substring(3) 
+        : currentUser.phone || ""
+      const gcashWithoutPrefix = currentUser.gcashNumber?.startsWith('+63') 
+        ? currentUser.gcashNumber.substring(3) 
+        : currentUser.gcashNumber || ""
+      
+      setPhone(phoneWithoutPrefix)
       setAddress(currentUser.address || "")
+      setGcashNumber(gcashWithoutPrefix)
     }
   }, [currentUser])
 
@@ -63,9 +75,27 @@ function ProfilePageContent() {
     setIsSubmitting(true)
 
     try {
+      // Validate phone numbers before submission
+      if (phone.trim() && !isValidPhoneNumber(phone)) {
+        toast.error("Please enter a valid phone number")
+        setIsSubmitting(false)
+        return
+      }
+
+      if (gcashNumber.trim() && !isValidPhoneNumber(gcashNumber)) {
+        toast.error("Please enter a valid GCash number")
+        setIsSubmitting(false)
+        return
+      }
+
+      // Normalize phone numbers before saving (add +63 prefix to 10-digit numbers)
+      const normalizedPhone = phone.trim() ? `+63${phone}` : ""
+      const normalizedGcash = gcashNumber.trim() ? `+63${gcashNumber}` : ""
+
       await updateProfile({
-        phone: phone.trim(),
+        phone: normalizedPhone,
         address: address.trim(),
+        gcashNumber: normalizedGcash,
       })
 
       toast.success("Profile updated successfully!")
@@ -137,7 +167,7 @@ function ProfilePageContent() {
                   {currentUser?.phone && (
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{currentUser.phone}</span>
+                      <span>{formatPhoneForDisplay(currentUser.phone)}</span>
                     </div>
                   )}
                   
@@ -145,6 +175,13 @@ function ProfilePageContent() {
                     <div className="flex items-center gap-2 text-sm">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
                       <span className="truncate">{currentUser.address}</span>
+                    </div>
+                  )}
+                  
+                  {currentUser?.gcashNumber && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <span>{formatPhoneForDisplay(currentUser.gcashNumber)}</span>
                     </div>
                   )}
                 </div>
@@ -230,16 +267,12 @@ function ProfilePageContent() {
                       Contact Information
                     </h4>
                     
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                      />
-                    </div>
+                    <PhoneInput
+                      id="phone"
+                      label="Phone Number"
+                      value={phone}
+                      onChange={setPhone}
+                    />
                     
                     <div className="space-y-2">
                       <Label htmlFor="address">Address</Label>
@@ -251,6 +284,15 @@ function ProfilePageContent() {
                         onChange={(e) => setAddress(e.target.value)}
                       />
                     </div>
+                    
+                    <GcashInput
+                      id="gcashNumber"
+                      label="GCash Number"
+                      value={gcashNumber}
+                      onChange={setGcashNumber}
+                      onUsePhoneNumber={() => setGcashNumber(phone)}
+                      phoneNumber={phone}
+                    />
                   </div>
 
                   <Separator />

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { OrderDetails } from "./order-details"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
 // Historical orders list for owners.
 // Displays orders in a row-based layout with filters for category and time range.
@@ -164,7 +165,7 @@ export function HistoricalOrdersView() {
                 >
                   {order.customerName}
                 </button>
-                <div className="text-sm text-muted-foreground">{order.customerPhone}</div>
+                <div className="text-sm text-muted-foreground">{formatPhoneForDisplay(order.customerPhone)}</div>
                 <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
                 <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
                 <div>
