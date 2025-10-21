@@ -16,6 +16,7 @@ import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
+import { useRouter } from "next/navigation"
 
 interface CheckoutDialogProps {
   items: any[]
@@ -30,6 +31,7 @@ interface CheckoutDialogProps {
 export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose, onSuccess }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("dine-in")
   const { addOrder, currentUser, restaurant } = useData()
+  const router = useRouter()
   // Initialize form fields from current user when available; fall back to empty
   const [customerName, setCustomerName] = useState(() => `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim())
   const [customerPhone, setCustomerPhone] = useState(() => currentUser?.phone ?? "")
@@ -491,6 +493,28 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
 
           <div className="space-y-2">
             <Label htmlFor="payment-screenshot">Payment Screenshot</Label>
+            
+            {/* GCash number display at the top of the upload area */}
+            {currentUser?.gcashNumber && (
+              <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800 font-medium">
+                  Please use (+63) {currentUser.gcashNumber} for payment processing
+                </p>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="p-0 h-auto text-blue-600 hover:text-blue-800 underline text-xs"
+                  onClick={() => {
+                    onClose() // Close the checkout dialog
+                    router.push('/profile') // Navigate to profile page
+                  }}
+                >
+                  Change GCash number
+                </Button>
+              </div>
+            )}
+            
             <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer">
               <input
                 id="payment-screenshot"
@@ -509,17 +533,6 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
             {previewUrl && (
               <div className="mt-2 w-full">
                 <img src={previewUrl} alt="Payment" className="w-full rounded border object-contain" />
-                {/* GCash number indicator text below the payment screenshot */}
-                {currentUser?.gcashNumber && (
-                  <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-sm text-blue-800 font-medium">
-                      💳 GCash Number: "(+63) {currentUser.gcashNumber}"
-                    </p>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Please ensure you are using this GCash number for your payment.
-                    </p>
-                  </div>
-                )}
               </div>
             )}
           </div>
