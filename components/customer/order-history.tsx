@@ -47,7 +47,7 @@ export function OrderHistory() {
   // Precompute customer orders and the current realtime order
   const customerOrders = orders.filter((o) => o.customerId === customerId)
 
-  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "in-transit"]
+  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "ready", "in-transit"]
   const currentRealtimeOrder = customerOrders
     .filter((o) => {
       // For pre-orders: start tracking only once accepted (preparing) or later
@@ -195,6 +195,7 @@ export function OrderHistory() {
   const statusIcons = {
     completed: <CheckCircle className="w-4 h-4 text-green-600" />,
     accepted: <CheckCircle className="w-4 h-4 text-green-600" />,
+    ready: <CheckCircle className="w-4 h-4 text-indigo-600" />,
     pending: <Clock className="w-4 h-4 text-yellow-600" />,
     denied: <XCircle className="w-4 h-4 text-red-600" />,
     cancelled: <Ban className="w-4 h-4 text-gray-600" />,
@@ -205,6 +206,7 @@ export function OrderHistory() {
   const statusColors = {
     completed: "bg-green-100 text-green-800 border-green-200",
     accepted: "bg-green-100 text-green-800 border-green-200",
+    ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
     denied: "bg-red-100 text-red-800 border-red-200",
     cancelled: "bg-gray-100 text-gray-800 border-gray-200",
@@ -216,6 +218,8 @@ export function OrderHistory() {
     switch (status) {
       case "pending":
         return "border-yellow-500 border-2"
+      case "ready":
+        return "border-indigo-500 border-2"
       case "completed":
       case "accepted":
         return "border-green-500 border-2"

@@ -79,6 +79,7 @@ export function HistoricalOrdersView() {
   const statusColors: Record<string, string> = {
     completed: "bg-green-100 text-green-800 border-green-200",
     accepted: "bg-green-100 text-green-800 border-green-200",
+    ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
     denied: "bg-red-100 text-red-800 border-red-200",
     cancelled: "bg-red-100 text-red-800 border-red-200",

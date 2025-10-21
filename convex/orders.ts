@@ -96,6 +96,7 @@ export const create = mutation({
     status: v.union(
       v.literal("pending"),
       v.literal("accepted"),
+      v.literal("ready"),
       v.literal("denied"),
       v.literal("completed"),
       v.literal("cancelled"),
@@ -152,6 +153,7 @@ export const update = mutation({
         v.union(
           v.literal("pending"),
           v.literal("accepted"),
+          v.literal("ready"),
           v.literal("denied"),
           v.literal("completed"),
           v.literal("cancelled"),

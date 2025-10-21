@@ -72,11 +72,21 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
 
   const handleFinishOrder = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent card click
-    // For delivery orders, set to in-transit; for others, set to completed
-    const newStatus = order.type === "delivery" ? "in-transit" : "completed"
+    // For delivery orders from accepted -> in-transit; for dine-in/takeaway accepted -> ready
+    let newStatus: "in-transit" | "ready" | "completed" = "completed"
+    if (order.type === "delivery" && order.status === "accepted") newStatus = "in-transit"
+    else if ((order.type === "dine-in" || order.type === "takeaway") && order.status === "accepted") newStatus = "ready"
+    else if ((order.type === "dine-in" || order.type === "takeaway") && order.status === "ready") newStatus = "completed"
+
     updateOrder(order.id, { status: newStatus })
-    toast.success("Order finished!", {
-      description: `Order #${order.id.slice(-6).toUpperCase()} has been ${newStatus === "in-transit" ? "sent for delivery" : "completed"}.`,
+    const description =
+      newStatus === "in-transit"
+        ? "sent for delivery"
+        : newStatus === "ready"
+        ? "marked as ready"
+        : "completed"
+    toast.success("Order updated!", {
+      description: `Order #${order.id.slice(-6).toUpperCase()} has been ${description}.`,
       duration: 3000,
     })
     onStatusChange()
@@ -94,7 +104,7 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
 
   // Show different buttons based on order status and type
   const showActionButtons = order.status === "pending"
-  const showFinishButton = order.status === "accepted"
+  const showFinishButton = order.status === "accepted" || ((order.type === "dine-in" || order.type === "takeaway") && order.status === "ready")
   const showDeliveredButton = order.status === "in-transit" && order.type === "delivery"
 
   return (
@@ -192,7 +202,9 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
             onClick={handleFinishOrder}
           >
             <CheckCircle className="w-4 h-4 mr-1" />
-            {order.type === "delivery" ? "Send for Delivery" : "Finish Order"}
+            {order.type === "delivery" && order.status === "accepted" && "Send for Delivery"}
+            {(order.type === "dine-in" || order.type === "takeaway") && order.status === "accepted" && "Mark Ready"}
+            {(order.type === "dine-in" || order.type === "takeaway") && order.status === "ready" && "Complete Order"}
           </Button>
         )}
 

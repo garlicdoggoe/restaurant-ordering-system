@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api"
 const apiAny: any = api
 
 // Types
-export type OrderStatus = "pending" | "accepted" | "denied" | "completed" | "cancelled" | "in-transit" | "delivered"
+export type OrderStatus = "pending" | "accepted" | "ready" | "denied" | "completed" | "cancelled" | "in-transit" | "delivered"
 export type OrderType = "dine-in" | "takeaway" | "delivery" | "pre-order"
 export type PreOrderFulfillment = "pickup" | "delivery"
 export type PaymentPlan = "full" | "downpayment"

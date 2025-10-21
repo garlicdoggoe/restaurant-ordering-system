@@ -11,7 +11,7 @@ import { OrderDetails } from "./order-details"
 import { DenyOrderDialog } from "./deny-order-dialog"
 import { AcceptOrderDialog } from "./accept-order-dialog"
 
-type OrderStatus = "pending" | "preparing" | "completed" | "cancelled" | "denied" | "in-transit" | "delivered"
+type OrderStatus = "pending" | "preparing" | "ready" | "completed" | "cancelled" | "denied" | "in-transit" | "delivered"
 
 export function OrdersView() {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending")
@@ -24,6 +24,7 @@ export function OrdersView() {
   const statusCounts = {
     pending: orders.filter((o) => o.status === "pending").length,
     preparing: orders.filter((o) => o.status === "accepted").length,
+    ready: orders.filter((o) => o.status === "ready").length,
     completed: orders.filter((o) => o.status === "completed").length,
     cancelled: orders.filter((o) => o.status === "cancelled").length,
     denied: orders.filter((o) => o.status === "denied").length,
@@ -34,6 +35,7 @@ export function OrdersView() {
   const filteredOrders = orders.filter((order) => {
     if (selectedStatus === "pending") return order.status === "pending"
     if (selectedStatus === "preparing") return order.status === "accepted"
+    if (selectedStatus === "ready") return order.status === "ready"
     if (selectedStatus === "completed") return order.status === "completed"
     if (selectedStatus === "cancelled") return order.status === "cancelled"
     if (selectedStatus === "denied") return order.status === "denied"
@@ -80,7 +82,7 @@ export function OrdersView() {
 
       <div className="flex items-center gap-4">
         <Tabs value={selectedStatus} onValueChange={(v) => setSelectedStatus(v as OrderStatus)}>
-          <TabsList className="bg-muted grid grid-cols-7 w-full">
+          <TabsList className="bg-muted grid grid-cols-8 w-full">
             <TabsTrigger value="pending" className="gap-2">
               Pending
               <Badge variant="secondary" className="rounded-full bg-yellow-100 text-yellow-800">
@@ -91,6 +93,12 @@ export function OrdersView() {
               Preparing
               <Badge variant="secondary" className="rounded-full bg-blue-100 text-blue-800">
                 {statusCounts.preparing}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="ready" className="gap-2">
+              Ready
+              <Badge variant="secondary" className="rounded-full bg-indigo-100 text-indigo-800">
+                {statusCounts.ready}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="completed" className="gap-2">
