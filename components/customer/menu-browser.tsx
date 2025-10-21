@@ -13,7 +13,7 @@ interface MenuBrowserProps {
 }
 
 export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
-  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(["all"])
   const [searchQuery, setSearchQuery] = useState("")
   const { categories: ctxCategories, menuItems: ctxMenuItems, promotions } = useData()
 
@@ -71,9 +71,9 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
 
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
-      // Category filtering: match "all" or check if item category matches selected category
-      const matchesCategory = selectedCategory === "all" || 
-        item.category.toLowerCase() === selectedCategory.toLowerCase()
+      // Category filtering: match "all" or check if item category matches any selected category
+      const matchesCategory = selectedCategories.includes("all") || 
+        selectedCategories.some(cat => item.category.toLowerCase() === cat.toLowerCase())
       
       // Search filtering: check if item name or description contains search query
       const matchesSearch = searchQuery === "" || 
@@ -83,17 +83,53 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
       // Only show available items
       return matchesCategory && matchesSearch && item.available
     })
-  }, [menuItems, selectedCategory, searchQuery])
+  }, [menuItems, selectedCategories, searchQuery])
+
+  // Group items by category when multiple categories are selected
+  const groupedItems = useMemo(() => {
+    if (selectedCategories.includes("all") || selectedCategories.length <= 1) {
+      return { "All Items": filteredItems }
+    }
+
+    const groups: { [key: string]: typeof filteredItems } = {}
+    filteredItems.forEach(item => {
+      const categoryName = availableCategories.find(cat => 
+        cat.name.toLowerCase() === item.category.toLowerCase()
+      )?.name || item.category
+      
+      if (!groups[categoryName]) {
+        groups[categoryName] = []
+      }
+      groups[categoryName].push(item)
+    })
+    
+    return groups
+  }, [filteredItems, selectedCategories, availableCategories])
+
+  const handleToggleCategory = (categoryId: string) => {
+    if (categoryId === "all") {
+      setSelectedCategories(["all"])
+    } else {
+      setSelectedCategories(prev => {
+        const newSelection = prev.includes(categoryId) 
+          ? prev.filter(id => id !== categoryId)
+          : [...prev.filter(id => id !== "all"), categoryId]
+        
+        // If no categories selected, default to "all"
+        return newSelection.length === 0 ? ["all"] : newSelection
+      })
+    }
+  }
 
   return (
     <div className="space-y-6">
       <PromotionBanner />
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-yellow-500" />
         <Input
-          placeholder="Search for dishes..."
-          className="pl-10"
+          placeholder="What do you want to eat today?"
+          className="pl-12 pr-4 py-6 rounded-full border-0 bg-white shadow-sm focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500/30"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -101,22 +137,30 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
 
       <MenuCategoryTabs
         categories={categories}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
+        selectedCategories={selectedCategories}
+        onToggleCategory={handleToggleCategory}
       />
 
       {/* Filter summary */}
       <div className="text-sm text-muted-foreground">
         Showing {filteredItems.length} of {menuItems.length} menu items
-        {selectedCategory !== "all" && (
-          <span> in {categories.find(cat => cat.id === selectedCategory)?.name}</span>
+        {!selectedCategories.includes("all") && selectedCategories.length > 0 && (
+          <span> in {selectedCategories.map(id => categories.find(cat => cat.id === id)?.name).join(", ")}</span>
         )}
         {searchQuery && (
           <span> matching "{searchQuery}"</span>
         )}
       </div>
 
-      <MenuItemGrid items={filteredItems} onAddToCart={onAddToCart} />
+      {/* Render grouped items */}
+      {Object.entries(groupedItems).map(([categoryName, items]) => (
+        <div key={categoryName} className="space-y-4">
+          {Object.keys(groupedItems).length > 1 && (
+            <h2 className="text-xl font-bold text-foreground">{categoryName}</h2>
+          )}
+          <MenuItemGrid items={items} onAddToCart={onAddToCart} />
+        </div>
+      ))}
     </div>
   )
 }

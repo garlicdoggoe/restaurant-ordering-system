@@ -34,7 +34,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
 
   if (items.length === 0) {
     return (
-      <Card className="sticky top-24">
+      <Card className="h-fit">
         <CardContent className="p-8 text-center">
           <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground">Your cart is empty</p>
@@ -45,7 +45,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
 
   return (
     <>
-      <Card className="sticky top-24">
+      <Card className="h-fit">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Your Order</span>

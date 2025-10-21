@@ -1,37 +1,41 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { CategoryFilterButton } from "@/components/ui/category-filter-button"
 
 interface MenuCategoryTabsProps {
   categories: Array<{ id: string; name: string; icon: string; count?: number }>
-  selectedCategory: string
-  onSelectCategory: (categoryId: string) => void
+  selectedCategories: string[]
+  onToggleCategory: (categoryId: string) => void
 }
 
-export function MenuCategoryTabs({ categories, selectedCategory, onSelectCategory }: MenuCategoryTabsProps) {
+export function MenuCategoryTabs({ categories, selectedCategories, onToggleCategory }: MenuCategoryTabsProps) {
   return (
-    <ScrollArea className="w-full whitespace-nowrap">
-      <div className="flex gap-2 pb-2">
-        {categories.map((category) => (
-          <Button
-            key={category.id}
-            variant={selectedCategory === category.id ? "default" : "outline"}
-            onClick={() => onSelectCategory(category.id)}
-            className={cn("gap-2 flex-shrink-0", selectedCategory === category.id && "shadow-md")}
-          >
-            <span>{category.icon}</span>
-            {category.name}
-            {category.count !== undefined && (
-              <span className="text-xs bg-muted-foreground/20 px-1.5 py-0.5 rounded-full">
-                {category.count}
-              </span>
-            )}
-          </Button>
-        ))}
-      </div>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+    <div className="space-y-3">
+      {/* Category title */}
+      <h3 className="text-lg font-semibold text-gray-800">Category</h3>
+      
+      {/* Horizontal scrollable category buttons */}
+      <ScrollArea className="w-full whitespace-nowrap">
+        <div className="flex gap-3 pb-2 pt-2">
+          {categories.map((category) => {
+            const isSelected = selectedCategories.includes(category.id)
+            return (
+              <div key={category.id} className="relative flex-shrink-0">
+                <CategoryFilterButton
+                  id={category.id}
+                  name={category.name}
+                  icon={category.icon}
+                  isSelected={isSelected}
+                  onClick={() => onToggleCategory(category.id)}
+                  count={category.count}
+                />
+              </div>
+            )
+          })}
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+    </div>
   )
 }
