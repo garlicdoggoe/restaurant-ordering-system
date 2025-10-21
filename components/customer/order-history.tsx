@@ -310,6 +310,15 @@ export function OrderHistory() {
                   </div>
                 )}
 
+                {/* GCash Number Display */}
+                {order.gcashNumber && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-800 font-medium">
+                      💳 GCash Number Used: (+63) {order.gcashNumber}
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   {order.items.map((item, index) => (
                     <div key={index} className="flex justify-between text-sm">

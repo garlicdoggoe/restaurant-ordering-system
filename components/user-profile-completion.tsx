@@ -65,9 +65,9 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
         return
       }
 
-      // Normalize phone numbers before saving (add +63 prefix to 10-digit numbers)
-      const normalizedPhone = phone.trim() ? `+63${phone}` : ""
-      const normalizedGcash = gcashNumber.trim() ? `+63${gcashNumber}` : ""
+      // Store only the 10-digit numbers in the database (without +63 prefix)
+      const normalizedPhone = phone.trim() || ""
+      const normalizedGcash = gcashNumber.trim() || ""
 
       // Update existing user profile
       await updateProfile({

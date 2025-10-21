@@ -125,6 +125,12 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                   <span className="text-muted-foreground">Order Type</span>
                   <Badge>{order.orderType}</Badge>
                 </div>
+                {order.gcashNumber && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">GCash Number Used</span>
+                    <span className="font-medium text-blue-600">(+63) {order.gcashNumber}</span>
+                  </div>
+                )}
                 {order.customerAddress && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery Address</span>

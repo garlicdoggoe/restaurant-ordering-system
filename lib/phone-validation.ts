@@ -78,16 +78,27 @@ export function normalizePhoneNumber(phoneNumber: string): string {
 
 /**
  * Formats a phone number for display (shows +63 prefix)
- * @param phoneNumber - The phone number to format
+ * @param phoneNumber - The phone number to format (10-digit number from database)
  * @returns Formatted phone number for display
  */
 export function formatPhoneForDisplay(phoneNumber: string): string {
-  const normalized = normalizePhoneNumber(phoneNumber)
-  if (!normalized) return phoneNumber // Return original if can't normalize
+  if (!phoneNumber) return phoneNumber
   
-  // Format as +63 (XXX) XXX-XXXX for better readability
-  const numberPart = normalized.substring(3)
-  return `+63 (${numberPart.substring(0, 3)}) ${numberPart.substring(3, 6)}-${numberPart.substring(6)}`
+  // If it's already 10 digits, format it for display
+  if (phoneNumber.length === 10 && PHONE_REGEX.test(phoneNumber)) {
+    return `+63 (${phoneNumber.substring(0, 3)}) ${phoneNumber.substring(3, 6)}-${phoneNumber.substring(6)}`
+  }
+  
+  // If it has +63 prefix, format it
+  if (phoneNumber.startsWith('+63')) {
+    const numberPart = phoneNumber.substring(3)
+    if (numberPart.length === 10) {
+      return `+63 (${numberPart.substring(0, 3)}) ${numberPart.substring(3, 6)}-${numberPart.substring(6)}`
+    }
+  }
+  
+  // Return original if can't format
+  return phoneNumber
 }
 
 /**

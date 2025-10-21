@@ -114,16 +114,12 @@ export function RestaurantSettings() {
 
   // Update form data when restaurant data changes from Convex
   useEffect(() => {
-    // Strip +63 prefix from phone number for display in input field
-    const phoneWithoutPrefix = restaurant.phone?.startsWith('+63') 
-      ? restaurant.phone.substring(3) 
-      : restaurant.phone || ""
-    
+    // Database now stores only 10-digit numbers (no +63 prefix to strip)
     setFormData({
       name: restaurant.name || "",
       description: restaurant.description || "",
       address: restaurant.address || "",
-      phone: phoneWithoutPrefix,
+      phone: restaurant.phone || "",
       email: restaurant.email || "",
       preparationTime: restaurant.averagePrepTime?.toString() || "0",
       deliveryTime: restaurant.averageDeliveryTime?.toString() || "0",
@@ -229,8 +225,8 @@ export function RestaurantSettings() {
       return
     }
 
-    // Normalize phone number before saving (add +63 prefix to 10-digit number)
-    const normalizedPhone = formData.phone ? `+63${formData.phone}` : ""
+    // Store only the 10-digit number in the database (without +63 prefix)
+    const normalizedPhone = formData.phone || ""
 
     updateRestaurant({
       name: formData.name,

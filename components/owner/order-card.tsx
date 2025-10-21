@@ -16,6 +16,7 @@ interface OrderCardProps {
     customerName: string
     customerPhone: string
     customerAddress?: string
+    gcashNumber?: string
     type: "dine-in" | "takeaway" | "delivery" | "pre-order"
     time: string
     items: Array<{
@@ -121,6 +122,9 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
         <div className="space-y-1">
           <p className="text-sm font-medium">{order.customerName}</p>
           <p className="text-xs text-muted-foreground">{formatPhoneForDisplay(order.customerPhone)}</p>
+          {order.gcashNumber && (
+            <p className="text-xs text-blue-600 font-medium">💳 GCash: (+63) {order.gcashNumber}</p>
+          )}
           {order.customerAddress && (order.type === "delivery" || order.type === "pre-order") && (
             <p className="text-xs text-muted-foreground">{order.customerAddress}</p>
           )}

@@ -54,6 +54,7 @@ export default defineSchema({
     customerName: v.string(),
     customerPhone: v.string(),
     customerAddress: v.optional(v.string()),
+    gcashNumber: v.optional(v.string()), // GCash number used for payment
     items: v.array(
       v.object({
         menuItemId: v.string(),

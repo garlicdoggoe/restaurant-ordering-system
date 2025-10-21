@@ -45,17 +45,10 @@ function ProfilePageContent() {
   // Mirrors the data handling approach in `components/owner/restaurant-settings.tsx`
   useEffect(() => {
     if (currentUser) {
-      // Strip +63 prefix from phone numbers for display in input fields
-      const phoneWithoutPrefix = currentUser.phone?.startsWith('+63') 
-        ? currentUser.phone.substring(3) 
-        : currentUser.phone || ""
-      const gcashWithoutPrefix = currentUser.gcashNumber?.startsWith('+63') 
-        ? currentUser.gcashNumber.substring(3) 
-        : currentUser.gcashNumber || ""
-      
-      setPhone(phoneWithoutPrefix)
+      // Database now stores only 10-digit numbers (no +63 prefix to strip)
+      setPhone(currentUser.phone || "")
       setAddress(currentUser.address || "")
-      setGcashNumber(gcashWithoutPrefix)
+      setGcashNumber(currentUser.gcashNumber || "")
     }
   }, [currentUser])
 
@@ -88,9 +81,9 @@ function ProfilePageContent() {
         return
       }
 
-      // Normalize phone numbers before saving (add +63 prefix to 10-digit numbers)
-      const normalizedPhone = phone.trim() ? `+63${phone}` : ""
-      const normalizedGcash = gcashNumber.trim() ? `+63${gcashNumber}` : ""
+      // Store only the 10-digit numbers in the database (without +63 prefix)
+      const normalizedPhone = phone.trim() || ""
+      const normalizedGcash = gcashNumber.trim() || ""
 
       await updateProfile({
         phone: normalizedPhone,

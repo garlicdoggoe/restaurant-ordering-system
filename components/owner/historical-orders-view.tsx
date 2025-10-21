@@ -133,10 +133,11 @@ export function HistoricalOrdersView() {
 
       {/* Rows Header */}
       <div className="rounded-lg border overflow-hidden">
-        <div className="grid grid-cols-7 gap-2 bg-muted px-4 py-3 text-sm font-medium">
+        <div className="grid grid-cols-8 gap-2 bg-muted px-4 py-3 text-sm font-medium">
           <div>Order ID</div>
           <div>Customer</div>
           <div>Contact</div>
+          <div>GCash</div>
           <div>Placed At</div>
           <div>Total</div>
           <div>Status</div>
@@ -151,7 +152,7 @@ export function HistoricalOrdersView() {
             return (
               <div
                 key={order._id}
-                className="grid grid-cols-7 gap-2 w-full px-4 py-3 hover:bg-accent/40 transition-colors"
+                className="grid grid-cols-8 gap-2 w-full px-4 py-3 hover:bg-accent/40 transition-colors"
               >
                 <button
                   className="text-left font-mono text-sm hover:text-primary"
@@ -166,6 +167,9 @@ export function HistoricalOrdersView() {
                   {order.customerName}
                 </button>
                 <div className="text-sm text-muted-foreground">{formatPhoneForDisplay(order.customerPhone)}</div>
+                <div className="text-sm text-blue-600 font-medium">
+                  {order.gcashNumber ? `(+63) ${order.gcashNumber}` : '-'}
+                </div>
                 <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
                 <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
                 <div>

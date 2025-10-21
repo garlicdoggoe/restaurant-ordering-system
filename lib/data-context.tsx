@@ -25,6 +25,7 @@ export interface User {
   role: "owner" | "customer"
   phone?: string
   address?: string
+  gcashNumber?: string // GCash payment method number
   profileComplete: boolean
   createdAt: number
   updatedAt: number
@@ -84,6 +85,7 @@ export interface Order {
   customerName: string
   customerPhone: string
   customerAddress?: string
+  gcashNumber?: string // GCash number used for payment
   items: OrderItem[]
   subtotal: number
   tax: number
@@ -228,6 +230,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     role: currentUserDoc.role,
     phone: currentUserDoc.phone,
     address: currentUserDoc.address,
+    gcashNumber: currentUserDoc.gcashNumber,
     profileComplete: currentUserDoc.profileComplete,
     createdAt: currentUserDoc.createdAt,
     updatedAt: currentUserDoc.updatedAt,
@@ -318,6 +321,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     customerName: o.customerName,
     customerPhone: o.customerPhone,
     customerAddress: o.customerAddress,
+    gcashNumber: o.gcashNumber,
     items: o.items,
     subtotal: o.subtotal,
     tax: o.tax,
@@ -408,6 +412,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       customerAddress: order.customerAddress,
+      gcashNumber: order.gcashNumber,
       items: order.items,
       subtotal: order.subtotal,
       tax: order.tax,

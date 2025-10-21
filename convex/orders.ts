@@ -74,6 +74,7 @@ export const create = mutation({
     customerName: v.string(),
     customerPhone: v.string(),
     customerAddress: v.optional(v.string()),
+    gcashNumber: v.optional(v.string()),
     items: v.array(
       v.object({ menuItemId: v.string(), name: v.string(), price: v.number(), quantity: v.number() })
     ),

@@ -52,6 +52,7 @@ export function OrdersView() {
     customerName: order.customerName,
     customerPhone: order.customerPhone,
     customerAddress: order.customerAddress,
+    gcashNumber: order.gcashNumber,
     type: (order.orderType as "dine-in" | "takeaway" | "delivery" | "pre-order"),
     time: new Date(order._creationTime ?? order.createdAt).toLocaleString(),
     items: order.items,

@@ -54,11 +54,8 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
   // Keep phone/address synced from profile on open/switches
   useEffect(() => {
     if (currentUser?.phone) {
-      // Strip +63 prefix from phone number for display in input field
-      const phoneWithoutPrefix = currentUser.phone.startsWith('+63') 
-        ? currentUser.phone.substring(3) 
-        : currentUser.phone
-      setCustomerPhone((prev) => prev || phoneWithoutPrefix)
+      // Database now stores only 10-digit numbers (no +63 prefix to strip)
+      setCustomerPhone((prev) => prev || (currentUser.phone as string))
     }
     if (currentUser && (currentUser.firstName || currentUser.lastName)) {
       const n = `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim()
@@ -255,8 +252,8 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         preOrderScheduledAt = dateObj.getTime()
       }
 
-      // Normalize phone number before saving (add +63 prefix to 10-digit number)
-      const normalizedPhone = `+63${customerPhone}`
+      // Store only the 10-digit number in the database (without +63 prefix)
+      const normalizedPhone = customerPhone
 
       addOrder({
         // Backend enforces and overrides customerId to the authenticated user; provide for types
@@ -264,6 +261,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         customerName,
         customerPhone: normalizedPhone,
         customerAddress: effectiveAddress,
+        gcashNumber: currentUser.gcashNumber, // Include GCash number used for payment
         items: orderItems,
         subtotal,
         tax,
@@ -511,6 +509,17 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
             {previewUrl && (
               <div className="mt-2 w-full">
                 <img src={previewUrl} alt="Payment" className="w-full rounded border object-contain" />
+                {/* GCash number indicator text below the payment screenshot */}
+                {currentUser?.gcashNumber && (
+                  <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-800 font-medium">
+                      💳 GCash Number: "(+63) {currentUser.gcashNumber}"
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Please ensure you are using this GCash number for your payment.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
