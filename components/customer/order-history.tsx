@@ -37,19 +37,8 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
 
-  // Set default filter based on current order existence
-  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "ready", "in-transit"]
-  const hasCurrentOrder = orders.filter((o) => o.customerId === customerId)
-    .some((o) => {
-      if (o.orderType === "pre-order") {
-        return o.status !== "pending" && realtimeStatuses.includes(o.status as OrderStatus)
-      }
-      return realtimeStatuses.includes(o.status as OrderStatus)
-    })
-  
-  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders" | "order-tracking">(
-    hasCurrentOrder ? "order-tracking" : "all"
-  )
+  // Set default filter to "all" since order tracking is now handled by floating component
+  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders">("all")
 
   // State for remaining payment proof upload - per order
   const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
@@ -59,32 +48,25 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
   // Convex mutations and queries for file upload
   const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
 
-  // Precompute customer orders and the current realtime order
+  // Precompute customer orders (excluding realtime orders that are now handled by floating component)
+  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "ready", "in-transit"]
   const customerOrders = orders.filter((o) => o.customerId === customerId)
-  const currentRealtimeOrder = customerOrders
-    .filter((o) => {
-      // For pre-orders: start tracking only once accepted (preparing) or later
-      if (o.orderType === "pre-order") {
-        return o.status !== "pending" && realtimeStatuses.includes(o.status as OrderStatus)
+  
+  const filteredOrders = customerOrders
+    .filter((order) => {
+      if (statusFilter === "all") {
+        // Exclude realtime orders from "all" view since they're handled by floating component
+        if (order.orderType === "pre-order") {
+          return order.status === "pending" || order.status === "completed" || order.status === "delivered" || order.status === "cancelled" || order.status === "denied"
+        }
+        return order.status === "completed" || order.status === "delivered" || order.status === "cancelled" || order.status === "denied"
       }
-      // For regular orders: track pending/accepted/in-transit
-      return realtimeStatuses.includes(o.status as OrderStatus)
+      // Pre-orders tab shows only pending pre-orders; accepted/in-transit pre-orders are handled by floating component
+      if (statusFilter === "pre-orders") return order.orderType === "pre-order" && order.status === "pending"
+      if (statusFilter === "completed") return order.status === "completed" || order.status === "delivered"
+      return order.status === statusFilter
     })
-    .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))[0]
-
-  const filteredOrders = (
-    statusFilter === "order-tracking"
-      ? (currentRealtimeOrder ? [currentRealtimeOrder] : [])
-      : customerOrders
-          .filter((order) => {
-            if (statusFilter === "all") return true
-            // Pre-orders tab shows only pending pre-orders; accepted/in-transit pre-orders move to Order Tracking
-            if (statusFilter === "pre-orders") return order.orderType === "pre-order" && order.status === "pending"
-            if (statusFilter === "completed") return order.status === "completed" || order.status === "delivered"
-            return order.status === statusFilter
-          })
-          .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
-  )
+    .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
 
   // Restore pending proofs from localStorage for each order
   // Key format: remaining_payment_proof_<orderId>
@@ -274,17 +256,6 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
                 </div>
                 <div 
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    statusFilter === "order-tracking" 
-                      ? "bg-yellow-100 text-yellow-700" 
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setStatusFilter("order-tracking")}
-                >
-                  <Clock className="w-4 h-4" />
-                  <span className="text-sm">Order Tracking</span>
-                </div>
-                <div 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                     statusFilter === "completed" 
                       ? "bg-yellow-100 text-yellow-700" 
                       : "text-gray-600 hover:bg-gray-50"
@@ -442,19 +413,11 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
                         <span>₱{order.subtotal.toFixed(2)}</span>
                       </div>
                       
-                      {order.tax > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Tax</span>
-                          <span>₱{order.tax.toFixed(2)}</span>
-                        </div>
-                      )}
                       
-                      {order.donation > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Donation</span>
-                          <span>₱{order.donation.toFixed(2)}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Platform fee</span>
+                        <span>₱{(order.platformFee || 0).toFixed(2)}</span>
+                      </div>
                       
                       {order.discount > 0 && (
                         <div className="flex justify-between text-green-600">

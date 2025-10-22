@@ -24,10 +24,13 @@ interface OrderCardProps {
       quantity: number
       price: number
     }>
+    subtotal: number
+    platformFee: number
     total: number
     paymentScreenshot?: string
     paymentStatus?: "Initially paid" | "Fully paid"
     status: string
+    specialInstructions?: string
   }
   onClick: () => void
   onStatusChange: () => void
@@ -130,6 +133,14 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
           )}
         </div>
 
+        {/* Special Instructions */}
+        {order.specialInstructions && (
+          <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-xs font-medium text-yellow-800 mb-1">📝 Special Instructions:</p>
+            <p className="text-xs text-yellow-700">{order.specialInstructions}</p>
+          </div>
+        )}
+
         {/* Payment Screenshot */}
         {order.paymentScreenshot && (
           <div className="space-y-1">
@@ -158,10 +169,20 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
           </div>
         </div>
 
-        {/* Total Amount */}
-        <div className="flex justify-between items-center border-t pt-2">
-          <span className="text-sm font-medium">Total:</span>
-          <span className="text-sm font-bold">₱{order.total.toFixed(2)}</span>
+        {/* Order Summary */}
+        <div className="space-y-1 border-t pt-2">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Subtotal:</span>
+            <span>₱{(order.subtotal || 0).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Platform fee:</span>
+            <span>₱{(order.platformFee || 0).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between items-center pt-1 border-t">
+            <span className="text-sm font-medium">Total:</span>
+            <span className="text-sm font-bold">₱{(order.total || 0).toFixed(2)}</span>
+          </div>
         </div>
 
         {/* Payment Status for pre-order downpayment online */}

@@ -56,8 +56,11 @@ export function OrdersView() {
     type: (order.orderType as "dine-in" | "takeaway" | "delivery" | "pre-order"),
     time: new Date(order._creationTime ?? order.createdAt).toLocaleString(),
     items: order.items,
+    subtotal: order.subtotal,
+    platformFee: order.platformFee,
     total: order.total,
     paymentScreenshot: order.paymentScreenshot,
+    specialInstructions: order.specialInstructions,
     // Include fields needed to compute payment status
     paymentPlan: order.paymentPlan,
     remainingPaymentMethod: order.remainingPaymentMethod,

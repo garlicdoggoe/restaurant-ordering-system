@@ -100,7 +100,7 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Platform fee</span>
-                  <span>₱{order.donation.toFixed(2)}</span>
+                  <span>₱{(order.platformFee || 0).toFixed(2)}</span>
                 </div>
                 {order.discount > 0 && (
                   <div className="flex justify-between text-green-600">

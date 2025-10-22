@@ -105,6 +105,7 @@ export function RestaurantSettings() {
     email: restaurant.email,
     preparationTime: restaurant.averagePrepTime.toString(),
     deliveryTime: restaurant.averageDeliveryTime.toString(),
+    platformFee: restaurant.platformFee?.toString() || "10",
     logo: restaurant.logo || "",
     openingTime: restaurant.openingTime || "10:00",
     closingTime: restaurant.closingTime || "18:30",
@@ -123,6 +124,7 @@ export function RestaurantSettings() {
       email: restaurant.email || "",
       preparationTime: restaurant.averagePrepTime?.toString() || "0",
       deliveryTime: restaurant.averageDeliveryTime?.toString() || "0",
+      platformFee: restaurant.platformFee?.toString() || "10",
       logo: restaurant.logo || "",
       openingTime: restaurant.openingTime || "10:00",
       closingTime: restaurant.closingTime || "18:30",
@@ -239,6 +241,7 @@ export function RestaurantSettings() {
       closingTime: formData.closingTime,
       averagePrepTime: Number.parseInt(formData.preparationTime),
       averageDeliveryTime: Number.parseInt(formData.deliveryTime),
+      platformFee: Number.parseFloat(formData.platformFee),
     })
 
     alert("Restaurant profile updated successfully!")
@@ -468,7 +471,7 @@ export function RestaurantSettings() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="prep-time">Average Preparation Time (min)</Label>
                 <Input
@@ -486,6 +489,18 @@ export function RestaurantSettings() {
                   type="number"
                   value={formData.deliveryTime}
                   onChange={(e) => setFormData({ ...formData, deliveryTime: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="platform-fee">Platform Fee (₱)</Label>
+                <Input
+                  id="platform-fee"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.platformFee}
+                  onChange={(e) => setFormData({ ...formData, platformFee: e.target.value })}
                 />
               </div>
             </div>

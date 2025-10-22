@@ -6,7 +6,7 @@ import { MenuBrowser } from "./menu-browser"
 import { Cart } from "./cart"
 import { OrderHistory } from "./order-history"
 import { UserProfileSettings } from "./user-profile-settings"
-import { PendingOrder } from "./pending-order"
+import { OrderTracking } from "./order-tracking"
 import { useData } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { toast } from "sonner"
@@ -16,15 +16,15 @@ export type CustomerView = "menu" | "orders" | "profile"
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const { getCustomerPendingOrder, orders, currentUser } = useData()
+  const { getCustomerActiveOrder, orders, currentUser } = useData()
   const { cartItems, addToCart: addToCartContext, updateQuantity, clearCart, getCartItemCount } = useCart()
   const customerId = currentUser?._id || ""
-  const pendingOrder = customerId ? getCustomerPendingOrder(customerId) : undefined
+  const activeOrder = customerId ? getCustomerActiveOrder(customerId) : undefined
 
   const addToCart = (item: any) => {
-    if (pendingOrder) {
-      toast.info("You have a pending order", {
-        description: "Please wait for the restaurant to accept or deny before adding new items.",
+    if (activeOrder) {
+      toast.info("You have an active order", {
+        description: "Please wait for your current order to be completed, denied, or cancelled before adding new items.",
         duration: 3000,
       })
       return
@@ -42,7 +42,7 @@ export function CustomerInterface() {
       <CustomerSidebar 
         currentView={currentView} 
         onViewChange={setCurrentView} 
-        cartItemCount={pendingOrder ? 0 : getCartItemCount()}
+        cartItemCount={activeOrder ? 0 : getCartItemCount()}
         onToggleCart={() => setIsCartOpen(!isCartOpen)}
       />
 
@@ -58,8 +58,8 @@ export function CustomerInterface() {
             {/* Right Cart Sidebar - Desktop */}
             <div className="hidden lg:block w-96 border-l bg-background flex-shrink-0">
               <div className="sticky top-0 max-h-screen overflow-y-auto p-6">
-                {pendingOrder ? (
-                  <PendingOrder orderId={pendingOrder._id} />
+                {activeOrder ? (
+                  <OrderTracking orderId={activeOrder._id} />
                 ) : (
                   <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} />
                 )}
@@ -82,8 +82,8 @@ export function CustomerInterface() {
         <div className="lg:hidden fixed inset-0 bg-black/50 z-50" onClick={() => setIsCartOpen(false)}>
           <div className="absolute right-0 top-0 h-full w-96 bg-background border-l" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
-              {pendingOrder ? (
-                <PendingOrder orderId={pendingOrder._id} />
+              {activeOrder ? (
+                <OrderTracking orderId={activeOrder._id} />
               ) : (
                 <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} />
               )}
@@ -91,6 +91,7 @@ export function CustomerInterface() {
           </div>
         </div>
       )}
+
     </div>
   )
 }

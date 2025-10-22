@@ -23,13 +23,13 @@ interface CartProps {
 export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
   const [showCheckout, setShowCheckout] = useState(false)
 
-  const { getCustomerPendingOrder, currentUser } = useData()
+  const { getCustomerActiveOrder, currentUser, restaurant } = useData()
   const customerId = currentUser?._id || ""
-  const pendingOrder = customerId ? getCustomerPendingOrder(customerId) : undefined
-  const hasPendingOrder = !!pendingOrder
+  const activeOrder = customerId ? getCustomerActiveOrder(customerId) : undefined
+  const hasActiveOrder = !!activeOrder
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const platformFee = 10
+  const platformFee = restaurant.platformFee || 10
   const total = subtotal + platformFee
 
   if (items.length === 0) {
@@ -102,16 +102,16 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
           </div>
 
           <div className="space-y-2 pt-2">
-            {hasPendingOrder ? (
+            {hasActiveOrder ? (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800 font-medium">You have a pending order</p>
+                <p className="text-sm text-yellow-800 font-medium">You have an active order</p>
                 <p className="text-xs text-yellow-700 mt-1">
-                  Please wait for your current order to be confirmed before placing a new one.
+                  Please wait for your current order to be completed, denied, or cancelled before placing a new one.
                 </p>
-                {pendingOrder?.paymentScreenshot && (
+                {activeOrder?.paymentScreenshot && (
                   <div className="mt-2">
                     <p className="text-xs text-muted-foreground mb-1">Payment Screenshot:</p>
-                    <img src={pendingOrder.paymentScreenshot} alt="Payment" className="w-full rounded border object-contain" />
+                    <img src={activeOrder.paymentScreenshot} alt="Payment" className="w-full rounded border object-contain" />
                   </div>
                 )}
               </div>
@@ -134,8 +134,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart }: CartProps) {
         <CheckoutDialog
           items={items}
           subtotal={subtotal}
-          tax={0}
-          donation={platformFee}
+          platformFee={platformFee}
           total={total}
           onClose={() => setShowCheckout(false)}
           onSuccess={() => {

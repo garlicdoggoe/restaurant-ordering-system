@@ -22,14 +22,13 @@ import { useRouter } from "next/navigation"
 interface CheckoutDialogProps {
   items: any[]
   subtotal: number
-  tax: number
-  donation: number
+  platformFee: number
   total: number
   onClose: () => void
   onSuccess: () => void
 }
 
-export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose, onSuccess }: CheckoutDialogProps) {
+export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("dine-in")
   const { addOrder, currentUser, restaurant } = useData()
   const router = useRouter()
@@ -292,8 +291,7 @@ export function CheckoutDialog({ items, subtotal, tax, donation, total, onClose,
         gcashNumber: currentUser.gcashNumber, // Include GCash number used for payment
         items: orderItems,
         subtotal,
-        tax,
-        donation,
+        platformFee,
         discount: 0,
         total,
         orderType,

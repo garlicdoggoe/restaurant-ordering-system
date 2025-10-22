@@ -79,8 +79,7 @@ export const create = mutation({
       v.object({ menuItemId: v.string(), name: v.string(), price: v.number(), quantity: v.number() })
     ),
     subtotal: v.number(),
-    tax: v.number(),
-    donation: v.number(),
+    platformFee: v.number(),
     discount: v.number(),
     total: v.number(),
     orderType: v.union(
@@ -207,14 +206,14 @@ export const update = mutation({
       throw new Error("Unauthorized to update this order");
     }
 
-    // Allow customers to cancel pending orders
-    const allowedCancelUpdate = data.status === "cancelled" && existing.status === "pending";
+    // Allow customers to cancel pending orders or confirm denied orders
+    const allowedCancelUpdate = data.status === "cancelled" && (existing.status === "pending" || existing.status === "denied");
     // Allow customers to update remaining payment proof URL for their own orders
     const allowedPaymentProofUpdate = data.remainingPaymentProofUrl !== undefined && 
       Object.keys(data).length === 1; // Only updating remainingPaymentProofUrl
 
     if (!allowedCancelUpdate && !allowedPaymentProofUpdate) {
-      throw new Error("Customers can only cancel pending orders or update remaining payment proof");
+      throw new Error("Customers can only cancel pending/denied orders or update remaining payment proof");
     }
 
     if (allowedCancelUpdate) {

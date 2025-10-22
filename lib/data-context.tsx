@@ -44,6 +44,7 @@ export interface Restaurant {
   closingTime?: string // Format: "HH:MM" (24-hour format)
   averagePrepTime: number
   averageDeliveryTime: number
+  platformFee?: number // Platform service fee
 }
 
 export interface DeliveryFee {
@@ -88,8 +89,7 @@ export interface Order {
   gcashNumber?: string // GCash number used for payment
   items: OrderItem[]
   subtotal: number
-  tax: number
-  donation: number
+  platformFee: number
   discount: number
   total: number
   orderType: OrderType
@@ -182,6 +182,7 @@ interface DataContextType {
   updateOrder: (id: string, data: Partial<Order>) => void
   getOrderById: (id: string) => Order | undefined
   getCustomerPendingOrder: (customerId: string) => Order | undefined
+  getCustomerActiveOrder: (customerId: string) => Order | undefined
 
   // Vouchers
   vouchers: Voucher[]
@@ -292,6 +293,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         closingTime: restaurantDoc.closingTime,
         averagePrepTime: restaurantDoc.averagePrepTime,
         averageDeliveryTime: restaurantDoc.averageDeliveryTime,
+        platformFee: restaurantDoc.platformFee,
       } as Restaurant)
     : ({
         _id: "",
@@ -325,8 +327,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     gcashNumber: o.gcashNumber,
     items: o.items,
     subtotal: o.subtotal,
-    tax: o.tax,
-    donation: o.donation,
+    platformFee: o.platformFee,
     discount: o.discount,
     total: o.total,
     orderType: o.orderType,
@@ -417,8 +418,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       gcashNumber: order.gcashNumber,
       items: order.items,
       subtotal: order.subtotal,
-      tax: order.tax,
-      donation: order.donation,
+      platformFee: order.platformFee,
       discount: order.discount,
       total: order.total,
       orderType: order.orderType,
@@ -460,6 +460,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // Since orders are already filtered by role on the server, customers' lists only include their orders.
     // We still filter by customerId for safety when called by UI using explicit id.
     return (orders as any[]).find((o) => o.customerId === customerId && o.status === "pending" && o.orderType !== "pre-order")
+  }, [orders])
+
+  const getCustomerActiveOrder = useCallback((customerId: string) => {
+    // Get the most recent active order (not completed, cancelled, or delivered)
+    const activeStatuses = ["pending", "accepted", "ready", "in-transit", "denied"]
+    return (orders as any[])
+      .filter((o) => o.customerId === customerId && activeStatuses.includes(o.status))
+      .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))[0]
   }, [orders])
 
   const addVoucher = useCallback((voucher: Omit<Voucher, "_id">) => {
@@ -549,6 +557,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updateOrder,
     getOrderById,
     getCustomerPendingOrder,
+    getCustomerActiveOrder,
     vouchers,
     addVoucher,
     updateVoucher,

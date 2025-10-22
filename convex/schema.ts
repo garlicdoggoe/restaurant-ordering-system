@@ -28,6 +28,7 @@ export default defineSchema({
     closingTime: v.optional(v.string()), // Format: "HH:MM" (24-hour format)
     averagePrepTime: v.number(),
     averageDeliveryTime: v.number(),
+    platformFee: v.optional(v.number()), // Platform service fee
     createdAt: v.number(),
     updatedAt: v.number(),
   }),
@@ -64,8 +65,7 @@ export default defineSchema({
       })
     ),
     subtotal: v.number(),
-    tax: v.number(),
-    donation: v.number(),
+    platformFee: v.number(),
     discount: v.number(),
     total: v.number(),
     orderType: v.union(
