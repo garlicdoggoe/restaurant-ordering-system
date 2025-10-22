@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
-import AddressMapPicker from "@/components/ui/address-map-picker"
+import dynamic from "next/dynamic"
+const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 
 interface ProfileCompletionProps {

@@ -16,7 +16,8 @@ import { toast } from "sonner"
 import { SignupCallback } from "@/components/signup-callback"
 import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
 import { isValidPhoneNumber, formatPhoneForDisplay } from "@/lib/phone-validation"
-import AddressMapPicker from "@/components/ui/address-map-picker"
+import dynamic from "next/dynamic"
+const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 
 export function UserProfileSettings() {
   return (
