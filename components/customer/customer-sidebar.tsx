@@ -23,8 +23,8 @@ import { SignOutButton } from "@clerk/nextjs"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
 interface CustomerSidebarProps {
-  currentView: "menu" | "orders"
-  onViewChange: (view: "menu" | "orders") => void
+  currentView: "menu" | "orders" | "profile"
+  onViewChange: (view: "menu" | "orders" | "profile") => void
   cartItemCount: number
   onToggleCart?: () => void
 }
@@ -80,13 +80,15 @@ export function CustomerSidebar({
       id: "settings",
       label: "Settings",
       icon: Settings,
-      active: false
+      active: currentView === "profile"
     }
   ]
 
   const handleNavigation = (item: typeof navigationItems[0]) => {
     if (item.id === "menu" || item.id === "orders") {
       onViewChange(item.id as "menu" | "orders")
+    } else if (item.id === "settings") {
+      onViewChange("profile")
     } else if (item.onClick) {
       item.onClick()
     }
@@ -99,7 +101,7 @@ export function CustomerSidebar({
       <Button
         variant="ghost"
         size="icon"
-        className="lg:hidden fixed top-4 left-4 z-50"
+        className="lg:hidden fixed top-4 left-4 z-50 cursor-pointer hover:bg-yellow-100"
         onClick={() => setIsMobileMenuOpen(true)}
       >
         <Menu className="h-6 w-6" />
@@ -118,7 +120,7 @@ export function CustomerSidebar({
         fixed left-0 top-0 h-full w-80 bg-background border-r z-40
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:relative lg:z-auto lg:h-screen
+        lg:translate-x-0 lg:sticky lg:top-0 lg:z-auto lg:h-screen
       `}>
         <div className="flex flex-col h-full">
           {/* Close button for mobile */}
@@ -126,6 +128,7 @@ export function CustomerSidebar({
             <Button
               variant="ghost"
               size="icon"
+              className="cursor-pointer hover:bg-yellow-100"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <X className="h-6 w-6" />
@@ -148,8 +151,8 @@ export function CustomerSidebar({
                   key={item.id}
                   variant={item.active ? "default" : "ghost"}
                   className={`
-                    w-full justify-start gap-3 h-12
-                    ${item.active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}
+                    w-full justify-start gap-3 h-12 cursor-pointer
+                    ${item.active ? 'bg-primary text-primary-foreground' : 'hover:bg-yellow-100 hover:text-foreground'}
                   `}
                   onClick={() => handleNavigation(item)}
                 >
@@ -175,13 +178,13 @@ export function CustomerSidebar({
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">
+                <p className="font-medium text-2xl truncate">
                   Hello, {user.firstName || "User"}!
                 </p>
                 {currentUser?.address && (
-                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    {currentUser.address}
+                  <p className="text-xs text-muted-foreground flex items-start gap-1">
+                    <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                    <span className="break-words">{currentUser.address}</span>
                   </p>
                 )}
               </div>
@@ -189,7 +192,7 @@ export function CustomerSidebar({
 
             {/* Logout button */}
             <SignOutButton>
-              <Button variant="outline" className="w-full gap-2">
+              <Button variant="outline" className="w-full gap-2 cursor-pointer hover:bg-yellow-100 hover:text-foreground">
                 <LogOut className="h-4 w-4" />
                 Logout
               </Button>

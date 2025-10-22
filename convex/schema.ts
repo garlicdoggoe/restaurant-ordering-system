@@ -95,6 +95,7 @@ export default defineSchema({
     paymentScreenshot: v.optional(v.string()),
     voucherCode: v.optional(v.string()),
     denialReason: v.optional(v.string()),
+    specialInstructions: v.optional(v.string()),
     estimatedPrepTime: v.optional(v.number()),
     estimatedDeliveryTime: v.optional(v.number()),
     createdAt: v.number(),

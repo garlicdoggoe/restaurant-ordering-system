@@ -112,7 +112,7 @@ export function PendingOrder({ orderId }: PendingOrderProps) {
           Your order is pending confirmation from the restaurant. You will be notified once it is accepted.
         </div>
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-col gap-2 pt-2">
           <Button
             variant="outline"
             size="sm"

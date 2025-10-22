@@ -108,6 +108,7 @@ export const create = mutation({
     ),
     paymentScreenshot: v.optional(v.string()),
     voucherCode: v.optional(v.string()),
+    specialInstructions: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -122,6 +123,11 @@ export const create = mutation({
 
     // Only customers can create orders; force customerId to current user's id
     if (currentUser.role !== "customer") throw new Error("Only customers can create orders");
+
+    // Validate special instructions length (max 100 characters)
+    if (args.specialInstructions && args.specialInstructions.length > 100) {
+      throw new Error("Special instructions must be 100 characters or less");
+    }
 
     // If client sent a Convex storageId instead of a URL for payment screenshot, resolve it to a URL
     // This allows clients to pass a storage reference without extra round trips for URL resolution

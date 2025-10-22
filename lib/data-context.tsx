@@ -104,6 +104,7 @@ export interface Order {
   paymentScreenshot?: string
   voucherCode?: string
   denialReason?: string
+  specialInstructions?: string // Customer special instructions (max 100 chars)
   estimatedPrepTime?: number
   estimatedDeliveryTime?: number
   createdAt: number // Keep for backward compatibility
@@ -340,6 +341,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     paymentScreenshot: o.paymentScreenshot,
     voucherCode: o.voucherCode,
     denialReason: o.denialReason,
+    specialInstructions: o.specialInstructions,
     estimatedPrepTime: o.estimatedPrepTime,
     estimatedDeliveryTime: o.estimatedDeliveryTime,
     createdAt: o.createdAt,
@@ -430,6 +432,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       status: order.status,
       paymentScreenshot: order.paymentScreenshot,
       voucherCode: order.voucherCode,
+      specialInstructions: order.specialInstructions,
     })
   }, [createOrder])
 

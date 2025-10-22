@@ -7,46 +7,43 @@ import { api } from "@/convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Save, User, Mail, Phone, MapPin, Shield, CreditCard, Settings, Bell, Lock, HelpCircle } from "lucide-react"
+import { ArrowLeft, Save, User, Mail, Phone, MapPin, Shield, CreditCard, Settings, Bell, Lock } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { SignupCallback } from "@/components/signup-callback"
 import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
-import { normalizePhoneNumber, isValidPhoneNumber, formatPhoneForDisplay } from "@/lib/phone-validation"
+import { isValidPhoneNumber, formatPhoneForDisplay } from "@/lib/phone-validation"
 
-export default function ProfilePage() {
+export function UserProfileSettings() {
   return (
     <>
       <SignupCallback />
-      <ProfilePageContent />
+      <UserProfileSettingsContent />
     </>
   )
 }
 
-function ProfilePageContent() {
+function UserProfileSettingsContent() {
   const { user } = useUser()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeSection, setActiveSection] = useState<"profile" | "security" | "notifications" | "preferences">("profile")
-  
+
   // Form state
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
   const [gcashNumber, setGcashNumber] = useState("")
-  
+
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
   const updateProfile = useMutation(api.users.updateUserProfile)
-  
+
   // Initialize and keep form data in sync with server state
-  // Mirrors the data handling approach in `components/owner/restaurant-settings.tsx`
   useEffect(() => {
     if (currentUser) {
-      // Database now stores only 10-digit numbers (no +63 prefix to strip)
       setPhone(currentUser.phone || "")
       setAddress(currentUser.address || "")
       setGcashNumber(currentUser.gcashNumber || "")
@@ -69,7 +66,6 @@ function ProfilePageContent() {
     setIsSubmitting(true)
 
     try {
-      // Validate phone numbers before submission
       if (phone.trim() && !isValidPhoneNumber(phone)) {
         toast.error("Please enter a valid phone number")
         setIsSubmitting(false)
@@ -82,7 +78,6 @@ function ProfilePageContent() {
         return
       }
 
-      // Store only the 10-digit numbers in the database (without +63 prefix)
       const normalizedPhone = phone.trim() || ""
       const normalizedGcash = gcashNumber.trim() || ""
 
@@ -104,77 +99,7 @@ function ProfilePageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="p-2" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Profile Settings</h1>
-            <p className="text-sm text-gray-500">Manage your account information and preferences</p>
-          </div>
-        </div>
-      </div>
-
       <div className="flex h-[calc(100vh-80px)]">
-        {/* Left Sidebar */}
-        <div className="w-1/5 bg-white border-r border-gray-200 p-6">
-          {/* Navigation Items */}
-          <nav className="space-y-2">
-            {/* Profile Navigation */}
-            <div className="mt-6">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">SETTINGS</div>
-              <div className="space-y-1">
-                <div 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    activeSection === "profile" 
-                      ? "bg-yellow-100 text-yellow-700" 
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setActiveSection("profile")}
-                >
-                  <User className="w-4 h-4" />
-                  <span className="text-sm">Profile</span>
-                </div>
-                <div 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    activeSection === "security" 
-                      ? "bg-yellow-100 text-yellow-700" 
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setActiveSection("security")}
-                >
-                  <Lock className="w-4 h-4" />
-                  <span className="text-sm">Security</span>
-                </div>
-                <div 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    activeSection === "notifications" 
-                      ? "bg-yellow-100 text-yellow-700" 
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setActiveSection("notifications")}
-                >
-                  <Bell className="w-4 h-4" />
-                  <span className="text-sm">Notifications</span>
-                </div>
-                <div 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                    activeSection === "preferences" 
-                      ? "bg-yellow-100 text-yellow-700" 
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                  onClick={() => setActiveSection("preferences")}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span className="text-sm">Preferences</span>
-                </div>
-              </div>
-            </div>
-          </nav>
-        </div>
-
         {/* Main Content Area */}
         <div className="flex-1 p-6">
           {activeSection === "profile" && (
@@ -218,21 +143,18 @@ function ProfilePageContent() {
                         <Mail className="h-4 w-4 text-gray-400" />
                         <span className="truncate text-gray-600">{user.emailAddresses[0]?.emailAddress}</span>
                       </div>
-                      
                       {currentUser?.phone && (
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="h-4 w-4 text-gray-400" />
                           <span className="text-gray-600">{formatPhoneForDisplay(currentUser.phone)}</span>
                         </div>
                       )}
-                      
                       {currentUser?.address && (
                         <div className="flex items-center gap-2 text-sm">
                           <MapPin className="h-4 w-4 text-gray-400" />
                           <span className="truncate text-gray-600">{currentUser.address}</span>
                         </div>
                       )}
-                      
                       {currentUser?.gcashNumber && (
                         <div className="flex items-center gap-2 text-sm">
                           <CreditCard className="h-4 w-4 text-gray-400" />
@@ -274,7 +196,7 @@ function ProfilePageContent() {
                         <h4 className="font-medium text-sm text-gray-500 uppercase tracking-wide">
                           Basic Information
                         </h4>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="firstName">First Name</Label>
@@ -288,7 +210,7 @@ function ProfilePageContent() {
                               Managed by your account provider
                             </p>
                           </div>
-                          
+
                           <div className="space-y-2">
                             <Label htmlFor="lastName">Last Name</Label>
                             <Input
@@ -324,14 +246,14 @@ function ProfilePageContent() {
                         <h4 className="font-medium text-sm text-gray-500 uppercase tracking-wide">
                           Contact Information
                         </h4>
-                        
+
                         <PhoneInput
                           id="phone"
                           label="Phone Number"
                           value={phone}
                           onChange={setPhone}
                         />
-                        
+
                         <div className="space-y-2">
                           <Label htmlFor="address">Address</Label>
                           <Input
@@ -342,7 +264,7 @@ function ProfilePageContent() {
                             onChange={(e) => setAddress(e.target.value)}
                           />
                         </div>
-                        
+
                         <GcashInput
                           id="gcashNumber"
                           label="GCash Number"
@@ -427,3 +349,5 @@ function ProfilePageContent() {
     </div>
   )
 }
+
+

@@ -5,12 +5,13 @@ import { CustomerSidebar } from "./customer-sidebar"
 import { MenuBrowser } from "./menu-browser"
 import { Cart } from "./cart"
 import { OrderHistory } from "./order-history"
+import { UserProfileSettings } from "./user-profile-settings"
 import { PendingOrder } from "./pending-order"
 import { useData } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { toast } from "sonner"
 
-export type CustomerView = "menu" | "orders"
+export type CustomerView = "menu" | "orders" | "profile"
 
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
@@ -65,9 +66,13 @@ export function CustomerInterface() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : currentView === "orders" ? (
           <div className="p-6">
             <OrderHistory onBackToMenu={() => setCurrentView("menu")} />
+          </div>
+        ) : (
+          <div className="p-6">
+            <UserProfileSettings />
           </div>
         )}
       </div>

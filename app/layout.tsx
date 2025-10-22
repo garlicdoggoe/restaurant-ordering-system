@@ -11,8 +11,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Foodies Restaurant - Order Management System",
-  description: "Restaurant ordering and management system",
+  title: "Blackpepper Camp's Pizza - Order Management System",
+  description: "Blackpepper Camp's Pizza - Order Management System",
 }
 
 export default function RootLayout({

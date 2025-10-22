@@ -60,21 +60,23 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
                   className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} 
                 />
               </Button>
-              
-              {/* Add button in bottom-right corner */}
-              <Button
-                size="icon"
-                className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onAddToCart(item)}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
             </div>
             
             <CardContent className="p-3">
-              <h3 className="font-semibold mb-1 text-sm">{item.name}</h3>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold">from ₱{item.price.toFixed(2)}</span>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold mb-1 text-sm truncate">{item.name}</h3>
+                  <span className="text-sm font-bold">from ₱{item.price.toFixed(2)}</span>
+                </div>
+                
+                {/* Add button beside the item name and price */}
+                <Button
+                  size="icon"
+                  className="w-11 h-11 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg flex-shrink-0"
+                  onClick={() => onAddToCart(item)}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
