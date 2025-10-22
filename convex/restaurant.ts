@@ -22,6 +22,12 @@ export const upsert = mutation({
     closingTime: v.optional(v.string()),
     averagePrepTime: v.number(),
     averageDeliveryTime: v.number(),
+    coordinates: v.optional(
+      v.object({
+        lng: v.number(),
+        lat: v.number(),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const now = Date.now();

@@ -17,6 +17,7 @@ import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import { PhoneInput } from "@/components/ui/phone-input"
+import { AddressMapPicker } from "@/components/ui/address-map-picker"
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 import { useRouter } from "next/navigation"
 
@@ -73,6 +74,14 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   // Edit mode for delivery details
   const [isEditingDelivery, setIsEditingDelivery] = useState(false)
 
+  // Optional coordinates for delivery address (lng, lat)
+  const [deliveryCoordinates, setDeliveryCoordinates] = useState<[number, number] | null>(null)
+  
+  // Default coordinates from user's saved coordinates or fallback to Libmanan, Camarines Sur
+  const defaultCoordinates: [number, number] = currentUser?.coordinates 
+    ? [currentUser.coordinates.lng, currentUser.coordinates.lat]
+    : [123.05, 13.7] // Libmanan, Camarines Sur, Bicol
+
   // Keep phone/address synced from profile on open/switches
   useEffect(() => {
     if (currentUser?.phone) {
@@ -83,7 +92,11 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       const n = `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim()
       setCustomerName((prev) => prev || n)
     }
-  }, [currentUser])
+    // Initialize delivery coordinates with user's saved coordinates
+    if (currentUser?.coordinates && !deliveryCoordinates) {
+      setDeliveryCoordinates([currentUser.coordinates.lng, currentUser.coordinates.lat])
+    }
+  }, [currentUser, deliveryCoordinates])
 
   useEffect(() => {
     const wantsDelivery = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
@@ -379,18 +392,30 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   />
 
                   {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
-                    <div>
-                      <Label htmlFor="address">Address</Label>
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="w-4 h-4 text-red-500" />
-                        <Input
-                          id="address"
-                          placeholder="Enter delivery address"
-                          value={customerAddress}
-                          onChange={(e) => setCustomerAddress(e.target.value)}
-                          required
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Delivery Address</Label>
+                      <div className="rounded-lg border p-3 bg-white">
+                        <AddressMapPicker
+                          address={customerAddress}
+                          onAddressChange={setCustomerAddress}
+                          coordinates={deliveryCoordinates || defaultCoordinates}
+                          onCoordinatesChange={setDeliveryCoordinates}
+                          mapHeightPx={220}
+                          interactive={true}
                         />
                       </div>
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          onClose()
+                          onOpenSettings?.()
+                        }}
+                      >
+                        Change delivery address
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -405,12 +430,37 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     <span className="font-medium">(+63) {customerPhone || "Not provided"}</span>
                   </div>
                   {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Address:</span>
-                      <span className="font-medium flex items-center">
-                        <MapPin className="w-3 h-3 text-red-500 mr-1" />
-                        {customerAddress || "Not provided"}
-                      </span>
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
+                        <span className="text-gray-600">Address:</span>
+                        <span className="font-medium flex items-center">
+                          <MapPin className="w-3 h-3 text-red-500 mr-1" />
+                          {customerAddress || "Not provided"}
+                        </span>
+                      </div>
+                      {/* Show map in non-editing view as well */}
+                      <div className="rounded-lg border p-3 bg-white">
+                        <AddressMapPicker
+                          address={customerAddress}
+                          onAddressChange={setCustomerAddress}
+                          coordinates={deliveryCoordinates || defaultCoordinates}
+                          onCoordinatesChange={setDeliveryCoordinates}
+                          mapHeightPx={220}
+                          interactive={false}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          onClose()
+                          onOpenSettings?.()
+                        }}
+                      >
+                        Change delivery address
+                      </Button>
                     </div>
                   )}
                 </div>

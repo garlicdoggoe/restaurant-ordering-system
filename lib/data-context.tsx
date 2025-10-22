@@ -26,6 +26,10 @@ export interface User {
   role: "owner" | "customer"
   phone?: string
   address?: string
+  coordinates?: {
+    lng: number
+    lat: number
+  }
   gcashNumber?: string // GCash payment method number
   profileComplete: boolean
   createdAt: number
@@ -46,6 +50,10 @@ export interface Restaurant {
   averagePrepTime: number
   averageDeliveryTime: number
   platformFee?: number // Platform service fee
+  coordinates?: {
+    lng: number
+    lat: number
+  }
 }
 
 export interface DeliveryFee {
@@ -275,6 +283,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     role: currentUserDoc.role,
     phone: currentUserDoc.phone,
     address: currentUserDoc.address,
+    coordinates: currentUserDoc.coordinates,
     gcashNumber: currentUserDoc.gcashNumber,
     profileComplete: currentUserDoc.profileComplete,
     createdAt: currentUserDoc.createdAt,
@@ -344,6 +353,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         averagePrepTime: restaurantDoc.averagePrepTime,
         averageDeliveryTime: restaurantDoc.averageDeliveryTime,
         platformFee: restaurantDoc.platformFee,
+        coordinates: restaurantDoc.coordinates,
       } as Restaurant)
     : ({
         _id: "",

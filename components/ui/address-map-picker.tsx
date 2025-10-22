@@ -22,6 +22,9 @@ interface AddressMapPickerProps {
 
   // Optional height for the map container
   mapHeightPx?: number
+  
+  // Whether the map should be interactive (default: true)
+  interactive?: boolean
 }
 
 /**
@@ -35,6 +38,7 @@ export function AddressMapPicker({
   coordinates,
   onCoordinatesChange,
   mapHeightPx = 300,
+  interactive = true,
 }: AddressMapPickerProps) {
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || ""
 
@@ -76,17 +80,20 @@ export function AddressMapPicker({
       center: coordinates ?? [123.05, 13.7],
       zoom: coordinates ? 14 : 12,
       style: "mapbox://styles/mapbox/streets-v12",
+      interactive: interactive,
     })
 
     map.on("load", () => setMapLoaded(true))
 
-    // Click to set/move marker
-    map.on("click", (e) => {
-      const newCoords: LngLatTuple = [e.lngLat.lng, e.lngLat.lat]
-      ensureMarker(map, newCoords)
-      onCoordinatesChange(newCoords)
-      scheduleReverseGeocode(newCoords[0], newCoords[1])
-    })
+    // Click to set/move marker (only when interactive)
+    if (interactive) {
+      map.on("click", (e) => {
+        const newCoords: LngLatTuple = [e.lngLat.lng, e.lngLat.lat]
+        ensureMarker(map, newCoords)
+        onCoordinatesChange(newCoords)
+        scheduleReverseGeocode(newCoords[0], newCoords[1])
+      })
+    }
 
     mapRef.current = map
 
@@ -108,26 +115,28 @@ export function AddressMapPicker({
   // Ensure marker exists and attach drag handlers
   const ensureMarker = (map: mapboxgl.Map, lngLat: LngLatTuple) => {
     if (!markerRef.current) {
-      markerRef.current = new mapboxgl.Marker({ draggable: true })
+      markerRef.current = new mapboxgl.Marker({ draggable: interactive })
         .setLngLat(lngLat)
         .addTo(map)
 
-      markerRef.current.on("drag", () => {
-        const m = markerRef.current
-        if (!m) return
-        const pos = m.getLngLat()
-        const tuple: LngLatTuple = [pos.lng, pos.lat]
-        onCoordinatesChange(tuple)
-        scheduleReverseGeocode(pos.lng, pos.lat)
-      })
+      if (interactive) {
+        markerRef.current.on("drag", () => {
+          const m = markerRef.current
+          if (!m) return
+          const pos = m.getLngLat()
+          const tuple: LngLatTuple = [pos.lng, pos.lat]
+          onCoordinatesChange(tuple)
+          scheduleReverseGeocode(pos.lng, pos.lat)
+        })
 
-      markerRef.current.on("dragend", () => {
-        const m = markerRef.current
-        if (!m) return
-        const pos = m.getLngLat()
-        const tuple: LngLatTuple = [pos.lng, pos.lat]
-        onCoordinatesChange(tuple)
-      })
+        markerRef.current.on("dragend", () => {
+          const m = markerRef.current
+          if (!m) return
+          const pos = m.getLngLat()
+          const tuple: LngLatTuple = [pos.lng, pos.lat]
+          onCoordinatesChange(tuple)
+        })
+      }
     } else {
       markerRef.current.setLngLat(lngLat)
     }
@@ -150,26 +159,28 @@ export function AddressMapPicker({
 
       {accessToken ? (
         <div className="space-y-2">
-          <SearchBox
-            accessToken={accessToken}
-            map={mapRef.current as unknown as mapboxgl.Map}
-            mapboxgl={mapboxgl as unknown as any}
-            value={searchValue}
-            onChange={(v) => setSearchValue(v)}
-            onRetrieve={(res) => {
-              const feature = (res as any)?.features?.[0]
-              const coords = feature?.geometry?.coordinates as LngLatTuple | undefined
-              const props = (feature?.properties as any) || {}
-              const placeName = props.full_address || props.name || props.place_formatted || props.formatted_address
-              if (coords && mapRef.current) {
-                mapRef.current.flyTo({ center: coords, zoom: 14 })
-                ensureMarker(mapRef.current, coords)
-                onCoordinatesChange(coords)
-              }
-              if (placeName) onAddressChange(String(placeName))
-            }}
-            options={{ language: "en" }}
-          />
+          {interactive && (
+            <SearchBox
+              accessToken={accessToken}
+              map={mapRef.current as unknown as mapboxgl.Map}
+              mapboxgl={mapboxgl as unknown as any}
+              value={searchValue}
+              onChange={(v) => setSearchValue(v)}
+              onRetrieve={(res) => {
+                const feature = (res as any)?.features?.[0]
+                const coords = feature?.geometry?.coordinates as LngLatTuple | undefined
+                const props = (feature?.properties as any) || {}
+                const placeName = props.full_address || props.name || props.place_formatted || props.formatted_address
+                if (coords && mapRef.current) {
+                  mapRef.current.flyTo({ center: coords, zoom: 14 })
+                  ensureMarker(mapRef.current, coords)
+                  onCoordinatesChange(coords)
+                }
+                if (placeName) onAddressChange(String(placeName))
+              }}
+              options={{ language: "en" }}
+            />
+          )}
           <div
             id="map-container"
             ref={mapContainerRef}
@@ -181,10 +192,6 @@ export function AddressMapPicker({
         <p className="text-xs text-red-600">Map is unavailable. Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable.</p>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="coordinates">Coordinates</Label>
-        <Input id="coordinates" type="text" placeholder="lat, lng" value={coordsText} onChange={() => {}} disabled className="bg-gray-50" />
-      </div>
     </div>
   )
 }

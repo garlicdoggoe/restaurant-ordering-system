@@ -35,6 +35,12 @@ export default defineSchema({
     averagePrepTime: v.number(),
     averageDeliveryTime: v.number(),
     platformFee: v.optional(v.number()), // Platform service fee
+    coordinates: v.optional(
+      v.object({
+        lng: v.number(),
+        lat: v.number(),
+      })
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   }),

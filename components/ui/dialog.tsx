@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { VisuallyHidden } from "./visually-hidden"
 
 function Dialog({
   ...props
@@ -54,6 +55,29 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  // Check if DialogTitle is already present in children
+  const hasDialogTitle = React.useMemo(() => {
+    const checkForDialogTitle = (children: React.ReactNode): boolean => {
+      return React.Children.toArray(children).some((child) => {
+        if (React.isValidElement(child)) {
+          // Check if this is a DialogTitle component
+          if (child.type === DialogTitle) {
+            return true
+          }
+          // Recursively check children
+          if (child.props && typeof child.props === 'object' && 'children' in child.props) {
+            const childChildren = (child.props as { children?: React.ReactNode }).children
+            if (childChildren) {
+              return checkForDialogTitle(childChildren)
+            }
+          }
+        }
+        return false
+      })
+    }
+    return checkForDialogTitle(children)
+  }, [children])
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -65,6 +89,12 @@ function DialogContent({
         )}
         {...props}
       >
+        {/* Automatically add hidden DialogTitle if none is present for accessibility */}
+        {!hasDialogTitle && (
+          <VisuallyHidden>
+            <DialogTitle>Dialog</DialogTitle>
+          </VisuallyHidden>
+        )}
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
