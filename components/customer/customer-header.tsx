@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ShoppingCart, History, UtensilsCrossed } from "lucide-react"
@@ -23,9 +24,11 @@ export function CustomerHeader({ currentView, onViewChange, cartItemCount }: Cus
           {/* Restaurant logo or default icon */}
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
             {restaurant.logo ? (
-              <img 
+              <Image 
                 src={restaurant.logo} 
                 alt={`${restaurant.name} logo`}
+                width={40}
+                height={40}
                 className="w-full h-full object-cover"
               />
             ) : (

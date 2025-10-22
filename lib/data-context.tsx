@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import { useQuery, useMutation } from "convex/react"
 import { useUser } from "@clerk/nextjs"
 import { api } from "@/convex/_generated/api"
-const apiAny: any = api
+// Use api directly instead of casting to any
 
 // Types
 export type OrderStatus = "pending" | "accepted" | "ready" | "denied" | "completed" | "cancelled" | "in-transit" | "delivered"
@@ -220,7 +220,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { user: clerkUser, isLoaded } = useUser()
   
   // Get current user from Convex
-  const currentUserDoc = useQuery(apiAny.users?.getCurrentUser)
+  const currentUserDoc = useQuery(api.users.getCurrentUser)
   
   // Transform Convex user data to our User interface
   const currentUser: User | null = currentUserDoc ? {
@@ -239,19 +239,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
   } : null
 
   // Queries
-  const restaurantDoc = useQuery(apiAny.restaurant?.get) ?? null
-  const deliveryFeesDocs = useQuery(apiAny.delivery_fees?.list) ?? []
-  const categoriesDocs = useQuery(apiAny.menu?.getCategories) ?? []
-  const menuDocs = useQuery(apiAny.menu?.getMenuItems, {}) ?? []
+  const restaurantDoc = useQuery(api.restaurant.get) ?? null
+  const deliveryFeesDocs = useQuery(api.delivery_fees.list) ?? []
+  const categoriesDocs = useQuery(api.menu.getCategories) ?? []
+  const menuDocs = useQuery(api.menu.getMenuItems, {}) ?? []
   // Orders are role-filtered server-side. This returns either all orders (owner) or only the current customer's orders.
   // Avoid querying when unauthenticated or before the Convex user doc exists on first login.
   // currentUserDoc === undefined => loading; null => not found yet
   const hasConvexUser = currentUserDoc !== undefined && currentUserDoc !== null
   const shouldFetchOrders = !!clerkUser && !!isLoaded && hasConvexUser
-  const ordersDocs = useQuery(apiAny.orders?.list, shouldFetchOrders ? {} : undefined) ?? []
-  const vouchersDocs = useQuery(apiAny.vouchers?.list) ?? []
-  const promotionsDocs = useQuery(apiAny.promotions?.list) ?? []
-  const denialReasonsDocs = useQuery(apiAny.denial_reasons?.list) ?? []
+  const ordersDocs = useQuery(api.orders.list, shouldFetchOrders ? {} : undefined) ?? []
+  const vouchersDocs = useQuery(api.vouchers.list) ?? []
+  const promotionsDocs = useQuery(api.promotions.list) ?? []
+  const denialReasonsDocs = useQuery(api.denial_reasons.list) ?? []
 
   // Debug logging for data context
   console.log("Data Context - Categories:", categoriesDocs)
@@ -259,24 +259,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
   console.log("Data Context - Promotions:", promotionsDocs)
 
   // Mutations
-  const upsertRestaurant = useMutation(apiAny.restaurant?.upsert)
-  const upsertDeliveryFee = useMutation(apiAny.delivery_fees?.upsert)
-  const bulkUpsertDeliveryFees = useMutation(apiAny.delivery_fees?.bulkUpsert)
-  const removeDeliveryFeeMut = useMutation(apiAny.delivery_fees?.remove)
-  const createMenuItem = useMutation(apiAny.menu?.addMenuItem)
-  const patchMenuItem = useMutation(apiAny.menu?.updateMenuItem)
-  const removeMenuItem = useMutation(apiAny.menu?.deleteMenuItem)
-  const createOrder = useMutation(apiAny.orders?.create)
-  const patchOrder = useMutation(apiAny.orders?.update)
-  const addVoucherMut = useMutation(apiAny.vouchers?.add)
-  const updateVoucherMut = useMutation(apiAny.vouchers?.update)
-  const deleteVoucherMut = useMutation(apiAny.vouchers?.remove)
-  const addPromotionMut = useMutation(apiAny.promotions?.add)
-  const updatePromotionMut = useMutation(apiAny.promotions?.update)
-  const deletePromotionMut = useMutation(apiAny.promotions?.remove)
-  const addDenialReasonMut = useMutation(apiAny.denial_reasons?.add)
-  const initializePresetReasonsMut = useMutation(apiAny.denial_reasons?.initializePresetReasons)
-  const sendChatMut = useMutation(apiAny.chat?.send)
+  const upsertRestaurant = useMutation(api.restaurant.upsert)
+  const upsertDeliveryFee = useMutation(api.delivery_fees.upsert)
+  const bulkUpsertDeliveryFees = useMutation(api.delivery_fees.bulkUpsert)
+  const removeDeliveryFeeMut = useMutation(api.delivery_fees.remove)
+  const createMenuItem = useMutation(api.menu.addMenuItem)
+  const patchMenuItem = useMutation(api.menu.updateMenuItem)
+  const removeMenuItem = useMutation(api.menu.deleteMenuItem)
+  const createOrder = useMutation(api.orders.create)
+  const patchOrder = useMutation(api.orders.update)
+  const addVoucherMut = useMutation(api.vouchers.add)
+  const updateVoucherMut = useMutation(api.vouchers.update)
+  const deleteVoucherMut = useMutation(api.vouchers.remove)
+  const addPromotionMut = useMutation(api.promotions.add)
+  const updatePromotionMut = useMutation(api.promotions.update)
+  const deletePromotionMut = useMutation(api.promotions.remove)
+  const addDenialReasonMut = useMutation(api.denial_reasons.add)
+  const initializePresetReasonsMut = useMutation(api.denial_reasons.initializePresetReasons)
+  const sendChatMut = useMutation(api.chat.send)
 
   // Mapped values
   const restaurant: Restaurant = restaurantDoc
@@ -307,7 +307,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         averageDeliveryTime: 0,
       } as Restaurant)
 
-  const deliveryFees: DeliveryFee[] = deliveryFeesDocs.map((df: any) => ({
+  const deliveryFees: DeliveryFee[] = deliveryFeesDocs.map((df) => ({
     _id: df._id as string,
     barangay: df.barangay,
     fee: df.fee,
@@ -315,9 +315,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updatedAt: df.updatedAt,
   }))
 
-  const categories: Category[] = categoriesDocs.map((c: any) => ({ _id: c._id as string, name: c.name, icon: c.icon, order: c.order }))
-  const menuItems: MenuItem[] = menuDocs.map((m: any) => ({ _id: m._id as string, name: m.name, description: m.description, price: m.price, category: m.category, image: m.image, available: m.available }))
-  const orders: Order[] = ordersDocs.map((o: any) => ({
+  const categories: Category[] = categoriesDocs.map((c) => ({ _id: c._id as string, name: c.name, icon: c.icon, order: c.order }))
+  const menuItems: MenuItem[] = menuDocs.map((m) => ({ _id: m._id as string, name: m.name, description: m.description, price: m.price, category: m.category, image: m.image, available: m.available }))
+  const orders: Order[] = ordersDocs.map((o) => ({
     _id: o._id as string,
     _creationTime: o._creationTime as number,
     customerId: o.customerId,
@@ -348,9 +348,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   }))
-  const vouchers: Voucher[] = vouchersDocs as any
-  const promotions: Promotion[] = promotionsDocs as any
-  const denialReasons: DenialReason[] = denialReasonsDocs as any
+  const vouchers: Voucher[] = vouchersDocs as Voucher[]
+  const promotions: Promotion[] = promotionsDocs as Promotion[]
+  const denialReasons: DenialReason[] = denialReasonsDocs as DenialReason[]
 
   // Methods
   const updateRestaurant = useCallback((data: Partial<Restaurant>) => {
@@ -394,7 +394,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [createMenuItem])
 
   const updateMenuItem = useCallback((id: string, data: Partial<MenuItem>) => {
-    void patchMenuItem({ id: id as any, data: {
+    void patchMenuItem({ id, data: {
       name: data.name,
       description: data.description,
       price: data.price,
@@ -405,7 +405,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [patchMenuItem])
 
   const deleteMenuItem = useCallback((id: string) => {
-    void removeMenuItem({ id: id as any })
+    void removeMenuItem({ id })
   }, [removeMenuItem])
 
   const addOrder = useCallback((order: Omit<Order, "_id" | "createdAt" | "updatedAt">) => {
@@ -422,12 +422,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       discount: order.discount,
       total: order.total,
       orderType: order.orderType,
-      preOrderFulfillment: order.preOrderFulfillment as any,
+      preOrderFulfillment: order.preOrderFulfillment,
       preOrderScheduledAt: order.preOrderScheduledAt,
-      paymentPlan: order.paymentPlan as any,
+      paymentPlan: order.paymentPlan,
       downpaymentAmount: order.downpaymentAmount,
       downpaymentProofUrl: order.downpaymentProofUrl,
-      remainingPaymentMethod: order.remainingPaymentMethod as any,
+      remainingPaymentMethod: order.remainingPaymentMethod,
       remainingPaymentProofUrl: order.remainingPaymentProofUrl,
       status: order.status,
       paymentScreenshot: order.paymentScreenshot,
@@ -437,35 +437,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [createOrder])
 
   const updateOrder = useCallback((id: string, data: Partial<Order>) => {
-    void patchOrder({ id: id as any, data: {
-      status: data.status as any,
+    void patchOrder({ id, data: {
+      status: data.status,
       denialReason: data.denialReason,
       estimatedPrepTime: data.estimatedPrepTime,
       estimatedDeliveryTime: data.estimatedDeliveryTime,
-      preOrderFulfillment: data.preOrderFulfillment as any,
+      preOrderFulfillment: data.preOrderFulfillment,
       preOrderScheduledAt: data.preOrderScheduledAt,
-      paymentPlan: data.paymentPlan as any,
+      paymentPlan: data.paymentPlan,
       downpaymentAmount: data.downpaymentAmount,
       downpaymentProofUrl: data.downpaymentProofUrl,
-      remainingPaymentMethod: data.remainingPaymentMethod as any,
+      remainingPaymentMethod: data.remainingPaymentMethod,
       remainingPaymentProofUrl: data.remainingPaymentProofUrl,
     } })
   }, [patchOrder])
 
   const getOrderById = useCallback((id: string) => {
-    return (orders as any[]).find((o) => (o as any)._id === id)
+    return orders.find((o) => o._id === id)
   }, [orders])
 
   const getCustomerPendingOrder = useCallback((customerId: string) => {
     // Since orders are already filtered by role on the server, customers' lists only include their orders.
     // We still filter by customerId for safety when called by UI using explicit id.
-    return (orders as any[]).find((o) => o.customerId === customerId && o.status === "pending" && o.orderType !== "pre-order")
+    return orders.find((o) => o.customerId === customerId && o.status === "pending" && o.orderType !== "pre-order")
   }, [orders])
 
   const getCustomerActiveOrder = useCallback((customerId: string) => {
     // Get the most recent active order (not completed, cancelled, or delivered)
     const activeStatuses = ["pending", "accepted", "ready", "in-transit", "denied"]
-    return (orders as any[])
+    return orders
       .filter((o) => o.customerId === customerId && activeStatuses.includes(o.status))
       .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))[0]
   }, [orders])
@@ -485,15 +485,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [addVoucherMut])
 
   const updateVoucher = useCallback((id: string, data: Partial<Voucher>) => {
-    void updateVoucherMut({ id: id as any, data })
+    void updateVoucherMut({ id, data })
   }, [updateVoucherMut])
 
   const deleteVoucher = useCallback((id: string) => {
-    void deleteVoucherMut({ id: id as any })
+    void deleteVoucherMut({ id })
   }, [deleteVoucherMut])
 
   const validateVoucher = useCallback((code: string, orderAmount: number) => {
-    const voucher = (vouchers as any[]).find((v) => v.code === code && v.active)
+    const voucher = vouchers.find((v) => v.code === code && v.active)
     if (!voucher) return { valid: false, discount: 0, message: "Invalid voucher code" }
     if (voucher.expiresAt < Date.now()) return { valid: false, discount: 0, message: "Voucher has expired" }
     if (voucher.usageCount >= voucher.usageLimit) return { valid: false, discount: 0, message: "Voucher usage limit reached" }
@@ -503,15 +503,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [vouchers])
 
   const addPromotion = useCallback((promotion: Omit<Promotion, "_id">) => {
-    void addPromotionMut(promotion as any)
+    void addPromotionMut(promotion)
   }, [addPromotionMut])
 
   const updatePromotion = useCallback((id: string, data: Partial<Promotion>) => {
-    void updatePromotionMut({ id: id as any, data })
+    void updatePromotionMut({ id, data })
   }, [updatePromotionMut])
 
   const deletePromotion = useCallback((id: string) => {
-    void deletePromotionMut({ id: id as any })
+    void deletePromotionMut({ id })
   }, [deletePromotionMut])
 
   const addDenialReason = useCallback((reason: string) => {

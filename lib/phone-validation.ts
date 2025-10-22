@@ -172,7 +172,7 @@ export function handlePhoneInputChange(
   onChange: (value: string) => void
 ): void {
   // Remove any non-digit characters
-  let cleaned = value.replace(/[^\d]/g, '')
+  const cleaned = value.replace(/[^\d]/g, '')
   
   // Limit to 10 digits maximum
   if (cleaned.length <= 10) {

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Send } from "lucide-react"
-import { useData } from "@/lib/data-context"
+import { useData, type ChatMessage } from "@/lib/data-context"
 import { cn } from "@/lib/utils"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -26,7 +26,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const order = getOrderById(orderId)
-  const messages = useQuery(api.chat.listByOrder as any, { orderId }) ?? []
+  const messages: ChatMessage[] = useQuery(api.chat.listByOrder, { orderId }) ?? []
   const ownerId = "user1"
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
             {messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">No messages yet. Start a conversation!</div>
             ) : (
-              messages.map((msg: any) => (
+              messages.map((msg: ChatMessage) => (
                 <div key={msg._id} className={cn("flex", msg.senderRole === "owner" ? "justify-end" : "justify-start")}>
                   <div
                     className={cn(
