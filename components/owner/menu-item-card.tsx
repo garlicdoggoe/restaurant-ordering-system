@@ -7,7 +7,9 @@ import { Edit, Trash2 } from "lucide-react"
 import Image from "next/image"
 import { useData } from "@/lib/data-context"
 import { toast } from "sonner"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 interface MenuItemCardProps {
   item: {
@@ -25,6 +27,21 @@ interface MenuItemCardProps {
 export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
   const { deleteMenuItem } = useData()
   const [isDeleting, setIsDeleting] = useState(false)
+  const [displayPrice, setDisplayPrice] = useState(item.price)
+
+  // Fetch variants to determine display price
+  const variants = useQuery(api.menu.getVariantsByMenuItem, { menuItemId: item._id as any })
+
+  useEffect(() => {
+    if (variants && variants.length > 0) {
+      // Show minimum variant price if variants exist
+      const minPrice = Math.min(...variants.map(v => v.price))
+      setDisplayPrice(minPrice)
+    } else {
+      // Fallback to item price
+      setDisplayPrice(item.price)
+    }
+  }, [variants, item.price])
 
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to delete "${item.name}"?`)) {
@@ -59,7 +76,9 @@ export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-lg font-bold">₱{item.price.toFixed(2)}</span>
+            <span className="text-lg font-bold">
+              {variants && variants.length > 0 ? `From ₱${displayPrice.toFixed(2)}` : `₱${displayPrice.toFixed(2)}`}
+            </span>
             <div className="text-xs text-muted-foreground capitalize">{item.category}</div>
           </div>
           <div className="flex gap-2">

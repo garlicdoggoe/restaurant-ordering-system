@@ -76,7 +76,17 @@ export const create = mutation({
     customerAddress: v.optional(v.string()),
     gcashNumber: v.optional(v.string()),
     items: v.array(
-      v.object({ menuItemId: v.string(), name: v.string(), price: v.number(), quantity: v.number() })
+      v.object({ 
+        menuItemId: v.string(), 
+        name: v.string(), 
+        price: v.number(), 
+        quantity: v.number(),
+        // Optional variant information for flexible pricing
+        variantId: v.optional(v.string()),
+        variantName: v.optional(v.string()),
+        attributes: v.optional(v.record(v.string(), v.string())),
+        unitPrice: v.optional(v.number()),
+      })
     ),
     subtotal: v.number(),
     platformFee: v.number(),

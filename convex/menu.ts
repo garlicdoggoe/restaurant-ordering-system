@@ -101,3 +101,162 @@ export const seedDefaultCategories = mutation({
   },
 });
 
+// Variant management functions
+export const getVariantsByMenuItem = query({
+  args: { menuItemId: v.id("menu_items") },
+  handler: async (ctx, { menuItemId }) => {
+    return await ctx.db
+      .query("menu_item_variants")
+      .withIndex("by_menuItemId", (q) => q.eq("menuItemId", menuItemId))
+      .collect();
+  },
+});
+
+export const addVariant = mutation({
+  args: {
+    menuItemId: v.id("menu_items"),
+    name: v.string(),
+    price: v.number(),
+    available: v.boolean(),
+    sku: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("menu_item_variants", { 
+      ...args, 
+      createdAt: now, 
+      updatedAt: now 
+    });
+  },
+});
+
+export const updateVariant = mutation({
+  args: {
+    id: v.id("menu_item_variants"),
+    data: v.object({
+      name: v.optional(v.string()),
+      price: v.optional(v.number()),
+      available: v.optional(v.boolean()),
+      sku: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, { id, data }) => {
+    await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
+    return id;
+  },
+});
+
+export const deleteVariant = mutation({
+  args: { id: v.id("menu_item_variants") },
+  handler: async (ctx, { id }) => {
+    // Also delete associated variant attributes
+    const variantAttributes = await ctx.db
+      .query("variant_attributes")
+      .withIndex("by_variantId", (q) => q.eq("variantId", id))
+      .collect();
+    
+    for (const attr of variantAttributes) {
+      await ctx.db.delete(attr._id);
+    }
+    
+    await ctx.db.delete(id);
+  },
+});
+
+// Attribute management functions
+export const getAttributes = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("attributes").collect();
+  },
+});
+
+export const upsertAttribute = mutation({
+  args: {
+    key: v.string(),
+    label: v.string(),
+    inputType: v.union(
+      v.literal("select"),
+      v.literal("number"),
+      v.literal("boolean"),
+      v.literal("text")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("attributes")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .first();
+    
+    const now = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, { 
+        ...args, 
+        updatedAt: now 
+      });
+      return existing._id;
+    } else {
+      return await ctx.db.insert("attributes", { 
+        ...args, 
+        createdAt: now, 
+        updatedAt: now 
+      });
+    }
+  },
+});
+
+export const setVariantAttribute = mutation({
+  args: {
+    variantId: v.id("menu_item_variants"),
+    attributeId: v.id("attributes"),
+    value: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("variant_attributes")
+      .withIndex("by_variantId_attributeId", (q) => 
+        q.eq("variantId", args.variantId).eq("attributeId", args.attributeId)
+      )
+      .first();
+    
+    const now = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, { 
+        value: args.value, 
+        updatedAt: now 
+      });
+      return existing._id;
+    } else {
+      return await ctx.db.insert("variant_attributes", { 
+        ...args, 
+        createdAt: now, 
+        updatedAt: now 
+      });
+    }
+  },
+});
+
+export const getVariantAttributes = query({
+  args: { variantId: v.id("menu_item_variants") },
+  handler: async (ctx, { variantId }) => {
+    const variantAttributes = await ctx.db
+      .query("variant_attributes")
+      .withIndex("by_variantId", (q) => q.eq("variantId", variantId))
+      .collect();
+    
+    // Fetch attribute details for each variant attribute
+    const result = [];
+    for (const va of variantAttributes) {
+      const attribute = await ctx.db.get(va.attributeId);
+      if (attribute) {
+        result.push({
+          ...va,
+          attribute,
+        });
+      }
+    }
+    
+    return result;
+  },
+});
+

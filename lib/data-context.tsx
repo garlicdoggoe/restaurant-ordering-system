@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
+import type { Id } from "@/convex/_generated/dataModel"
 import { useQuery, useMutation } from "convex/react"
 import { useUser } from "@clerk/nextjs"
 import { api } from "@/convex/_generated/api"
@@ -72,11 +73,46 @@ export interface MenuItem {
   available: boolean
 }
 
+export interface MenuItemVariant {
+  _id: string
+  menuItemId: string
+  name: string
+  price: number
+  available: boolean
+  sku?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface Attribute {
+  _id: string
+  key: string
+  label: string
+  inputType: "select" | "number" | "boolean" | "text"
+  createdAt: number
+  updatedAt: number
+}
+
+export interface VariantAttribute {
+  _id: string
+  variantId: string
+  attributeId: string
+  value: string
+  attribute?: Attribute
+  createdAt: number
+  updatedAt: number
+}
+
 export interface OrderItem {
   menuItemId: string
   name: string
   price: number
   quantity: number
+  // Optional variant information for flexible pricing
+  variantId?: string
+  variantName?: string
+  attributes?: Record<string, string>
+  unitPrice?: number
 }
 
 export interface Order {
@@ -176,6 +212,13 @@ interface DataContextType {
   updateMenuItem: (id: string, data: Partial<MenuItem>) => void
   deleteMenuItem: (id: string) => void
 
+  // Menu Item Variants
+  getVariantsByMenuItem: (menuItemId: string) => MenuItemVariant[]
+  addVariant: (variant: Omit<MenuItemVariant, "_id" | "createdAt" | "updatedAt">) => void
+  updateVariant: (id: string, data: Partial<MenuItemVariant>) => void
+  deleteVariant: (id: string) => void
+  setVariantAttribute: (variantId: string, attributeId: string, value: string) => void
+
   // Orders
   orders: Order[]
   addOrder: (order: Omit<Order, "_id" | "createdAt" | "updatedAt">) => void
@@ -266,6 +309,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const createMenuItem = useMutation(api.menu.addMenuItem)
   const patchMenuItem = useMutation(api.menu.updateMenuItem)
   const removeMenuItem = useMutation(api.menu.deleteMenuItem)
+
+  // Variant mutations (merged from stashed changes)
+  const addVariantMut = useMutation(api.menu.addVariant)
+  const updateVariantMut = useMutation(api.menu.updateVariant)
+  const deleteVariantMut = useMutation(api.menu.deleteVariant)
+  const setVariantAttributeMut = useMutation(api.menu.setVariantAttribute)
+
   const createOrder = useMutation(api.orders.create)
   const patchOrder = useMutation(api.orders.update)
   const addVoucherMut = useMutation(api.vouchers.add)
@@ -394,7 +444,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [createMenuItem])
 
   const updateMenuItem = useCallback((id: string, data: Partial<MenuItem>) => {
-    void patchMenuItem({ id, data: {
+    void patchMenuItem({ id: id as Id<"menu_items">, data: {
       name: data.name,
       description: data.description,
       price: data.price,
@@ -405,8 +455,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [patchMenuItem])
 
   const deleteMenuItem = useCallback((id: string) => {
-    void removeMenuItem({ id })
+    void removeMenuItem({ id: id as Id<"menu_items"> })
   }, [removeMenuItem])
+
+  // Variant methods
+  const getVariantsByMenuItem = useCallback((menuItemId: string) => {
+    // This will be implemented as a lazy query when needed
+    return [] as MenuItemVariant[]
+  }, [])
+
+  const addVariant = useCallback((variant: Omit<MenuItemVariant, "_id" | "createdAt" | "updatedAt">) => {
+    void addVariantMut({
+      menuItemId: variant.menuItemId as any,
+      name: variant.name,
+      price: variant.price,
+      available: variant.available,
+      sku: variant.sku,
+    })
+  }, [addVariantMut])
+
+  const updateVariant = useCallback((id: string, data: Partial<MenuItemVariant>) => {
+    void updateVariantMut({ 
+      id: id as any, 
+      data: {
+        name: data.name,
+        price: data.price,
+        available: data.available,
+        sku: data.sku,
+      }
+    })
+  }, [updateVariantMut])
+
+  const deleteVariant = useCallback((id: string) => {
+    void deleteVariantMut({ id: id as any })
+  }, [deleteVariantMut])
+
+  const setVariantAttribute = useCallback((variantId: string, attributeId: string, value: string) => {
+    void setVariantAttributeMut({
+      variantId: variantId as any,
+      attributeId: attributeId as any,
+      value,
+    })
+  }, [setVariantAttributeMut])
 
   const addOrder = useCallback((order: Omit<Order, "_id" | "createdAt" | "updatedAt">) => {
     void createOrder({
@@ -437,7 +527,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [createOrder])
 
   const updateOrder = useCallback((id: string, data: Partial<Order>) => {
-    void patchOrder({ id, data: {
+    void patchOrder({ id: id as Id<"orders">, data: {
       status: data.status,
       denialReason: data.denialReason,
       estimatedPrepTime: data.estimatedPrepTime,
@@ -485,11 +575,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [addVoucherMut])
 
   const updateVoucher = useCallback((id: string, data: Partial<Voucher>) => {
-    void updateVoucherMut({ id, data })
+    void updateVoucherMut({ id: id as Id<"vouchers">, data })
   }, [updateVoucherMut])
 
   const deleteVoucher = useCallback((id: string) => {
-    void deleteVoucherMut({ id })
+    void deleteVoucherMut({ id: id as Id<"vouchers"> })
   }, [deleteVoucherMut])
 
   const validateVoucher = useCallback((code: string, orderAmount: number) => {
@@ -507,11 +597,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [addPromotionMut])
 
   const updatePromotion = useCallback((id: string, data: Partial<Promotion>) => {
-    void updatePromotionMut({ id, data })
+    void updatePromotionMut({ id: id as Id<"promotions">, data })
   }, [updatePromotionMut])
 
   const deletePromotion = useCallback((id: string) => {
-    void deletePromotionMut({ id })
+    void deletePromotionMut({ id: id as Id<"promotions"> })
   }, [deletePromotionMut])
 
   const addDenialReason = useCallback((reason: string) => {
@@ -552,6 +642,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     addMenuItem,
     updateMenuItem,
     deleteMenuItem,
+    getVariantsByMenuItem,
+    addVariant,
+    updateVariant,
+    deleteVariant,
+    setVariantAttribute,
     orders,
     addOrder,
     updateOrder,

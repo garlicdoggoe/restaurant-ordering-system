@@ -68,6 +68,11 @@ export default defineSchema({
         name: v.string(),
         price: v.number(),
         quantity: v.number(),
+        // Optional variant information for flexible pricing
+        variantId: v.optional(v.string()),
+        variantName: v.optional(v.string()),
+        attributes: v.optional(v.record(v.string(), v.string())),
+        unitPrice: v.optional(v.number()),
       })
     ),
     subtotal: v.number(),
@@ -158,6 +163,40 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_barangay", ["barangay"]),
+
+  // Menu item variants - flexible pricing per item
+  menu_item_variants: defineTable({
+    menuItemId: v.id("menu_items"),
+    name: v.string(),
+    price: v.number(),
+    available: v.boolean(),
+    sku: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_menuItemId", ["menuItemId"]),
+
+  // Attribute definitions for variants
+  attributes: defineTable({
+    key: v.string(),
+    label: v.string(),
+    inputType: v.union(
+      v.literal("select"),
+      v.literal("number"),
+      v.literal("boolean"),
+      v.literal("text")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  // Variant-attribute relationships
+  variant_attributes: defineTable({
+    variantId: v.id("menu_item_variants"),
+    attributeId: v.id("attributes"),
+    value: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_variantId", ["variantId"]).index("by_variantId_attributeId", ["variantId", "attributeId"]),
 });
 
 
