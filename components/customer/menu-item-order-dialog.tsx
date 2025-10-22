@@ -1,12 +1,12 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import Image from "next/image"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Minus, Plus } from "lucide-react"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { MenuItemImage } from "@/components/ui/menu-item-image"
 
 interface ItemSummary {
   id: string
@@ -68,7 +68,7 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
           {/* Image */}
           <div className="w-full flex justify-center">
             <div className="relative w-40 h-40">
-              <Image src={item.image || "/menu-sample.jpg"} alt={item.name} fill className="object-contain" />
+              <MenuItemImage src={item.image} alt={item.name} fill className="object-contain" />
             </div>
           </div>
 

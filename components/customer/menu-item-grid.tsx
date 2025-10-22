@@ -4,8 +4,8 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Heart } from "lucide-react"
-import Image from "next/image"
 import { MenuItemOrderDialog } from "./menu-item-order-dialog"
+import { MenuItemImage } from "@/components/ui/menu-item-image"
 
 interface MenuItemGridProps {
   items: Array<{
@@ -50,7 +50,7 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
         return (
           <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow group relative">
             <div className="relative aspect-square">
-              <Image src={item.image || "/menu-sample.jpg"} alt={item.name} fill className="object-cover" />
+              <MenuItemImage src={item.image} alt={item.name} fill className="object-cover" />
               
               {/* Heart button in top-right corner */}
               <Button

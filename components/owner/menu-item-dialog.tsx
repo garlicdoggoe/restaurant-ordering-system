@@ -12,9 +12,9 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useData, type MenuItem } from "@/lib/data-context"
 import { toast } from "sonner"
-import { useQuery } from "convex/react"
+import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
-import { Plus, Trash2, Edit } from "lucide-react"
+import { Plus, Trash2, Edit, Upload } from "lucide-react"
 
 interface MenuItemDialogProps {
   item?: MenuItem
@@ -32,6 +32,11 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
     image: item?.image || "",
     available: item?.available ?? true,
   })
+
+  // Image upload state management
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl)
 
   // Variants state
   const [variants, setVariants] = useState<any[]>([])
@@ -54,6 +59,31 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
     }
   }, [variantsQuery])
 
+  // Restore any pending image from localStorage (if available)
+  useEffect(() => {
+    const key = `menu_item_image_${item?._id || 'new'}`
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null
+    if (!raw) return
+    try {
+      const stored = JSON.parse(raw) as { name: string; type: string; dataUrl: string }
+      if (!stored?.dataUrl) return
+      setPreviewUrl(stored.dataUrl)
+      // Recreate File from data URL so submit flow can upload it
+      fetch(stored.dataUrl)
+        .then((r) => r.blob())
+        .then((blob) => {
+          const file = new File([blob], stored.name || "menu-item.jpg", { type: stored.type || blob.type })
+          setUploadedImage(file)
+        })
+        .catch(() => {
+          // If reconstruction fails, just clear the preview
+          setPreviewUrl(null)
+        })
+    } catch {
+      // Ignore corrupted localStorage
+    }
+  }, [item?._id])
+
   // Helper function to handle price changes safely
   const handlePriceChange = (value: string) => {
     // Only allow valid number characters and decimal point
@@ -62,6 +92,37 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
     const parts = sanitizedValue.split('.')
     const finalValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : sanitizedValue
     setFormData({ ...formData, price: finalValue })
+  }
+
+  // Helper function to convert file to data URL
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // Handle image file selection
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return
+    const file = e.target.files[0]
+    setUploadedImage(file)
+    try {
+      // Create immediate preview and persist temporarily in localStorage
+      const dataUrl = await fileToDataUrl(file)
+      setPreviewUrl((prev) => {
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev)
+        return dataUrl
+      })
+      const key = `menu_item_image_${item?._id || 'new'}`
+      const payload = { name: file.name, type: file.type, dataUrl }
+      window.localStorage.setItem(key, JSON.stringify(payload))
+    } catch (err) {
+      console.error("Failed to prepare image preview", err)
+      toast.error("Failed to prepare image preview")
+    }
   }
 
   // Helper to sanitize numeric input for variant editing while allowing empty and preventing leading zeros
@@ -196,12 +257,32 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
         return
       }
 
+      // Upload image only now (on submit). We pass storageId; server resolves to URL.
+      let imageStorageId: string | undefined = undefined
+      if (uploadedImage) {
+        try {
+          const uploadUrl = await generateUploadUrl({})
+          const res = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": uploadedImage.type || "application/octet-stream" },
+            body: uploadedImage,
+          })
+          const json = await res.json()
+          imageStorageId = json.storageId as string
+        } catch (err) {
+          console.error("Upload failed", err)
+          toast.error("Failed to upload image")
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const menuItemData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         price: price,
         category: formData.category,
-        image: formData.image.trim() || undefined,
+        image: imageStorageId || formData.image.trim() || undefined,
         available: formData.available,
       }
 
@@ -213,6 +294,15 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
         // Create new item
         await addMenuItem(menuItemData)
         toast.success("Menu item added successfully")
+      }
+
+      // Clear the temporarily saved image from localStorage after success
+      try {
+        const key = `menu_item_image_${item?._id || 'new'}`
+        window.localStorage.removeItem(key)
+      } catch {}
+      if (previewUrl && previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl)
       }
 
       onClose()
@@ -294,7 +384,29 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="image">Image URL</Label>
+            <Label htmlFor="image">Menu Item Image</Label>
+            
+            {/* Image Upload Section */}
+            <div className="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
+              <input
+                id="menu-item-image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <label htmlFor="menu-item-image" className="cursor-pointer">
+                <Upload className="w-8 h-8 mx-auto mb-3 text-gray-600" />
+                <p className="text-gray-700 font-medium">
+                  Click to upload menu item image
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Or paste an image URL below
+                </p>
+              </label>
+            </div>
+            
+            {/* Image URL Input (fallback) */}
             <Input
               id="image"
               value={formData.image}
@@ -302,12 +414,14 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
               placeholder="https://example.com/image.jpg"
               type="url"
             />
-            {formData.image && (
+            
+            {/* Image Preview */}
+            {(previewUrl || formData.image) && (
               <div className="mt-2">
                 <Label className="text-sm text-muted-foreground">Preview:</Label>
                 <div className="mt-1">
                   <img
-                    src={formData.image}
+                    src={previewUrl || formData.image}
                     alt="Menu item preview"
                     className="w-20 h-20 object-cover rounded-md border"
                     onError={(e) => {

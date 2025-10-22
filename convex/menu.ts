@@ -31,8 +31,26 @@ export const addMenuItem = mutation({
     available: v.boolean(),
   },
   handler: async (ctx, args) => {
+    // If client sent a Convex storageId instead of a URL for image, resolve it to a URL
+    let resolvedImage = args.image;
+    if (
+      typeof resolvedImage === "string" &&
+      resolvedImage.length > 0 &&
+      !resolvedImage.startsWith("http")
+    ) {
+      const url = await ctx.storage.getUrl(resolvedImage as any);
+      if (url) {
+        resolvedImage = url;
+      }
+    }
+
     const now = Date.now();
-    return await ctx.db.insert("menu_items", { ...args, createdAt: now, updatedAt: now });
+    return await ctx.db.insert("menu_items", { 
+      ...args, 
+      image: resolvedImage,
+      createdAt: now, 
+      updatedAt: now 
+    });
   },
 });
 
@@ -49,7 +67,24 @@ export const updateMenuItem = mutation({
     }),
   },
   handler: async (ctx, { id, data }) => {
-    await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
+    // If client sent a Convex storageId instead of a URL for image, resolve it to a URL
+    let resolvedImage = data.image;
+    if (
+      typeof resolvedImage === "string" &&
+      resolvedImage.length > 0 &&
+      !resolvedImage.startsWith("http")
+    ) {
+      const url = await ctx.storage.getUrl(resolvedImage as any);
+      if (url) {
+        resolvedImage = url;
+      }
+    }
+
+    await ctx.db.patch(id, { 
+      ...data, 
+      image: resolvedImage,
+      updatedAt: Date.now() 
+    });
     return id;
   },
 });
