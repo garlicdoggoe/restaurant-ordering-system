@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Upload, Edit, MapPin, Hand, CreditCard, Smartphone } from "lucide-react"
 import { useData } from "@/lib/data-context"
+import { useCart } from "@/lib/cart-context"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
@@ -26,11 +27,13 @@ interface CheckoutDialogProps {
   total: number
   onClose: () => void
   onSuccess: () => void
+  onOpenSettings?: () => void
 }
 
-export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess }: CheckoutDialogProps) {
+export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess, onOpenSettings }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("dine-in")
   const { addOrder, currentUser, restaurant } = useData()
+  const { updateQuantity } = useCart()
   const router = useRouter()
   
   // Initialize form fields from current user when available; fall back to empty
@@ -400,10 +403,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Landmark:</span>
-                    <span className="font-medium">Tapat ng gate na green.</span>
-                  </div>
                 </div>
               )}
 
@@ -547,52 +546,77 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
             {/* Payment Options Section */}
             <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="text-xl font-semibold mb-6">Payment Options</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-6">Payment Options</h3>
               
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <Button
+              {/* Note about payment method availability */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800 font-medium">
+                  ℹ️ Currently, the platform only accepts GCash payments. Other payment methods will be available soon.
+                </p>
+              </div>
+              
+              {/* GCash number display */}
+              {currentUser?.gcashNumber && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800 font-medium">
+                    Please use (+63) {currentUser.gcashNumber} for payment processing
+                  </p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="p-0 h-auto text-blue-600 hover:text-blue-800 underline text-xs"
+                    onClick={() => {
+                      onClose()
+                      onOpenSettings?.()
+                    }}
+                  >
+                    Change GCash number
+                  </Button>
+                </div>
+              )}
+
+              {/* Payment Method Buttons - GCash only */}
+              <div className="flex gap-4 mb-6">
+                {/* <Button
                   type="button"
                   variant={selectedPaymentMethod === "cash" ? "default" : "outline"}
-                  className="h-24 flex flex-col items-center justify-center space-y-2"
+                  className={`h-20 flex-1 flex flex-col items-center justify-center space-y-2q`}
                   onClick={() => setSelectedPaymentMethod("cash")}
                 >
-                  <Hand className="w-6 h-6" />
-                  <span className="text-sm">Cash on delivery</span>
+                  <span className="text-2xl font-bold">₱</span>
                 </Button>
                 
                 <Button
                   type="button"
                   variant={selectedPaymentMethod === "visa" ? "default" : "outline"}
-                  className="h-24 flex flex-col items-center justify-center space-y-2"
+                  className={`h-20 flex-1 flex flex-col items-center justify-center space-y-2`}
                   onClick={() => setSelectedPaymentMethod("visa")}
                 >
-                  <CreditCard className="w-6 h-6" />
-                  <span className="text-sm">VISA</span>
+                  <img src="/visa.png" alt="VISA" className="h-8 w-auto" />
                 </Button>
                 
                 <Button
                   type="button"
                   variant={selectedPaymentMethod === "mastercard" ? "default" : "outline"}
-                  className="h-24 flex flex-col items-center justify-center space-y-2"
+                  className={`h-20 flex-1 flex flex-col items-center justify-center space-y-2`}
                   onClick={() => setSelectedPaymentMethod("mastercard")}
                 >
-                  <CreditCard className="w-6 h-6" />
-                  <span className="text-sm">mastercard</span>
-                </Button>
+                  <img src="/mastercard.png" alt="Mastercard" className="h-8 w-auto" />
+                </Button> */}
                 
                 <Button
                   type="button"
                   variant={selectedPaymentMethod === "gcash" ? "default" : "outline"}
-                  className="h-24 flex flex-col items-center justify-center space-y-2"
+                  className="h-20 flex-1 flex flex-col items-center justify-center space-y-2 bg-yellow-500 text-white"
                   onClick={() => setSelectedPaymentMethod("gcash")}
                 >
-                  <Smartphone className="w-6 h-6" />
-                  <span className="text-sm">GCash</span>
+                  <img src="/gcash.png" alt="GCash" className="h-8 w-auto" />
                 </Button>
               </div>
 
-              {/* Payment Proof Upload */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
+              {/* Payment Proof Upload - Dashed border box */}
+              <div className="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center hover:border-yellow-500 transition-colors cursor-pointer">
                 <input
                   id="payment-screenshot"
                   type="file"
@@ -601,8 +625,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   className="hidden"
                 />
                 <label htmlFor="payment-screenshot" className="cursor-pointer">
-                  <Upload className="w-6 h-6 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-600">
+                  <Upload className="w-8 h-8 mx-auto mb-3 text-gray-600" />
+                  <p className="text-gray-700 font-medium">
                     Click to upload payment proof
                   </p>
                 </label>
@@ -614,26 +638,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 </div>
               )}
 
-              {/* GCash number display */}
-              {currentUser?.gcashNumber && (
-                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-800 font-medium">
-                    Please use (+63) {currentUser.gcashNumber} for payment processing
-                  </p>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="p-0 h-auto text-blue-600 hover:text-blue-800 underline text-xs"
-                    onClick={() => {
-                      onClose()
-                      router.push('/profile')
-                    }}
-                  >
-                    Change GCash number
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
 
@@ -655,8 +659,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       size="sm"
                       className="w-8 h-8 p-0"
                       onClick={() => {
-                        // Handle quantity decrease
-                        // This would need to be implemented with cart context
+                        // Decrease quantity by 1
+                        const newQuantity = Math.max(0, item.quantity - 1)
+                        updateQuantity(item.id, newQuantity)
                       }}
                     >
                       -
@@ -668,8 +673,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       size="sm"
                       className="w-8 h-8 p-0"
                       onClick={() => {
-                        // Handle quantity increase
-                        // This would need to be implemented with cart context
+                        // Increase quantity by 1
+                        updateQuantity(item.id, item.quantity + 1)
                       }}
                     >
                       +
@@ -688,6 +693,15 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
               <div className="flex justify-between">
                 <span className="text-gray-600">Total items: {totalItems}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Subtotal</span>
+                <span>₱{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Platform fee</span>
+                <span>₱{platformFee.toFixed(2)}</span>
+              </div>
+              <Separator />
               <div className="flex justify-between font-semibold text-base">
                 <span>Total</span>
                 <span>₱{total.toFixed(2)}</span>
@@ -696,7 +710,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
             <Button 
               type="submit" 
-              className="w-full mt-8 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-4 rounded-lg text-lg"
+              className="w-full mt-8 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-6 rounded-lg text-lg"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Placing Order..." : "Confirm order"}

@@ -61,7 +61,7 @@ export function CustomerInterface() {
                 {activeOrder ? (
                   <OrderTracking orderId={activeOrder._id} />
                 ) : (
-                  <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} />
+                  <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} onOpenSettings={() => setCurrentView("profile")} />
                 )}
               </div>
             </div>
@@ -85,7 +85,7 @@ export function CustomerInterface() {
               {activeOrder ? (
                 <OrderTracking orderId={activeOrder._id} />
               ) : (
-                <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} />
+                <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} onOpenSettings={() => setCurrentView("profile")} />
               )}
             </div>
           </div>
