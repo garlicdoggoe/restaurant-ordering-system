@@ -17,7 +17,8 @@ import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import { PhoneInput } from "@/components/ui/phone-input"
-import { AddressMapPicker } from "@/components/ui/address-map-picker"
+import dynamic from "next/dynamic"
+const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 import { useRouter } from "next/navigation"
 

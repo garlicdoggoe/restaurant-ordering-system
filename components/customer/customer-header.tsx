@@ -36,7 +36,7 @@ export function CustomerHeader({ currentView, onViewChange, cartItemCount }: Cus
             )}
           </div>
           <div>
-            <h1 className="font-bold text-lg">{restaurant.name || "Foodies Restaurant"}</h1>
+            <h1 className="font-bold text-lg">{restaurant.name || "Blackpepper Camp's Pizza"}</h1>
             <p className="text-xs text-muted-foreground">
               {restaurant.description || "Order delicious food"}
             </p>

@@ -7,7 +7,7 @@ export default function HomePage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <div className="max-w-4xl w-full space-y-8">
         <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold tracking-tight">Foodies Restaurant</h1>
+          <h1 className="text-5xl font-bold tracking-tight">Blackpepper Camp's Pizza</h1>
           <p className="text-xl text-muted-foreground">Choose your portal to continue</p>
         </div>
 

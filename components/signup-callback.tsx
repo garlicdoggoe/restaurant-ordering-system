@@ -31,14 +31,20 @@ export function SignupCallback() {
     const createUser = async () => {
       try {
         // Check if this is an owner signup by looking for the stored code
-        const ownerSignupCode = localStorage.getItem('ownerSignupCode')
-        const isOwnerSignup = ownerSignupCode === "IchiroCocoiNami17?"
+        // Only access localStorage on the client side to prevent SSR errors
+        let ownerSignupCode: string | null = null
+        let isOwnerSignup = false
+        
+        if (typeof window !== 'undefined') {
+          ownerSignupCode = localStorage.getItem('ownerSignupCode')
+          isOwnerSignup = ownerSignupCode === "IchiroCocoiNami17?"
+        }
         
         console.log("SignupCallback - ownerSignupCode:", ownerSignupCode)
         console.log("SignupCallback - isOwnerSignup:", isOwnerSignup)
         
-        // Clean up the stored code after checking (only if we found it)
-        if (ownerSignupCode) {
+        // Clean up the stored code after checking (only if we found it and we're on client side)
+        if (typeof window !== 'undefined' && ownerSignupCode) {
           localStorage.removeItem('ownerSignupCode')
           console.log("SignupCallback - Cleaned up localStorage code")
         }
