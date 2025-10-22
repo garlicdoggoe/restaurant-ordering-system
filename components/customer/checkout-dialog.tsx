@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation"
 
 interface CartItem {
   id: string
+  menuItemId: string
   name: string
   price: number
   quantity: number
@@ -246,10 +247,11 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
       // Transform cart items to order items
       const orderItems = items.map((item) => ({
-        menuItemId: item.id,
+        menuItemId: item.menuItemId || item.id,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
+        variantName: item.size || undefined,
       }))
 
       // Upload image only now (on submit). We pass storageId; server resolves to URL.

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Heart } from "lucide-react"
 import Image from "next/image"
+import { MenuItemOrderDialog } from "./menu-item-order-dialog"
 
 interface MenuItemGridProps {
   items: Array<{
@@ -19,6 +20,7 @@ interface MenuItemGridProps {
 
 export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [activeItem, setActiveItem] = useState<any | null>(null)
 
   const toggleFavorite = (itemId: string) => {
     setFavorites(prev => {
@@ -41,6 +43,7 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
   }
 
   return (
+    <>
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
       {items.map((item) => {
         const isFavorite = favorites.has(item.id)
@@ -73,7 +76,7 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
                 <Button
                   size="icon"
                   className="w-11 h-11 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg flex-shrink-0"
-                  onClick={() => onAddToCart(item)}
+                  onClick={() => setActiveItem(item)}
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -83,5 +86,19 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
         )
       })}
     </div>
+    {activeItem && (
+      <MenuItemOrderDialog
+        item={activeItem}
+        onClose={() => setActiveItem(null)}
+        onConfirm={(payload, quantity) => {
+          // Add the selected item with quantity by calling onAddToCart repeatedly
+          for (let i = 0; i < quantity; i++) {
+            onAddToCart(payload)
+          }
+          setActiveItem(null)
+        }}
+      />
+    )}
+    </>
   )
 }

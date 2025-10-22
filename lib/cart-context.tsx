@@ -4,10 +4,14 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 
 // Cart item interface
 export interface CartItem {
-  id: string
+  id: string // unique cart line id (may include variant)
+  menuItemId: string // original menu item id
   name: string
   price: number
   quantity: number
+  // Optional variant display info
+  size?: string
+  variantId?: string
 }
 
 // Cart context interface
