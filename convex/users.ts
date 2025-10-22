@@ -25,6 +25,12 @@ export const upsertUser = mutation({
     role: v.union(v.literal("customer"), v.literal("owner")),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    coordinates: v.optional(
+      v.object({
+        lng: v.number(),
+        lat: v.number(),
+      })
+    ),
     gcashNumber: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -51,6 +57,7 @@ export const upsertUser = mutation({
       };
       if (args.phone !== undefined) updateData.phone = args.phone;
       if (args.address !== undefined) updateData.address = args.address;
+      if (args.coordinates !== undefined) updateData.coordinates = args.coordinates;
       if (args.gcashNumber !== undefined) updateData.gcashNumber = args.gcashNumber;
       
       // Only update role if the existing user is not an owner (preserve owner role)
@@ -81,6 +88,12 @@ export const updateUserProfile = mutation({
   args: {
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    coordinates: v.optional(
+      v.object({
+        lng: v.number(),
+        lat: v.number(),
+      })
+    ),
     gcashNumber: v.optional(v.string()),
   },
   handler: async (ctx, args) => {

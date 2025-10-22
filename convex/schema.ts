@@ -10,6 +10,12 @@ export default defineSchema({
     role: v.union(v.literal("customer"), v.literal("owner")),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    coordinates: v.optional(
+      v.object({
+        lng: v.number(),
+        lat: v.number(),
+      })
+    ),
     gcashNumber: v.optional(v.string()), // GCash payment method number
     profileComplete: v.boolean(), // Whether customer has completed profile
     createdAt: v.number(),
