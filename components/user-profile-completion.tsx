@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
+import AddressMapPicker from "@/components/ui/address-map-picker"
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 
 interface ProfileCompletionProps {
@@ -23,6 +24,7 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
   const [address, setAddress] = useState("")
   const [gcashNumber, setGcashNumber] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
 
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
@@ -52,7 +54,20 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
         throw new Error("User not found in database. Please refresh the page.")
       }
 
-      // Validate phone numbers before submission
+      // Validate required fields and phone numbers before submission
+      if (!address.trim()) {
+        toast.error("Address is required")
+        setIsSubmitting(false)
+        return
+      }
+
+      if (!selectedLngLat) {
+        toast.error("Please select your location on the map")
+        setIsSubmitting(false)
+        return
+      }
+
+      // Validate phone numbers
       if (phone.trim() && !isValidPhoneNumber(phone)) {
         toast.error("Please enter a valid phone number")
         setIsSubmitting(false)
@@ -74,6 +89,7 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
         phone: normalizedPhone,
         address: address.trim(),
         gcashNumber: normalizedGcash,
+        coordinates: selectedLngLat ? { lng: selectedLngLat[0], lat: selectedLngLat[1] } : undefined,
       })
 
       toast.success("Profile completed successfully!")
@@ -104,17 +120,12 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
               required
             />
             
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                type="text"
-                placeholder="123 Main St, City, State 12345"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-              />
-            </div>
+            <AddressMapPicker
+              address={address}
+              onAddressChange={setAddress}
+              coordinates={selectedLngLat}
+              onCoordinatesChange={setSelectedLngLat}
+            />
             
             <GcashInput
               id="gcashNumber"

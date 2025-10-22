@@ -16,9 +16,7 @@ import { toast } from "sonner"
 import { SignupCallback } from "@/components/signup-callback"
 import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
 import { isValidPhoneNumber, formatPhoneForDisplay } from "@/lib/phone-validation"
-import { SearchBox } from '@mapbox/search-js-react'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import AddressMapPicker from "@/components/ui/address-map-picker"
 
 export function UserProfileSettings() {
   return (
@@ -40,39 +38,8 @@ function UserProfileSettingsContent() {
   const [address, setAddress] = useState("")
   const [gcashNumber, setGcashNumber] = useState("")
 
-  // Mapbox setup
-  const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || ""
-  const mapContainerRef = useRef<HTMLDivElement | null>(null)
-  const mapInstanceRef = useRef<mapboxgl.Map | null>(null)
-  const markerRef = useRef<mapboxgl.Marker | null>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
-  const [searchValue, setSearchValue] = useState("")
+  // Coordinates state managed locally and passed to AddressMapPicker
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
-  const isMarkerDraggingRef = useRef(false)
-  const [coordsText, setCoordsText] = useState("")
-  const reverseTimerRef = useRef<number | null>(null)
-
-  // Reverse geocode coordinates to a human-readable address via Mapbox Geocoding API
-  const reverseGeocode = async (lng: number, lat: number) => {
-    try {
-      if (!accessToken) return
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${accessToken}`
-      const res = await fetch(url)
-      if (!res.ok) return
-      const data: any = await res.json()
-      const place = data?.features?.[0]?.place_name as string | undefined
-      if (place) setAddress(place)
-    } catch (_) {
-      // ignore network errors; fallback stays as-is
-    }
-  }
-
-  const scheduleReverseGeocode = (lng: number, lat: number) => {
-    if (reverseTimerRef.current) window.clearTimeout(reverseTimerRef.current)
-    reverseTimerRef.current = window.setTimeout(() => {
-      reverseGeocode(lng, lat)
-    }, 400)
-  }
 
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
@@ -89,129 +56,9 @@ function UserProfileSettingsContent() {
       if (saved && typeof saved.lng === 'number' && typeof saved.lat === 'number') {
         const asTuple: [number, number] = [saved.lng, saved.lat]
         setSelectedLngLat(asTuple)
-        setCoordsText(`${saved.lat.toFixed(6)}, ${saved.lng.toFixed(6)}`)
       }
     }
   }, [currentUser])
-
-  // Initialize Mapbox map instance
-  useEffect(() => {
-    if (!accessToken) return
-    mapboxgl.accessToken = accessToken
-
-    if (mapInstanceRef.current || !mapContainerRef.current) return
-
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      // Default to Libmanan, Camarines Sur, Bicol (approximate center)
-      center: [123.05, 13.70],
-      zoom: 12,
-      style: 'mapbox://styles/mapbox/streets-v12',
-    })
-
-    map.on('load', () => {
-      setMapLoaded(true)
-    })
-
-    // Fallback sampler: while marker is being dragged, update coordinates on mousemove
-    const handleMove = () => {
-      if (isMarkerDraggingRef.current && markerRef.current) {
-        const pos = markerRef.current.getLngLat()
-        setSelectedLngLat([pos.lng, pos.lat])
-        setCoordsText(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`)
-        scheduleReverseGeocode(pos.lng, pos.lat)
-      }
-    }
-    map.on('mousemove', handleMove)
-
-    map.on('click', (e) => {
-      const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat]
-      setSelectedLngLat(lngLat)
-
-      // Place or move marker
-      if (!markerRef.current) {
-        markerRef.current = new mapboxgl.Marker({ draggable: true }).setLngLat(lngLat).addTo(map)
-        // Update coordinates live while dragging
-        markerRef.current.on('drag', () => {
-          const m = markerRef.current
-          if (m) {
-            const pos = m.getLngLat()
-            setSelectedLngLat([pos.lng, pos.lat])
-            setCoordsText(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`)
-            scheduleReverseGeocode(pos.lng, pos.lat)
-          }
-        })
-        markerRef.current.on('dragstart', () => {
-          isMarkerDraggingRef.current = true
-        })
-        // Ensure final snap updates as well
-        markerRef.current.on('dragend', () => {
-          const m = markerRef.current
-          if (m) {
-            const pos = m.getLngLat()
-            setSelectedLngLat([pos.lng, pos.lat])
-            setCoordsText(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`)
-            reverseGeocode(pos.lng, pos.lat)
-          }
-          isMarkerDraggingRef.current = false
-        })
-      } else {
-        markerRef.current.setLngLat(lngLat)
-      }
-
-      // Update coordinates field, and reverse geocode to address
-      setCoordsText(`${lngLat[1].toFixed(6)}, ${lngLat[0].toFixed(6)}`)
-      reverseGeocode(lngLat[0], lngLat[1])
-    })
-
-    mapInstanceRef.current = map
-
-    return () => {
-      map.remove()
-      mapInstanceRef.current = null
-      markerRef.current = null
-    }
-  }, [accessToken])
-
-  // When map is loaded and we have saved coordinates, place marker and center
-  useEffect(() => {
-    if (!mapLoaded || !mapInstanceRef.current) return
-    if (!selectedLngLat) return
-
-    const map = mapInstanceRef.current
-    // Initialize marker if missing
-    if (!markerRef.current) {
-      markerRef.current = new mapboxgl.Marker({ draggable: true }).setLngLat(selectedLngLat).addTo(map)
-      // Live updates while dragging
-      markerRef.current.on('drag', () => {
-        const m = markerRef.current
-        if (m) {
-          const pos = m.getLngLat()
-          setSelectedLngLat([pos.lng, pos.lat])
-          setCoordsText(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`)
-          scheduleReverseGeocode(pos.lng, pos.lat)
-        }
-      })
-      markerRef.current.on('dragstart', () => {
-        isMarkerDraggingRef.current = true
-      })
-      markerRef.current.on('dragend', () => {
-        const m = markerRef.current
-        if (m) {
-          const pos = m.getLngLat()
-          setSelectedLngLat([pos.lng, pos.lat])
-          setCoordsText(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`)
-          reverseGeocode(pos.lng, pos.lat)
-        }
-        isMarkerDraggingRef.current = false
-      })
-    } else {
-      markerRef.current.setLngLat(selectedLngLat)
-    }
-
-    // Center map on saved position
-    map.flyTo({ center: selectedLngLat, zoom: Math.max(map.getZoom(), 14) })
-  }, [mapLoaded, selectedLngLat])
 
   if (!user) {
     return (
@@ -418,90 +265,12 @@ function UserProfileSettingsContent() {
                           onChange={setPhone}
                         />
 
-                        <div className="space-y-2">
-                          <Label htmlFor="address">Address</Label>
-                          <Input
-                            id="address"
-                            type="text"
-                            placeholder="123 Main St, City, State 12345"
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                          />
-                        {/* Map search and picker */}
-                        {accessToken ? (
-                          <div className="space-y-2">
-                            <SearchBox
-                              accessToken={accessToken}
-                              map={mapInstanceRef.current as unknown as mapboxgl.Map}
-                              mapboxgl={mapboxgl as unknown as any}
-                              value={searchValue}
-                              onChange={(v) => setSearchValue(v)}
-                              onRetrieve={(res) => {
-                                // When a result is chosen, center the map and set marker
-                                const feature = (res as any)?.features?.[0]
-                                const coords = feature?.geometry?.coordinates as [number, number] | undefined
-                                const props = (feature?.properties as any) || {}
-                                const placeName = props.full_address || props.name || props.place_formatted || props.formatted_address
-                                if (coords && mapInstanceRef.current) {
-                                  mapInstanceRef.current.flyTo({ center: coords, zoom: 14 })
-                                  // Ensure marker exists and is moved to the selected location
-                                  if (!markerRef.current) {
-                                    markerRef.current = new mapboxgl.Marker({ draggable: true }).setLngLat(coords).addTo(mapInstanceRef.current)
-                                    // Update coordinates live while dragging
-                                    markerRef.current.on('drag', () => {
-                                      const m = markerRef.current
-                                      if (m) {
-                                        const pos = m.getLngLat()
-                                        setSelectedLngLat([pos.lng, pos.lat])
-                                        setCoordsText(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`)
-                                        scheduleReverseGeocode(pos.lng, pos.lat)
-                                      }
-                                    })
-                                    markerRef.current.on('dragstart', () => {
-                                      isMarkerDraggingRef.current = true
-                                    })
-                                    // Ensure final snap updates as well
-                                    markerRef.current.on('dragend', () => {
-                                      const m = markerRef.current
-                                      if (m) {
-                                        const pos = m.getLngLat()
-                                        setSelectedLngLat([pos.lng, pos.lat])
-                                        setCoordsText(`${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`)
-                                        reverseGeocode(pos.lng, pos.lat)
-                                      }
-                                      isMarkerDraggingRef.current = false
-                                    })
-                                  } else {
-                                    markerRef.current.setLngLat(coords)
-                                  }
-                                  setSelectedLngLat(coords)
-                                }
-                                if (placeName) {
-                                  setAddress(String(placeName))
-                                }
-                              }}
-                              options={{ language: 'en' }}
-                            />
-                            <div id="map-container" ref={mapContainerRef} style={{ height: 300 }} className="rounded-md border" />
-                          </div>
-                        ) : (
-                          <p className="text-xs text-red-600">Map is unavailable. Set NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to enable.</p>
-                        )}
-                        </div>
-
-                        {/* Coordinates field (read-only) */}
-                        <div className="space-y-2">
-                          <Label htmlFor="coordinates">Coordinates</Label>
-                          <Input
-                            id="coordinates"
-                            type="text"
-                            placeholder="lat, lng"
-                            value={coordsText}
-                            onChange={() => {}}
-                            disabled
-                            className="bg-gray-50"
-                          />
-                        </div>
+                        <AddressMapPicker
+                          address={address}
+                          onAddressChange={setAddress}
+                          coordinates={selectedLngLat}
+                          onCoordinatesChange={setSelectedLngLat}
+                        />
 
                         <GcashInput
                           id="gcashNumber"
