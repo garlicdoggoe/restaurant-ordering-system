@@ -276,7 +276,7 @@ export function RestaurantSettings() {
         <CardHeader>
           <CardTitle>Restaurant Status</CardTitle>
           <CardDescription>
-            Control your restaurant's availability and operating hours
+            Control your restaurant&apos;s availability and operating hours
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

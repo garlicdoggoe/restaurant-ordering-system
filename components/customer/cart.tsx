@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -112,7 +113,13 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
                 {activeOrder?.paymentScreenshot && (
                   <div className="mt-2">
                     <p className="text-xs text-muted-foreground mb-1">Payment Screenshot:</p>
-                    <img src={activeOrder.paymentScreenshot} alt="Payment" className="w-full rounded border object-contain" />
+                    <Image 
+                      src={activeOrder.paymentScreenshot} 
+                      alt="Payment" 
+                      width={400}
+                      height={300}
+                      className="w-full rounded border object-contain" 
+                    />
                   </div>
                 )}
               </div>

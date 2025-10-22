@@ -9,10 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { useData } from "@/lib/data-context"
+import { useData, type Promotion, type DiscountType } from "@/lib/data-context"
 
 interface PromotionDialogProps {
-  promotion?: any
+  promotion?: Promotion
   onClose: () => void
 }
 
@@ -109,7 +109,7 @@ export function PromotionDialog({ promotion, onClose }: PromotionDialogProps) {
               <select
                 id="discount-type"
                 value={formData.discountType}
-                onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, discountType: e.target.value as DiscountType })}
                 className="w-full px-3 py-2 border rounded-md"
               >
                 <option value="percentage">Percentage (%)</option>

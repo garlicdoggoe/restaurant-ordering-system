@@ -148,7 +148,7 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
           <span> in {selectedCategories.map(id => categories.find(cat => cat.id === id)?.name).join(", ")}</span>
         )}
         {searchQuery && (
-          <span> matching "{searchQuery}"</span>
+          <span> matching &quot;{searchQuery}&quot;</span>
         )}
       </div>
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useData } from "@/lib/data-context"
+import { useData, type Order } from "@/lib/data-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -47,7 +47,7 @@ export function OrdersView() {
   const nonPreOrders = filteredOrders.filter((o) => o.orderType !== "pre-order")
   const preOrders = filteredOrders.filter((o) => o.orderType === "pre-order")
 
-  const toCard = (order: any) => ({
+  const toCard = (order: Order) => ({
     id: order._id,
     customerName: order.customerName,
     customerPhone: order.customerPhone,

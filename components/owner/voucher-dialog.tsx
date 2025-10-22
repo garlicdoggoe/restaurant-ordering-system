@@ -9,10 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { useData } from "@/lib/data-context"
+import { useData, type Voucher, type VoucherType } from "@/lib/data-context"
 
 interface VoucherDialogProps {
-  voucher?: any
+  voucher?: Voucher
   onClose: () => void
 }
 
@@ -86,7 +86,7 @@ export function VoucherDialog({ voucher, onClose }: VoucherDialogProps) {
 
             <div className="space-y-2">
               <Label htmlFor="discount-type">Discount Type</Label>
-              <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+              <Select value={formData.type} onValueChange={(value: VoucherType) => setFormData({ ...formData, type: value })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

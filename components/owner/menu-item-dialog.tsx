@@ -10,11 +10,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useData } from "@/lib/data-context"
+import { useData, type MenuItem } from "@/lib/data-context"
 import { toast } from "sonner"
 
 interface MenuItemDialogProps {
-  item?: any
+  item?: MenuItem
   onClose: () => void
 }
 

@@ -114,7 +114,7 @@ export function MenuView() {
           <span> in {allCategories.find(cat => cat.id === selectedCategory)?.name}</span>
         )}
         {searchQuery && (
-          <span> matching "{searchQuery}"</span>
+          <span> matching &quot;{searchQuery}&quot;</span>
         )}
       </div>
 

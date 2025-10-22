@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Upload, Edit, MapPin, Hand, CreditCard, Smartphone } from "lucide-react"
-import { useData } from "@/lib/data-context"
+import { useData, type OrderType, type PreOrderFulfillment, type PaymentPlan, type RemainingPaymentMethod } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -20,8 +20,16 @@ import { PhoneInput } from "@/components/ui/phone-input"
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 import { useRouter } from "next/navigation"
 
+interface CartItem {
+  id: string
+  name: string
+  price: number
+  quantity: number
+  size?: string
+}
+
 interface CheckoutDialogProps {
-  items: any[]
+  items: CartItem[]
   subtotal: number
   platformFee: number
   total: number
@@ -42,7 +50,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   const [customerAddress, setCustomerAddress] = useState(() => currentUser?.address ?? "")
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Pre-order fields
@@ -410,7 +418,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
               <div className="mt-3">
                 <Label className="text-sm text-gray-700">Order Type</Label>
                 <div className="mt-2 flex flex-wrap gap-3">
-                  <Select value={orderType} onValueChange={(v: any) => setOrderType(v)}>
+                  <Select value={orderType} onValueChange={(v: OrderType) => setOrderType(v)}>
                     <SelectTrigger className="w-44">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -425,7 +433,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   {orderType === "pre-order" && (
                     <>
                       <div>
-                        <Select value={preOrderFulfillment} onValueChange={(v: any) => setPreOrderFulfillment(v)}>
+                        <Select value={preOrderFulfillment} onValueChange={(v: PreOrderFulfillment) => setPreOrderFulfillment(v)}>
                           <SelectTrigger className="w-64">
                             <SelectValue placeholder="Pre-order Fulfillment" />
                           </SelectTrigger>
@@ -438,7 +446,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       </div>
 
                       <div>
-                        <Select value={paymentPlan} onValueChange={(v: any) => setPaymentPlan(v)}>
+                        <Select value={paymentPlan} onValueChange={(v: PaymentPlan) => setPaymentPlan(v)}>
                           <SelectTrigger className="w-44">
                             <SelectValue placeholder="Payment Plan" />
                           </SelectTrigger>
@@ -452,7 +460,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
                       {paymentPlan === "downpayment" && (
                         <div>
-                          <Select value={downpaymentMethod} onValueChange={(v: any) => setDownpaymentMethod(v)}>
+                          <Select value={downpaymentMethod} onValueChange={(v: RemainingPaymentMethod) => setDownpaymentMethod(v)}>
                             <SelectTrigger className="w-64">
                               <SelectValue placeholder="Balance Payment Method" />
                             </SelectTrigger>

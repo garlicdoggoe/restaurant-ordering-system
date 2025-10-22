@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -54,8 +55,6 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
   // Convex mutations and queries for file upload
   const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
 
-  if (!order) return null
-
   // Restore pending proofs from localStorage for the current order
   React.useEffect(() => {
     if (hasRestoredFromStorage || !order) return
@@ -87,6 +86,8 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
       // Ignore
     }
   }, [hasRestoredFromStorage, order])
+
+  if (!order) return null
 
   const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -340,9 +341,11 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                   {orderUploadStates[order._id]?.previewUrl ? (
                     <div className="space-y-3">
                       <div className="w-full">
-                        <img 
+                        <Image 
                           src={orderUploadStates[order._id]?.previewUrl || ""} 
                           alt="Remaining Payment Preview" 
+                          width={400}
+                          height={128}
                           className="w-full rounded-lg border object-contain max-h-32" 
                         />
                       </div>
@@ -393,9 +396,11 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                     ✓ Remaining payment proof provided
                   </div>
                   <div className="w-full">
-                    <img 
+                    <Image 
                       src={order.remainingPaymentProofUrl} 
                       alt="Remaining Payment Proof" 
+                      width={400}
+                      height={128}
                       className="w-full rounded-lg border object-contain max-h-32" 
                     />
                   </div>
@@ -520,7 +525,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
             <DialogTitle>Payment Proof</DialogTitle>
           </DialogHeader>
           {paymentUrl ? (
-            <img src={paymentUrl} alt="Payment Proof" className="w-full rounded border object-contain" />
+            <Image src={paymentUrl} alt="Payment Proof" width={400} height={300} className="w-full rounded border object-contain" />
           ) : (
             <p className="text-sm text-muted-foreground">No payment proof available.</p>
           )}
