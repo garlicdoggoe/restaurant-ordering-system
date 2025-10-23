@@ -142,8 +142,8 @@ export function CustomerSidebar({
             </h1>
           </div>
 
-          {/* Navigation menu */}
-          <nav className="flex-1 px-4 xs:px-6 py-6 space-y-2">
+          {/* Navigation menu - scrollable on mobile */}
+          <nav className="flex-1 px-4 xs:px-6 py-6 space-y-2 overflow-y-auto min-h-0">
             {navigationItems.map((item) => {
               const Icon = item.icon
               return (
