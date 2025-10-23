@@ -44,7 +44,7 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
 
   return (
     <>
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 lg:gap-4">
       {items.map((item) => {
         const isFavorite = favorites.has(item.id)
         return (
@@ -56,7 +56,7 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
               <Button
                 size="icon"
                 variant="ghost"
-                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity touch-target"
                 onClick={() => toggleFavorite(item.id)}
               >
                 <Heart 
@@ -65,20 +65,20 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
               </Button>
             </div>
             
-            <CardContent className="p-3">
-              <div className="flex items-start justify-between gap-2">
+            <CardContent className="p-1 lg:px-3">
+              <div className="flex items-start justify-between gap-1.5 px-2 lg:px-0">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold mb-1 text-sm truncate">{item.name}</h3>
-                  <span className="text-sm font-bold">from ₱{item.price.toFixed(2)}</span>
+                  <h3 className="font-semibold mb-0.5 truncate text-[clamp(0.75rem,0.8vw,0.85rem)]">{item.name}</h3>
+                  <span className="font-bold text-[clamp(0.75rem,0.8vw,0.85rem)]">from ₱{item.price.toFixed(2)}</span>
                 </div>
                 
                 {/* Add button beside the item name and price */}
                 <Button
                   size="icon"
-                  className="w-11 h-11 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg flex-shrink-0"
+                  className="rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg flex-shrink-0 touch-target w-6 h-6 sm:w-8 sm:h-8 lg:w-9 lg:h-9"
                   onClick={() => setActiveItem(item)}
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
                 </Button>
               </div>
             </CardContent>

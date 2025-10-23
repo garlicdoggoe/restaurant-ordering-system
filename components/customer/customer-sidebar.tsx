@@ -101,7 +101,7 @@ export function CustomerSidebar({
       <Button
         variant="ghost"
         size="icon"
-        className="lg:hidden fixed top-4 left-4 z-50 cursor-pointer hover:bg-yellow-100"
+        className="lg:hidden fixed top-4 left-4 z-50 cursor-pointer hover:bg-yellow-100 bg-white rounded-lg shadow-md"
         onClick={() => setIsMobileMenuOpen(true)}
       >
         <Menu className="h-6 w-6" />
@@ -117,7 +117,7 @@ export function CustomerSidebar({
 
       {/* Sidebar */}
       <div className={`
-        fixed left-0 top-0 h-full w-80 bg-background border-r z-40
+        fixed left-0 top-0 h-full w-72 xs:w-80 bg-background border-r z-40
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:sticky lg:top-0 lg:z-auto lg:h-screen
@@ -136,14 +136,14 @@ export function CustomerSidebar({
           </div>
 
           {/* Restaurant name */}
-          <div className="px-6 py-4 border-b">
-            <h1 className="text-2xl font-bold text-foreground">
+          <div className="px-4 xs:px-6 py-4 border-b">
+            <h1 className="text-fluid-2xl font-bold text-foreground">
               {restaurant.name || "Blackpepper Camp's Pizza"}
             </h1>
           </div>
 
           {/* Navigation menu */}
-          <nav className="flex-1 px-6 py-6 space-y-2">
+          <nav className="flex-1 px-4 xs:px-6 py-6 space-y-2">
             {navigationItems.map((item) => {
               const Icon = item.icon
               return (
@@ -151,13 +151,13 @@ export function CustomerSidebar({
                   key={item.id}
                   variant={item.active ? "default" : "ghost"}
                   className={`
-                    w-full justify-start gap-3 h-12 cursor-pointer
+                    w-full justify-start gap-3 h-12 cursor-pointer touch-target
                     ${item.active ? 'bg-primary text-primary-foreground' : 'hover:bg-yellow-100 hover:text-foreground'}
                   `}
                   onClick={() => handleNavigation(item)}
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="flex-1 text-left">{item.label}</span>
+                  <span className="flex-1 text-left text-fluid-base">{item.label}</span>
                   {item.badge && (
                     <Badge variant="secondary" className="ml-auto">
                       {item.badge}
@@ -171,14 +171,14 @@ export function CustomerSidebar({
           <Separator />
 
           {/* User info section */}
-          <div className="px-6 py-4 space-y-4">
+          <div className="px-4 xs:px-6 py-4 space-y-4">
             <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
+              <Avatar className="h-8 w-8 xs:h-10 xs:w-10">
                 <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-2xl truncate">
+                <p className="font-medium text-fluid-lg truncate">
                   Hello, {user.firstName || "User"}!
                 </p>
                 {currentUser?.address && (
@@ -192,9 +192,9 @@ export function CustomerSidebar({
 
             {/* Logout button */}
             <SignOutButton>
-              <Button variant="outline" className="w-full gap-2 cursor-pointer hover:bg-yellow-100 hover:text-foreground">
+              <Button variant="outline" className="w-full gap-2 cursor-pointer hover:bg-yellow-100 hover:text-foreground touch-target">
                 <LogOut className="h-4 w-4" />
-                Logout
+                <span className="text-fluid-base">Logout</span>
               </Button>
             </SignOutButton>
           </div>

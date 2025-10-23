@@ -7,6 +7,7 @@ import { Minus, Plus } from "lucide-react"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { MenuItemImage } from "@/components/ui/menu-item-image"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface ItemSummary {
   id: string
@@ -63,40 +64,58 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl p-0 overflow-hidden">
-        <div className="p-6">
+      <DialogContent className="w-[85vw] max-w-full md:max-w-xl max-h-[80vh] md:h-auto p-3 md:p-6">
+        <div className="space-y-3 md:space-y-6">
           {/* Image */}
           <div className="w-full flex justify-center">
-            <div className="relative w-40 h-40">
+            <div className="relative w-24 h-24 xs:w-32 xs:h-32 md:w-40 md:h-40">
               <MenuItemImage src={item.image} alt={item.name} fill className="object-contain" />
             </div>
           </div>
 
           {/* Name & Description */}
-          <div className="mt-4">
-            <h2 className="text-2xl font-semibold">{item.name}</h2>
-            <p className="text-muted-foreground mt-2">{item.description}</p>
+          <div>
+            <h2 className="text-lg md:text-fluid-2xl font-semibold">{item.name}</h2>
+            <p className="text-xs md:text-fluid-sm text-muted-foreground mt-2">{item.description}</p>
           </div>
 
           {/* Quantity & Price */}
-          <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Button type="button" size="icon" variant="outline" className="rounded-md" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>
-                <Minus className="w-4 h-4" />
+              <Button type="button" size="icon" variant="outline" className="rounded-md touch-target w-8 h-8 md:w-10 md:h-10" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>
+                <Minus className="w-3 h-3 md:w-4 md:h-4" />
               </Button>
-              <span className="w-8 text-center font-medium">{quantity}</span>
-              <Button type="button" size="icon" variant="outline" className="rounded-md" onClick={() => setQuantity((q) => q + 1)}>
-                <Plus className="w-4 h-4" />
+              <span className="w-6 md:w-8 text-center font-medium text-xs md:text-fluid-base">{quantity}</span>
+              <Button type="button" size="icon" variant="outline" className="rounded-md touch-target w-8 h-8 md:w-10 md:h-10" onClick={() => setQuantity((q) => q + 1)}>
+                <Plus className="w-3 h-3 md:w-4 md:h-4" />
               </Button>
             </div>
-            <div className="text-right text-foreground font-semibold">₱{(unitPrice * quantity).toFixed(2)}</div>
+            <div className="text-right text-foreground font-semibold text-sm md:text-fluid-lg">₱{(unitPrice * quantity).toFixed(2)}</div>
           </div>
 
-          {/* Variant Buttons */}
+          {/* Variant Selection - Dropdown on mobile, buttons on desktop */}
           {availableVariants.length > 0 && (
-            <div className="mt-5">
-              <div className="text-sm text-muted-foreground mb-2">Variant</div>
-              <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="text-xs md:text-fluid-sm text-muted-foreground mb-2">Variant</div>
+              
+              {/* Mobile: Dropdown */}
+              <div className="block md:hidden">
+                <Select value={selectedVariantId || ""} onValueChange={(value) => setSelectedVariantId(value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select variant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableVariants.map((v: any) => (
+                      <SelectItem key={v._id} value={String(v._id)}>
+                        {v.name} - ₱{v.price.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Desktop: Button Grid */}
+              <div className="hidden md:grid grid-cols-2 xs:grid-cols-3 gap-2 xs:gap-3">
                 {availableVariants.map((v: any) => {
                   const selected = selectedVariantId === String(v._id)
                   return (
@@ -104,7 +123,7 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
                       key={v._id}
                       type="button"
                       onClick={() => setSelectedVariantId(String(v._id))}
-                      className={`${selected ? "bg-yellow-500 text-black border-yellow-500" : "bg-gray-100"} h-11`}
+                      className={`${selected ? "bg-yellow-500 text-black border-yellow-500" : "bg-gray-100"} h-8 md:h-11 touch-target text-xs md:text-fluid-sm`}
                     >
                       {v.name}
                     </Button>
@@ -115,16 +134,16 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
           )}
 
           {/* Footer Buttons */}
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <Button variant="outline" className="h-12" onClick={onClose}>
-              Cancel
+          <div className="grid grid-cols-2 gap-2 md:gap-3 pt-3 md:pt-4">
+            <Button variant="outline" className="h-10 md:h-12 touch-target" onClick={onClose}>
+              <span className="text-xs md:text-fluid-base">Cancel</span>
             </Button>
             <Button
-              className="h-12 bg-yellow-500 hover:bg-yellow-600 text-white"
+              className="h-10 md:h-12 bg-yellow-500 hover:bg-yellow-600 text-white touch-target"
               onClick={handleConfirm}
               disabled={availableVariants.length > 0 && !selectedVariantId}
             >
-              Add to cart
+              <span className="text-xs md:text-fluid-base">Add to cart</span>
             </Button>
           </div>
         </div>

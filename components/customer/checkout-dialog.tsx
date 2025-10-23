@@ -362,25 +362,26 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[95vw] md:max-w-[95vw] lg:max-w-7xl xl:max-w-[90vw] max-h-[95vh] overflow-y-auto p-0">
-        <DialogHeader className="px-8 pt-8 pb-2">
-          <DialogTitle className="text-2xl font-semibold">Checkout Details</DialogTitle>
+      <DialogContent className="w-[90vw] max-w-full md:max-w-7xl max-h-[85vh] md:h-[95vh] overflow-y-auto p-3 md:p-0">
+        <DialogHeader className="px-3 md:px-8 pt-3 md:pt-8 pb-2">
+          <DialogTitle className="text-lg md:text-fluid-2xl font-semibold">Checkout Details</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row h-full">
           {/* Left Column - Delivery Details and Payment Options */}
-          <div className="flex-1 px-8 pb-8 space-y-8">
+          <div className="flex-1 px-3 md:px-8 pb-3 md:pb-8 space-y-3 md:space-y-8">
             {/* Delivery Details Section */}
-            <div className="bg-gray-50 rounded-lg p-6">
+            <div className="bg-gray-50 rounded-lg p-3 md:p-6">
               {isEditingDelivery ? (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="name">Contact Person</Label>
+                    <Label htmlFor="name" className="text-xs md:text-fluid-sm">Contact Person</Label>
                     <Input
                       id="name"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Your name"
                       required
+                      className="text-sm md:text-fluid-base touch-target h-8 md:h-auto"
                     />
                   </div>
 
@@ -394,14 +395,14 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
                   {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
                     <div className="space-y-2">
-                      <Label htmlFor="address">Delivery Address</Label>
+                      <Label htmlFor="address" className="text-fluid-sm">Delivery Address</Label>
                       <div className="rounded-lg border p-3 bg-white">
                         <AddressMapPicker
                           address={customerAddress}
                           onAddressChange={setCustomerAddress}
                           coordinates={deliveryCoordinates || defaultCoordinates}
                           onCoordinatesChange={setDeliveryCoordinates}
-                          mapHeightPx={220}
+                          mapHeightPx={180}
                           interactive={true}
                         />
                       </div>
@@ -409,7 +410,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                         type="button"
                         variant="default"
                         size="sm"
-                        className="text-xs"
+                        className="text-xs touch-target h-7"
                         onClick={() => {
                           onClose()
                           onOpenSettings?.()
@@ -421,7 +422,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   )}
                 </div>
               ) : (
-                <div className="space-y-3 text-base">
+                <div className="space-y-2 text-sm md:text-fluid-base">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Contact Person:</span>
                     <span className="font-medium">{customerName || "Not provided"}</span>
@@ -446,7 +447,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                           onAddressChange={setCustomerAddress}
                           coordinates={deliveryCoordinates || defaultCoordinates}
                           onCoordinatesChange={setDeliveryCoordinates}
-                          mapHeightPx={220}
+                          mapHeightPx={180}
                           interactive={false}
                         />
                       </div>
@@ -454,7 +455,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                         type="button"
                         variant="default"
                         size="sm"
-                        className="text-xs"
+                        className="text-xs touch-target h-7"
                         onClick={() => {
                           onClose()
                           onOpenSettings?.()
@@ -469,7 +470,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
               {/* Order Type and Pre-order options as dropdowns */}
               <div className="mt-3">
-                <Label className="text-sm text-gray-700">Order Type</Label>
+                <Label className="text-xs md:text-sm text-gray-700">Order Type</Label>
                 <div className="mt-2 flex flex-wrap gap-3">
                   <Select value={orderType} onValueChange={(v: OrderType) => setOrderType(v)}>
                     <SelectTrigger className="w-44">
@@ -533,7 +534,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
               {/* Date & Time for Pre-order */}
               {orderType === "pre-order" && (
                 <div className="mt-6">
-                  <Label className="text-sm text-gray-700">Pickup/Delivery Date & Time</Label>
+                  <Label className="text-xs md:text-sm text-gray-700">Pickup/Delivery Date & Time</Label>
                   <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
                       <Input
@@ -584,7 +585,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
               {/* Special Instructions - always visible and auto-saved */}
               <div className="mt-3">
-                <Label htmlFor="special-instructions" className="mb-2">Special Instructions</Label>
+                <Label htmlFor="special-instructions" className="mb-2 text-xs md:text-sm">Special Instructions</Label>
                 <Input
                   id="special-instructions"
                   placeholder="Optional"
@@ -596,6 +597,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     }
                   }}
                   maxLength={100}
+                  className="text-sm md:text-base h-8 md:h-auto"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {specialInstructions.length}/100 characters
@@ -606,20 +608,20 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
             {/* Pre-order specific fields moved above and switched to dropdowns */}
 
             {/* Payment Options Section */}
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">Payment Options</h3>
+            <div className="bg-gray-50 rounded-lg p-3 md:p-6">
+              <h3 className="text-lg md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">Payment Options</h3>
               
               {/* Note about payment method availability */}
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800 font-medium">
+              <div className="mb-3 md:mb-4 p-2 md:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs md:text-sm text-blue-800 font-medium">
                   ℹ️ Currently, the platform only accepts GCash payments. Other payment methods will be available soon.
                 </p>
               </div>
               
               {/* GCash number display */}
               {currentUser?.gcashNumber && (
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-800 font-medium">
+                <div className="mb-3 md:mb-4 p-2 md:p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs md:text-sm text-blue-800 font-medium">
                     Please use (+63) {currentUser.gcashNumber} for payment processing
                   </p>
                   <Button
@@ -638,7 +640,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
               )}
 
               {/* Payment Method Buttons - GCash only */}
-              <div className="flex gap-4 mb-6">
+              <div className="flex gap-2 md:gap-4 mb-4 md:mb-6">
                 {/* <Button
                   type="button"
                   variant={selectedPaymentMethod === "cash" ? "default" : "outline"}
@@ -669,15 +671,15 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 <Button
                   type="button"
                   variant={selectedPaymentMethod === "gcash" ? "default" : "outline"}
-                  className="h-20 flex-1 flex flex-col items-center justify-center space-y-2 bg-yellow-500 text-white"
+                  className="h-16 md:h-20 flex-1 flex flex-col items-center justify-center space-y-2 bg-yellow-500 text-white"
                   onClick={() => setSelectedPaymentMethod("gcash")}
                 >
-                  <img src="/gcash.png" alt="GCash" className="h-8 w-auto" />
+                  <img src="/gcash.png" alt="GCash" className="h-6 md:h-8 w-auto" />
                 </Button>
               </div>
 
               {/* Payment Proof Upload - Dashed border box */}
-              <div className="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center hover:border-yellow-500 transition-colors cursor-pointer">
+              <div className="border-2 border-dashed border-gray-400 rounded-lg p-4 md:p-8 text-center hover:border-yellow-500 transition-colors cursor-pointer">
                 <input
                   id="payment-screenshot"
                   type="file"
@@ -686,8 +688,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   className="hidden"
                 />
                 <label htmlFor="payment-screenshot" className="cursor-pointer">
-                  <Upload className="w-8 h-8 mx-auto mb-3 text-gray-600" />
-                  <p className="text-gray-700 font-medium">
+                  <Upload className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 md:mb-3 text-gray-600" />
+                  <p className="text-xs md:text-base text-gray-700 font-medium">
                     Click to upload payment proof
                   </p>
                 </label>
@@ -703,22 +705,22 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
           </div>
 
           {/* Right Column - Order Summary */}
-          <div className="flex-1 bg-gray-50 px-8 pt-8 pb-8">
-            <h3 className="text-xl font-semibold mb-6">Order Summary</h3>
+          <div className="flex-1 bg-gray-50 px-4 md:px-8 pt-4 md:pt-8 pb-4 md:pb-8">
+            <h3 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Order Summary</h3>
             
-            <div className="space-y-4">
+            <div className="space-y-3 md:space-y-4">
               {items.map((item, index) => (
-                <div key={`${item.id}-${index}`} className="flex items-center justify-between py-3">
+                <div key={`${item.id}-${index}`} className="flex items-center justify-between py-2 md:py-3">
                   <div className="flex-1">
-                    <div className="font-medium">{item.name}</div>
-                    {item.size && <div className="text-sm text-gray-600">{item.size}</div>}
+                    <div className="font-medium text-sm md:text-base">{item.name}</div>
+                    {item.size && <div className="text-xs md:text-sm text-gray-600">{item.size}</div>}
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="w-8 h-8 p-0"
+                      className="w-6 h-6 md:w-8 md:h-8 p-0"
                       onClick={() => {
                         // Decrease quantity by 1
                         const newQuantity = Math.max(0, item.quantity - 1)
@@ -727,12 +729,12 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     >
                       -
                     </Button>
-                    <span className="w-8 text-center">{item.quantity}</span>
+                    <span className="w-6 md:w-8 text-center text-xs md:text-sm">{item.quantity}</span>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="w-8 h-8 p-0"
+                      className="w-6 h-6 md:w-8 md:h-8 p-0"
                       onClick={() => {
                         // Increase quantity by 1
                         updateQuantity(item.id, item.quantity + 1)
@@ -740,7 +742,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     >
                       +
                     </Button>
-                    <span className="ml-3 font-semibold text-yellow-600">
+                    <span className="ml-2 md:ml-3 font-semibold text-yellow-600 text-xs md:text-sm">
                       ₱{(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
@@ -750,7 +752,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
             <Separator className="my-6" />
             
-            <div className="space-y-3 text-base">
+            <div className="space-y-2 md:space-y-3 text-sm md:text-base">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total items: {totalItems}</span>
               </div>
@@ -771,7 +773,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
             <Button 
               type="submit" 
-              className="w-full mt-8 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-6 rounded-lg text-lg"
+              className="w-full mt-6 md:mt-8 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-4 md:py-6 rounded-lg text-sm md:text-lg"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Placing Order..." : "Confirm order"}

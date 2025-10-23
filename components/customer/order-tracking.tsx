@@ -239,18 +239,18 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
   return (
     <>
       <Card className={`h-fit ${getOrderBorderClass(order.status)}`}>
-        <CardHeader>
+        <CardHeader className="p-4 xs:p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
+                <CardTitle className="text-fluid-lg">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
                 {/* Status Badge */}
                 <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1`}>
                   {statusIcons[order.status as keyof typeof statusIcons]}
-                  <span className="capitalize">{order.status.replace('-', ' ')}</span>
+                  <span className="capitalize text-xs">{order.status.replace('-', ' ')}</span>
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">Placed at {new Date(createdTs).toLocaleString()}</p>
+              <p className="text-fluid-sm text-muted-foreground">Placed at {new Date(createdTs).toLocaleString()}</p>
               {/* Status Description */}
               <p className="text-xs text-gray-600 mt-1">
                 {statusDescriptions[order.status as keyof typeof statusDescriptions]}
@@ -258,13 +258,13 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-4 xs:p-6 space-y-4">
           {/* Order Preparation Status Display */}
           {order.status === "accepted" && (
             <div className="flex flex-col items-center gap-3 p-2">
               <CookingAnimation size="lg" />
               <div className="text-center">
-                <p className="text-sm font-semibold text-yellow-500 mb-1">
+                <p className="text-fluid-sm font-semibold text-yellow-500 mb-1">
                   Order Being Prepared
                 </p>
                 <p className="text-xs text-yellow-500">
@@ -277,7 +277,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
           {/* GCash Number Display */}
           {order.gcashNumber && (
             <div className="p-3">
-              <p className="text-xs font-medium">
+              <p className="text-fluid-xs font-medium">
                 💳 GCash Number Used: (+63) {order.gcashNumber}
               </p>
             </div>
@@ -289,7 +289,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
               <div className="flex items-start gap-2">
                 <XCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-red-800">Order Denied</p>
+                  <p className="text-fluid-sm font-medium text-red-800">Order Denied</p>
                   <p className="text-xs text-red-700 mt-1">
                     Reason: {order.denialReason}
                   </p>
@@ -301,7 +301,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
           {/* Order Items */}
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {order.items.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-sm">
+              <div key={idx} className="flex justify-between text-fluid-sm">
                 <div>
                   <div>{item.quantity}x {item.name}</div>
                   {/* Display variant information if available */}
@@ -319,14 +319,14 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
           {/* Special Instructions */}
           {order.specialInstructions && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm font-medium text-yellow-800 mb-1">📝 Special Instructions:</p>
-              <p className="text-sm text-yellow-700">{order.specialInstructions}</p>
+              <p className="text-fluid-sm font-medium text-yellow-800 mb-1">📝 Special Instructions:</p>
+              <p className="text-fluid-sm text-yellow-700">{order.specialInstructions}</p>
             </div>
           )}
 
           <Separator />
 
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2 text-fluid-sm">
             <div className="flex justify-between">
               <span>Subtotal</span>
               <span>₱{order.subtotal.toFixed(2)}</span>
@@ -345,7 +345,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
 
           <Separator />
 
-          <div className="flex justify-between font-semibold text-lg">
+          <div className="flex justify-between font-semibold text-fluid-lg">
             <span>Total</span>
             <span>₱{order.total.toFixed(2)}</span>
           </div>

@@ -39,9 +39,9 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
   if (items.length === 0) {
     return (
       <Card className="h-fit">
-        <CardContent className="p-8 text-center">
-          <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">Your cart is empty</p>
+        <CardContent className="p-6 xs:p-8 text-center">
+          <ShoppingCart className="w-10 h-10 xs:w-12 xs:h-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-fluid-sm text-muted-foreground">Your cart is empty</p>
         </CardContent>
       </Card>
     )
@@ -50,35 +50,35 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
   return (
     <>
       <Card className="h-fit">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+        <CardHeader className="p-4 xs:p-6">
+          <CardTitle className="flex items-center justify-between text-fluid-lg">
             <span>Your Order</span>
             <Badge>{items.length} items</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-4 xs:p-6 space-y-4">
           <div className="space-y-3 max-h-64 overflow-y-auto">
             {items.map((item) => (
               <div key={item.id} className="flex items-center gap-3">
                 <div className="flex-1">
-                  <p className="font-medium text-sm">{item.name}</p>
+                  <p className="font-medium text-fluid-sm">{item.name}</p>
                   {item.size && <p className="text-xs text-muted-foreground">{item.size}</p>}
-                  <p className="text-sm text-muted-foreground">₱{item.price.toFixed(2)}</p>
+                  <p className="text-fluid-sm text-muted-foreground">₱{item.price.toFixed(2)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     size="icon"
                     variant="outline"
-                    className="h-7 w-7 bg-transparent"
+                    className="h-8 w-8 xs:h-7 xs:w-7 bg-transparent touch-target"
                     onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                   >
                     <Minus className="w-3 h-3" />
                   </Button>
-                  <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                  <span className="w-8 text-center text-fluid-sm font-medium">{item.quantity}</span>
                   <Button
                     size="icon"
                     variant="outline"
-                    className="h-7 w-7 bg-transparent"
+                    className="h-8 w-8 xs:h-7 xs:w-7 bg-transparent touch-target"
                     onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                   >
                     <Plus className="w-4 h-4" />
@@ -90,7 +90,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
 
           <Separator />
 
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2 text-fluid-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span>₱{subtotal.toFixed(2)}</span>
@@ -100,7 +100,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
               <span>₱{platformFee.toFixed(2)}</span>
             </div>
             <Separator />
-            <div className="flex justify-between font-semibold text-base">
+            <div className="flex justify-between font-semibold text-fluid-base">
               <span>Total</span>
               <span>₱{total.toFixed(2)}</span>
             </div>
@@ -109,7 +109,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
           <div className="space-y-2 pt-2">
             {hasActiveOrder ? (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800 font-medium">You have an active order</p>
+                <p className="text-fluid-sm text-yellow-800 font-medium">You have an active order</p>
                 <p className="text-xs text-yellow-700 mt-1">
                   Please wait for your current order to be completed, denied, or cancelled before placing a new one.
                 </p>
@@ -128,12 +128,12 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
               </div>
             ) : (
               <>
-                <Button className="w-full" size="lg" onClick={() => setShowCheckout(true)}>
-                  Proceed to Checkout
+                <Button className="w-full touch-target" size="lg" onClick={() => setShowCheckout(true)}>
+                  <span className="text-fluid-base">Proceed to Checkout</span>
                 </Button>
-                <Button variant="outline" className="w-full gap-2 bg-transparent" onClick={onClearCart}>
+                <Button variant="outline" className="w-full gap-2 bg-transparent touch-target" onClick={onClearCart}>
                   <Trash2 className="w-4 h-4" />
-                  Clear Cart
+                  <span className="text-fluid-base">Clear Cart</span>
                 </Button>
               </>
             )}

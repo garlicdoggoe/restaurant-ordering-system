@@ -13,11 +13,11 @@ export function MenuCategoryTabs({ categories, selectedCategories, onToggleCateg
   return (
     <div className="space-y-3">
       {/* Category title */}
-      <h3 className="text-lg font-semibold text-gray-800">Category</h3>
+      <h3 className="text-fluid-lg font-semibold text-gray-800">Category</h3>
       
       {/* Horizontal scrollable category buttons */}
       <ScrollArea className="w-full whitespace-nowrap">
-        <div className="flex gap-3 pb-2 pt-2">
+        <div className="flex gap-2 xs:gap-3 pb-2 pt-2">
           {categories.map((category) => {
             const isSelected = selectedCategories.includes(category.id)
             return (

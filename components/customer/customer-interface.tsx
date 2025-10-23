@@ -10,6 +10,9 @@ import { OrderTracking } from "./order-tracking"
 import { useData } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { X, ShoppingCart } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 export type CustomerView = "menu" | "orders" | "profile"
 
@@ -38,6 +41,21 @@ export function CustomerInterface() {
 
   return (
     <div className="min-h-screen bg-background flex">
+      {/* Mobile cart toggle button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden fixed top-4 right-4 z-50 cursor-pointer hover:bg-yellow-100 bg-white rounded-lg shadow-md"
+        onClick={() => setIsCartOpen(true)}
+      >
+        <ShoppingCart className="h-6 w-6" />
+        {cartItems.length > 0 && (
+          <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs bg-destructive text-destructive-foreground">
+            {cartItems.length}
+          </Badge>
+        )}
+      </Button>
+
       {/* Left Sidebar */}
       <CustomerSidebar 
         currentView={currentView} 
@@ -51,7 +69,7 @@ export function CustomerInterface() {
         {currentView === "menu" ? (
           <div className="flex h-full">
             {/* Menu Content */}
-            <div className="flex-1 p-6 min-w-0 overflow-x-auto">
+            <div className="flex-1 p-4 lg:p-6 min-w-0 overflow-x-auto">
               <MenuBrowser onAddToCart={addToCart} />
             </div>
             
@@ -67,11 +85,11 @@ export function CustomerInterface() {
             </div>
           </div>
         ) : currentView === "orders" ? (
-          <div className="p-6">
+          <div className="p-3 xs:p-6">
             <OrderHistory onBackToMenu={() => setCurrentView("menu")} />
           </div>
         ) : (
-          <div className="p-6">
+          <div className="p-3 xs:p-6">
             <UserProfileSettings />
           </div>
         )}
@@ -79,18 +97,38 @@ export function CustomerInterface() {
 
       {/* Mobile Cart Overlay */}
       {isCartOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black/50 z-50" onClick={() => setIsCartOpen(false)}>
-          <div className="absolute right-0 top-0 h-full w-96 bg-background border-l" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6">
-              {activeOrder ? (
-                <OrderTracking orderId={activeOrder._id} />
-              ) : (
-                <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} onOpenSettings={() => setCurrentView("profile")} />
-              )}
-            </div>
+        <div className="lg:hidden fixed inset-0 bg-black/50 z-50" onClick={() => setIsCartOpen(false)} />
+      )}
+
+      {/* Mobile Cart Drawer */}
+      <div className={`
+        lg:hidden fixed right-0 top-0 h-full w-80 xs:w-96 bg-background border-l z-50
+        transform transition-transform duration-300 ease-in-out
+        ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}
+      `}>
+        <div className="flex flex-col h-full">
+          {/* Close button for mobile cart */}
+          <div className="flex justify-end p-4 border-b">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="cursor-pointer hover:bg-yellow-100"
+              onClick={() => setIsCartOpen(false)}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+          </div>
+
+          {/* Cart content */}
+          <div className="flex-1 overflow-y-auto p-3 xs:p-6">
+            {activeOrder ? (
+              <OrderTracking orderId={activeOrder._id} />
+            ) : (
+              <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} onOpenSettings={() => setCurrentView("profile")} />
+            )}
           </div>
         </div>
-      )}
+      </div>
 
     </div>
   )
