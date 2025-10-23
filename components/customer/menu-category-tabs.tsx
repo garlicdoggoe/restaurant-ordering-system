@@ -13,7 +13,7 @@ export function MenuCategoryTabs({ categories, selectedCategories, onToggleCateg
   return (
     <div className="space-y-3">
       {/* Category title */}
-      <h3 className="text-fluid-lg font-semibold text-gray-800">Category</h3>
+      <h3 className="text-[clamp(1rem,1.2vw,1.125rem)] font-semibold text-gray-800">Category</h3>
       
       {/* Horizontal scrollable category buttons */}
       <ScrollArea className="w-full whitespace-nowrap">

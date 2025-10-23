@@ -129,7 +129,7 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-yellow-500" />
         <Input
           placeholder="What do you want to eat today?"
-          className="pl-12 pr-4 py-3 lg:py-4 rounded-full border-0 bg-white shadow-sm focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500/30 text-fluid-base touch-target"
+          className="pl-12 pr-4 py-3 lg:py-4 rounded-full border-0 bg-white shadow-sm focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500/30 text-[clamp(1rem,1.5vw,1.125rem)] touch-target"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />

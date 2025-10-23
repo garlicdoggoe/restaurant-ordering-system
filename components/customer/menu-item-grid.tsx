@@ -68,8 +68,8 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
             <CardContent className="p-1 lg:px-3">
               <div className="flex items-start justify-between gap-1.5 px-2 lg:px-0">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold mb-0.5 truncate text-[clamp(0.75rem,0.8vw,0.85rem)]">{item.name}</h3>
-                  <span className="font-bold text-[clamp(0.75rem,0.8vw,0.85rem)]">from ₱{item.price.toFixed(2)}</span>
+                  <h3 className="font-semibold mb-0.5 truncate text-[clamp(0.875rem,1.2vw,1rem)]">{item.name}</h3>
+                  <span className="text-[clamp(0.875rem,1.2vw,1rem)]">from ₱{item.price.toFixed(2)}</span>
                 </div>
                 
                 {/* Add button beside the item name and price */}

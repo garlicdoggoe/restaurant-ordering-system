@@ -275,9 +275,9 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
       </div>
 
       {/* Orders List */}
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredOrders.length === 0 ? (
-          <Card>
+          <Card className="md:col-span-2 lg:col-span-3 xl:col-span-4">
             <CardContent className="p-6 xs:p-8 text-center">
               <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-fluid-lg font-semibold mb-2">No orders found</h3>
@@ -290,40 +290,40 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
           </Card>
         ) : (
           filteredOrders.map((order) => (
-            <Card key={order._id} className={`${getOrderBorderClass(order.status)}`}>
-              <CardHeader className="p-4 xs:p-6">
+            <Card key={order._id} className={`${getOrderBorderClass(order.status)} h-fit`}>
+              <CardHeader className="p-3 xs:p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-fluid-lg">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
-                      <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1`}>
+                      <CardTitle className="text-sm font-semibold">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
+                      <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1 text-xs`}>
                         {statusIcons[order.status as keyof typeof statusIcons]}
-                        <span className="capitalize text-xs">{order.status.replace('-', ' ')}</span>
+                        <span className="capitalize">{order.status.replace('-', ' ')}</span>
                       </Badge>
                     </div>
-                    <p className="text-fluid-sm text-muted-foreground">Placed at {new Date(order._creationTime ?? 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{new Date(order._creationTime ?? 0).toLocaleString()}</p>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-4 xs:p-6 space-y-4">
+              <CardContent className="p-3 xs:p-4 space-y-3">
                 {/* GCash Number Display */}
                 {order.gcashNumber && (
-                  <div className="p-3">
-                    <p className="text-fluid-xs font-medium">
-                      💳 GCash Number Used: (+63) {order.gcashNumber}
+                  <div className="p-2 bg-blue-50 rounded text-xs">
+                    <p className="font-medium text-blue-800">
+                      💳 GCash: (+63) {order.gcashNumber}
                     </p>
                   </div>
                 )}
 
                 {/* Denial Reason Display */}
                 {order.status === "denied" && order.denialReason && (
-                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                    <div className="flex items-start gap-2">
-                      <XCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="p-2 bg-red-50 rounded border border-red-200">
+                    <div className="flex items-start gap-1">
+                      <XCircle className="w-3 h-3 text-red-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-fluid-sm font-medium text-red-800">Order Denied</p>
+                        <p className="text-xs font-medium text-red-800">Order Denied</p>
                         <p className="text-xs text-red-700 mt-1">
-                          Reason: {order.denialReason}
+                          {order.denialReason}
                         </p>
                       </div>
                     </div>
@@ -331,33 +331,33 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
                 )}
 
                 {/* Order Items */}
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
                   {order.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-fluid-sm">
-                      <div>
-                        <div>{item.quantity}x {item.name}</div>
+                    <div key={idx} className="flex justify-between text-xs">
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate">{item.quantity}x {item.name}</div>
                         {(item.variantName || item.size) && (
-                          <div className="text-xs text-gray-500 ml-2">
+                          <div className="text-xs text-gray-500 truncate">
                             {item.variantName || item.size}
                           </div>
                         )}
                       </div>
-                      <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="font-medium ml-2 flex-shrink-0">₱{(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
 
                 {/* Special Instructions */}
                 {order.specialInstructions && (
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-fluid-sm font-medium text-yellow-800 mb-1">📝 Special Instructions:</p>
-                    <p className="text-fluid-sm text-yellow-700">{order.specialInstructions}</p>
+                  <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-xs font-medium text-yellow-800 mb-1">📝 Instructions:</p>
+                    <p className="text-xs text-yellow-700 line-clamp-2">{order.specialInstructions}</p>
                   </div>
                 )}
 
                 <Separator />
 
-                <div className="space-y-2 text-fluid-sm">
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
                     <span>₱{order.subtotal.toFixed(2)}</span>
@@ -376,30 +376,30 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
 
                 <Separator />
 
-                <div className="flex justify-between font-semibold text-fluid-lg">
+                <div className="flex justify-between font-semibold text-sm">
                   <span>Total</span>
                   <span>₱{order.total.toFixed(2)}</span>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-1">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setSelectedOrderId(order._id)}
-                    className="flex-1 touch-target"
+                    className="flex-1 touch-target text-xs"
                   >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    <span className="text-fluid-sm">View Details</span>
+                    <MessageSquare className="w-3 h-3 mr-1" />
+                    <span>Details</span>
                   </Button>
                   {order.status === "pending" && (
                     <Button
                       variant="destructive"
                       size="sm"
                       onClick={() => setCancelOrderId(order._id)}
-                      className="touch-target"
+                      className="touch-target text-xs"
                     >
-                      <Ban className="w-4 h-4" />
+                      <Ban className="w-3 h-3" />
                     </Button>
                   )}
                 </div>

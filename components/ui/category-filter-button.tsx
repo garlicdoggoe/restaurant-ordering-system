@@ -37,7 +37,7 @@ export function CategoryFilterButton({
       
       {/* Category name */}
       <span className={cn(
-        "text-xs font-medium text-center leading-tight",
+        "text-[clamp(0.75rem,0.8vw,0.875rem)] font-medium text-center leading-tight",
         isSelected ? "text-gray-800" : "text-gray-600"
       )}>
         {name}
@@ -46,7 +46,7 @@ export function CategoryFilterButton({
       {/* Count badge (optional) */}
       {count !== undefined && count > 0 && (
         <span className={cn(
-          "absolute -top-1 -right-1 text-xs px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center",
+          "absolute -top-1 -right-1 text-[clamp(0.625rem,0.7vw,0.75rem)] px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center",
           isSelected 
             ? "bg-yellow-500 text-white" 
             : "bg-gray-400 text-white"

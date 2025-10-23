@@ -31,15 +31,15 @@
   --sidebar-border: oklch(0.28 0.02 270);
   --sidebar-ring: oklch(0.439 0 0);
   
-  /* Fluid Typography Variables */
-  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
-  --text-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
-  --text-base: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
-  --text-lg: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
-  --text-xl: clamp(1.125rem, 1rem + 0.625vw, 1.25rem);
-  --text-2xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
-  --text-3xl: clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
-  --text-4xl: clamp(1.875rem, 1.6rem + 1.375vw, 2.25rem);
+  /* Fluid Typography Variables - Improved for iPad readability */
+  --text-xs: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+  --text-sm: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+  --text-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.625vw, 1.25rem);
+  --text-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.3rem + 1vw, 1.875rem);
+  --text-3xl: clamp(1.875rem, 1.6rem + 1.375vw, 2.25rem);
+  --text-4xl: clamp(2.25rem, 1.9rem + 1.75vw, 2.75rem);
 }
 
 @theme inline {
