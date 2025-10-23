@@ -119,6 +119,7 @@ export interface OrderItem {
   // Optional variant information for flexible pricing
   variantId?: string
   variantName?: string
+  size?: string
   attributes?: Record<string, string>
   unitPrice?: number
 }

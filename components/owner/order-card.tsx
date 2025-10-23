@@ -23,6 +23,8 @@ interface OrderCardProps {
       name: string
       quantity: number
       price: number
+      variantName?: string
+      size?: string
     }>
     subtotal: number
     platformFee: number
@@ -162,7 +164,15 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
           <div className="space-y-1 max-h-20 overflow-y-auto">
             {order.items.map((item, index) => (
               <div key={index} className="flex justify-between text-xs">
-                <span>{item.quantity}x {item.name}</span>
+                <div>
+                  <div>{item.quantity}x {item.name}</div>
+                  {/* Display variant information if available */}
+                  {(item.variantName || item.size) && (
+                    <div className="text-xs text-gray-500 ml-2">
+                      {item.variantName || item.size}
+                    </div>
+                  )}
+                </div>
                 <span>₱{(item.price * item.quantity).toFixed(2)}</span>
               </div>
             ))}

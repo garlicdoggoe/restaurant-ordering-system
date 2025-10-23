@@ -399,9 +399,15 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
                       <h4 className="text-sm font-medium text-gray-900">Items</h4>
                       {order.items.map((item, index) => (
                         <div key={index} className="flex justify-between text-xs">
-                          <span className="text-gray-600">
-                            {item.quantity}x {item.name}
-                          </span>
+                          <div className="text-gray-600">
+                            <div>{item.quantity}x {item.name}</div>
+                            {/* Display variant information if available */}
+                            {(item.variantName || item.size) && (
+                              <div className="text-xs text-gray-500 ml-2">
+                                {item.variantName || item.size}
+                              </div>
+                            )}
+                          </div>
                           <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
                         </div>
                       ))}

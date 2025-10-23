@@ -34,6 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
+import { CookingAnimation } from "@/components/ui/cooking-animation"
 
 interface OrderTrackingProps {
   orderId: string
@@ -258,10 +259,25 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Order Preparation Status Display */}
+          {order.status === "accepted" && (
+            <div className="flex flex-col items-center gap-3 p-2">
+              <CookingAnimation size="lg" />
+              <div className="text-center">
+                <p className="text-sm font-semibold text-yellow-500 mb-1">
+                  Order Being Prepared
+                </p>
+                <p className="text-xs text-yellow-500">
+                  Your order has been accepted and is now being prepared by our kitchen team.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* GCash Number Display */}
           {order.gcashNumber && (
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-800 font-medium">
+            <div className="p-3">
+              <p className="text-xs font-medium">
                 💳 GCash Number Used: (+63) {order.gcashNumber}
               </p>
             </div>
@@ -286,9 +302,15 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {order.items.map((item, idx) => (
               <div key={idx} className="flex justify-between text-sm">
-                <span>
-                  {item.quantity}x {item.name}
-                </span>
+                <div>
+                  <div>{item.quantity}x {item.name}</div>
+                  {/* Display variant information if available */}
+                  {(item.variantName || item.size) && (
+                    <div className="text-xs text-gray-500 ml-2">
+                      {item.variantName || item.size}
+                    </div>
+                  )}
+                </div>
                 <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
               </div>
             ))}
