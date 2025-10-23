@@ -44,7 +44,7 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
 
   return (
     <>
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 lg:gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-5">
       {items.map((item) => {
         const isFavorite = favorites.has(item.id)
         return (
@@ -65,11 +65,11 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
               </Button>
             </div>
             
-            <CardContent className="p-1 lg:px-3">
+            <CardContent className="p-1.5 lg:px-3 lg:py-2">
               <div className="flex items-start justify-between gap-1.5 px-2 lg:px-0">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold mb-0.5 truncate text-[clamp(0.875rem,1.2vw,1rem)]">{item.name}</h3>
-                  <span className="text-[clamp(0.875rem,1.2vw,1rem)]">from ₱{item.price.toFixed(2)}</span>
+                    <h3 className="font-semibold mb-0.5 truncate text-xs sm:text-[clamp(0.875rem,1.2vw,1rem)]">{item.name}</h3>
+                    <span className="text-xs sm:text-[clamp(0.875rem,1.2vw,1rem)]">from ₱{item.price.toFixed(2)}</span>
                 </div>
                 
                 {/* Add button beside the item name and price */}
