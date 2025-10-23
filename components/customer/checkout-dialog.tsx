@@ -10,13 +10,12 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Upload, Edit, MapPin, Hand, CreditCard, Smartphone } from "lucide-react"
+import { Upload, MapPin, Hand, CreditCard, Smartphone } from "lucide-react"
 import { useData, type OrderType, type PreOrderFulfillment, type PaymentPlan, type RemainingPaymentMethod } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
-import { PhoneInput } from "@/components/ui/phone-input"
 import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
@@ -48,8 +47,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   const router = useRouter()
   
   // Initialize form fields from current user when available; fall back to empty
-  const [customerName, setCustomerName] = useState(() => `${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim())
-  const [customerPhone, setCustomerPhone] = useState(() => currentUser?.phone ?? "")
   const [customerAddress, setCustomerAddress] = useState(() => currentUser?.address ?? "")
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -60,6 +57,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery">("pickup")
   const [preOrderDate, setPreOrderDate] = useState<string>("") // ISO date
   const [preOrderTime, setPreOrderTime] = useState<string>("") // HH:MM
+  const [pickupDate, setPickupDate] = useState<string>("") // ISO date
+  const [pickupTime, setPickupTime] = useState<string>("") // HH:MM
   const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment">("full")
   const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
   // Special instructions with auto-save to localStorage
@@ -72,9 +71,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   // Payment method selection
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("cash")
 
-  // Edit mode for delivery details
-  const [isEditingDelivery, setIsEditingDelivery] = useState(false)
-
   // Optional coordinates for delivery address (lng, lat)
   const [deliveryCoordinates, setDeliveryCoordinates] = useState<[number, number] | null>(null)
   
@@ -83,16 +79,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
     ? [currentUser.coordinates.lng, currentUser.coordinates.lat]
     : [123.05, 13.7] // Libmanan, Camarines Sur, Bicol
 
-  // Keep phone/address synced from profile on open/switches
+  // Keep address synced from profile on open/switches
   useEffect(() => {
-    if (currentUser?.phone) {
-      // Database now stores only 10-digit numbers (no +63 prefix to strip)
-      setCustomerPhone((prev) => prev || (currentUser.phone as string))
-    }
-    if (currentUser && (currentUser.firstName || currentUser.lastName)) {
-      const n = `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim()
-      setCustomerName((prev) => prev || n)
-    }
     // Initialize delivery coordinates with user's saved coordinates
     if (currentUser?.coordinates && !deliveryCoordinates) {
       setDeliveryCoordinates([currentUser.coordinates.lng, currentUser.coordinates.lat])
@@ -238,9 +226,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
         throw new Error("Not authenticated")
       }
 
-      // Validate phone number
-      if (!isValidPhoneNumber(customerPhone)) {
-        toast.error("Please enter a valid phone number")
+      // Validate phone number from user profile
+      if (!currentUser?.phone || !isValidPhoneNumber(currentUser.phone)) {
+        toast.error("Please update your phone number in profile settings")
         setIsSubmitting(false)
         return
       }
@@ -307,7 +295,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       }
 
       // Store only the 10-digit number in the database (without +63 prefix)
-      const normalizedPhone = customerPhone
+      const normalizedPhone = currentUser.phone
+      const customerName = `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim()
 
       addOrder({
         // Backend enforces and overrides customerId to the authenticated user; provide for types
@@ -362,230 +351,199 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-full md:max-w-7xl max-h-[85vh] md:h-[95vh] overflow-y-auto p-3 md:p-0">
-        <DialogHeader className="px-3 md:px-8 pt-3 md:pt-8 pb-2">
+      <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-7xl max-h-[90vh] md:h-[95vh] overflow-y-auto p-2 md:p-6">
+        <DialogHeader className="px-2 md:px-6 pt-2 md:pt-6 pb-2">
           <DialogTitle className="text-lg md:text-fluid-2xl font-semibold">Checkout Details</DialogTitle>
+          {/* Order Type Display */}
+          <div className="mt-4 text-left">
+            <h2 className="text-lg md:text-2xl font-medium text-gray-800 leading-none">
+              for
+            </h2>
+            <h2 className="text-[2em] md:text-[2.5em] font-bold text-gray-800 leading-none mt-1">
+              {orderType === "dine-in" ? "Dine In" : orderType === "takeaway" ? "Takeout" : orderType === "delivery" ? "Delivery" : "Pre-order"}
+            </h2>
+            
+            {/* Order Type Selection Buttons */}
+            <div className="mt-3">
+              <div className="grid grid-cols-2 gap-1 md:flex md:gap-1">
+                <Button
+                  type="button"
+                  variant={orderType === "dine-in" ? "default" : "outline"}
+                  className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "dine-in" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
+                  onClick={() => setOrderType("dine-in")}
+                >
+                  DINE IN
+                </Button>
+                <Button
+                  type="button"
+                  variant={orderType === "takeaway" ? "default" : "outline"}
+                  className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "takeaway" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
+                  onClick={() => setOrderType("takeaway")}
+                >
+                  TAKE OUT
+                </Button>
+                <Button
+                  type="button"
+                  variant={orderType === "delivery" ? "default" : "outline"}
+                  className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "delivery" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
+                  onClick={() => setOrderType("delivery")}
+                >
+                  DELIVERY
+                </Button>
+                <Button
+                  type="button"
+                  variant={orderType === "pre-order" ? "default" : "outline"}
+                  className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "pre-order" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
+                  onClick={() => setOrderType("pre-order")}
+                >
+                  PREORDER
+                </Button>
+              </div>
+            </div>
+          </div>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row h-full">
-          {/* Left Column - Delivery Details and Payment Options */}
-          <div className="flex-1 px-3 md:px-8 pb-3 md:pb-8 space-y-3 md:space-y-8">
-            {/* Delivery Details Section */}
-            <div className="bg-gray-50 rounded-lg p-3 md:p-6">
-              {isEditingDelivery ? (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="name" className="text-xs md:text-fluid-sm">Contact Person</Label>
-                    <Input
-                      id="name"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Your name"
-                      required
-                      className="text-sm md:text-fluid-base touch-target h-8 md:h-auto"
-                    />
-                  </div>
-
-                  <PhoneInput
-                    id="phone"
-                    label="Phone Number"
-                    value={customerPhone}
-                    onChange={setCustomerPhone}
-                    required
+          {/* Left Column - Form Fields */}
+          <div className="flex-1 px-2 md:px-6 pb-2 md:pb-6 space-y-3 md:space-y-6">
+            {/* Delivery Address - only for delivery orders */}
+            {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
+              <div className="space-y-3">
+                {/* Show map */}
+                <div className="rounded-lg border p-3 bg-white">
+                  <AddressMapPicker
+                    address={customerAddress}
+                    onAddressChange={setCustomerAddress}
+                    coordinates={deliveryCoordinates || defaultCoordinates}
+                    onCoordinatesChange={setDeliveryCoordinates}
+                    mapHeightPx={180}
+                    interactive={false}
                   />
-
-                  {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
-                    <div className="space-y-2">
-                      <Label htmlFor="address" className="text-fluid-sm">Delivery Address</Label>
-                      <div className="rounded-lg border p-3 bg-white">
-                        <AddressMapPicker
-                          address={customerAddress}
-                          onAddressChange={setCustomerAddress}
-                          coordinates={deliveryCoordinates || defaultCoordinates}
-                          onCoordinatesChange={setDeliveryCoordinates}
-                          mapHeightPx={180}
-                          interactive={true}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        className="text-xs touch-target h-7"
-                        onClick={() => {
-                          onClose()
-                          onOpenSettings?.()
-                        }}
-                      >
-                        Change delivery address
-                      </Button>
-                    </div>
-                  )}
                 </div>
-              ) : (
-                <div className="space-y-2 text-sm md:text-fluid-base">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Contact Person:</span>
-                    <span className="font-medium">{customerName || "Not provided"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Phone Number:</span>
-                    <span className="font-medium">(+63) {customerPhone || "Not provided"}</span>
-                  </div>
-                  {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
-                    <div className="space-y-3">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                        <span className="text-gray-600">Address:</span>
-                        <span className="font-medium flex items-center">
-                          <MapPin className="w-3 h-3 text-red-500 mr-1" />
-                          {customerAddress || "Not provided"}
-                        </span>
-                      </div>
-                      {/* Show map in non-editing view as well */}
-                      <div className="rounded-lg border p-3 bg-white">
-                        <AddressMapPicker
-                          address={customerAddress}
-                          onAddressChange={setCustomerAddress}
-                          coordinates={deliveryCoordinates || defaultCoordinates}
-                          onCoordinatesChange={setDeliveryCoordinates}
-                          mapHeightPx={180}
-                          interactive={false}
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        className="text-xs touch-target h-7"
-                        onClick={() => {
-                          onClose()
-                          onOpenSettings?.()
-                        }}
-                      >
-                        Change delivery address
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Order Type and Pre-order options as dropdowns */}
-              <div className="mt-3">
-                <Label className="text-xs md:text-sm text-gray-700">Order Type</Label>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  <Select value={orderType} onValueChange={(v: OrderType) => setOrderType(v)}>
-                    <SelectTrigger className="w-44">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dine-in">Dine In</SelectItem>
-                      <SelectItem value="takeaway">Take Away</SelectItem>
-                      <SelectItem value="delivery">Delivery</SelectItem>
-                      <SelectItem value="pre-order">Pre-order</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {orderType === "pre-order" && (
-                    <>
-                      <div>
-                        <Select value={preOrderFulfillment} onValueChange={(v: PreOrderFulfillment) => setPreOrderFulfillment(v)}>
-                          <SelectTrigger className="w-64">
-                            <SelectValue placeholder="Pre-order Fulfillment" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pickup">Pickup</SelectItem>
-                            <SelectItem value="delivery">Delivery</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-gray-500 mt-1">Fulfillment method</p>
-                      </div>
-
-                      <div>
-                        <Select value={paymentPlan} onValueChange={(v: PaymentPlan) => setPaymentPlan(v)}>
-                          <SelectTrigger className="w-44">
-                            <SelectValue placeholder="Payment Plan" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="full">Pay in full</SelectItem>
-                            <SelectItem value="downpayment">50% downpayment</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-gray-500 mt-1">Payment terms</p>
-                      </div>
-
-                      {paymentPlan === "downpayment" && (
-                        <div>
-                          <Select value={downpaymentMethod} onValueChange={(v: RemainingPaymentMethod) => setDownpaymentMethod(v)}>
-                            <SelectTrigger className="w-64">
-                              <SelectValue placeholder="Balance Payment Method" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="online">Online</SelectItem>
-                              <SelectItem value="cash">Cash</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-gray-500 mt-1">Remaining balance payment method</p>
-                        </div>
-                      )}
-                    </>
-                  )}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="text-[11px] text-yellow-600 hover:text-yellow-700 underline mt-[-7px]"
+                    onClick={() => {
+                      onClose()
+                      onOpenSettings?.()
+                    }}
+                  >
+                    Change delivery address
+                  </button>
                 </div>
               </div>
+            )}
 
-              {/* Date & Time for Pre-order */}
-              {orderType === "pre-order" && (
-                <div className="mt-6">
-                  <Label className="text-xs md:text-sm text-gray-700">Pickup/Delivery Date & Time</Label>
-                  <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div>
-                      <Input
-                        id="preorder-date"
-                        type="date"
-                        value={preOrderDate}
-                        onChange={(e) => {
-                          const date = e.target.value
-                          setPreOrderDate(date)
-                          setDateError(validatePreOrderDate(date))
-                          if (preOrderTime) {
-                            setTimeError(validatePreOrderTime(preOrderTime, date))
-                          }
-                        }}
-                        required
-                        min={new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                      />
-                      {dateError && (
-                        <p className="text-sm text-red-500 mt-1">{dateError}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Input
-                        id="preorder-time"
-                        type="time"
-                        value={preOrderTime}
-                        onChange={(e) => {
-                          const time = e.target.value
-                          setPreOrderTime(time)
-                          setTimeError(validatePreOrderTime(time, preOrderDate))
-                        }}
-                        required
-                        min={restaurant?.openingTime || "00:00"}
-                        max={restaurant?.closingTime || "23:59"}
-                      />
-                      {restaurant?.openingTime && restaurant?.closingTime && (
-                        <p className="text-xs text-muted-foreground">
-                          Restaurant hours: {formatTime12Hour(restaurant.openingTime)} - {formatTime12Hour(restaurant.closingTime)}
-                        </p>
-                      )}
-                      {timeError && (
-                        <p className="text-xs text-red-500 mt-1">{timeError}</p>
-                      )}
-                    </div>
+            {/* Pre-order fulfillment and payment options */}
+            {orderType === "pre-order" && (
+              <div className="space-y-3">
+                {/* Top Row - Fulfillment Method and Payment Terms */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Fulfillment Method</p>
+                    <Select value={preOrderFulfillment} onValueChange={(v: PreOrderFulfillment) => setPreOrderFulfillment(v)}>
+                      <SelectTrigger className="w-full text-xs">
+                        <SelectValue placeholder="Fulfillment Method" className="text-gray-500" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pickup" className="text-xs">Pickup</SelectItem>
+                        <SelectItem value="delivery" className="text-xs">Delivery</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Payment Terms</p>
+                    <Select value={paymentPlan} onValueChange={(v: PaymentPlan) => setPaymentPlan(v)}>
+                      <SelectTrigger className="w-full text-xs">
+                        <SelectValue placeholder="Payment Plan" className="text-gray-500" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full" className="text-xs">Pay in full</SelectItem>
+                        <SelectItem value="downpayment" className="text-xs">50% downpayment</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              )}
+                {/* Downpayment Method - if downpayment is selected */}
+                {paymentPlan === "downpayment" && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Remaining balance payment method</p>
+                    <Select value={downpaymentMethod} onValueChange={(v: RemainingPaymentMethod) => setDownpaymentMethod(v)}>
+                      <SelectTrigger className="w-full text-xs">
+                        <SelectValue placeholder="Balance Payment Method" className="text-gray-500" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="online" className="text-xs">Online</SelectItem>
+                        <SelectItem value="cash" className="text-xs">Cash</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
 
-              {/* Special Instructions - always visible and auto-saved */}
-              <div className="mt-3">
-                <Label htmlFor="special-instructions" className="mb-2 text-xs md:text-sm">Special Instructions</Label>
+            {/* Date & Time for Pre-order */}
+            {orderType === "pre-order" && (
+              <div className="space-y-3">
+                <Label className="text-xs md:text-sm text-gray-500">Pickup/Delivery Date & Time</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Input
+                      id="preorder-date"
+                      type="date"
+                      value={preOrderDate}
+                      onChange={(e) => {
+                        const date = e.target.value
+                        setPreOrderDate(date)
+                        setDateError(validatePreOrderDate(date))
+                        if (preOrderTime) {
+                          setTimeError(validatePreOrderTime(preOrderTime, date))
+                        }
+                      }}
+                      required
+                      min={new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                      className="w-full text-xs"
+                      placeholder="mm/dd/yyyy"
+                    />
+                    {dateError && (
+                      <p className="text-sm text-red-500 mt-1">{dateError}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      id="preorder-time"
+                      type="time"
+                      value={preOrderTime}
+                      onChange={(e) => {
+                        const time = e.target.value
+                        setPreOrderTime(time)
+                        setTimeError(validatePreOrderTime(time, preOrderDate))
+                      }}
+                      required
+                      min={restaurant?.openingTime || "00:00"}
+                      max={restaurant?.closingTime || "23:59"}
+                      className="w-full text-xs"
+                      placeholder="--:--"
+                    />
+                  </div>
+                </div>
+                {timeError ? (
+                  <p className="text-[12px] text-red-500 mt-1">{timeError}</p>
+                ) : (
+                  restaurant?.openingTime && restaurant?.closingTime && (
+                    <p className="text-[12px] text-yellow-600 text-muted-foreground">
+                      Restaurant hours: {formatTime12Hour(restaurant.openingTime)} - {formatTime12Hour(restaurant.closingTime)}
+                    </p>
+                  )
+                )}
+              </div>
+            )}
+
+            {/* Special Instructions */}
+            <div className="space-y-2">
+              <Label htmlFor="special-instructions" className="text-xs md:text-sm opacity-60">Special Instructions</Label>
+              <div className="relative">
                 <Input
                   id="special-instructions"
                   placeholder="Optional"
@@ -599,87 +557,38 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   maxLength={100}
                   className="text-sm md:text-base h-8 md:h-auto"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  {specialInstructions.length}/100 characters
+                <p className="absolute -bottom-5 right-0 text-[10px] text-gray-400">
+                  {specialInstructions.length}/100
                 </p>
               </div>
             </div>
 
-            {/* Pre-order specific fields moved above and switched to dropdowns */}
-
-            {/* Payment Options Section */}
-            <div className="bg-gray-50 rounded-lg p-3 md:p-6">
-              <h3 className="text-lg md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">Payment Options</h3>
-              
-              {/* Note about payment method availability */}
-              <div className="mb-3 md:mb-4 p-2 md:p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs md:text-sm text-blue-800 font-medium">
-                  ℹ️ Currently, the platform only accepts GCash payments. Other payment methods will be available soon.
-                </p>
-              </div>
-              
-              {/* GCash number display */}
+            {/* Payment Options */}
+            <div className="space-y-3">
+              <h3 className="text-lg mt-5 md:text-2xl font-bold text-gray-800">Payment Options</h3>
+              {/* GCash Payment Method */}
               {currentUser?.gcashNumber && (
-                <div className="mb-3 md:mb-4 p-2 md:p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-xs md:text-sm text-blue-800 font-medium">
-                    Please use (+63) {currentUser.gcashNumber} for payment processing
+                <div className="flex items-center space-x-3">
+                  <img src="/gcash.png" alt="GCash" className="h-8 w-auto" />
+                  <p className="text-xs text-gray-800">
+                    Manual GCash payment. Please send payment to {" "}
+                    <span className="text-blue-600 font-medium">(+63) 915-777-0545. L** G**</span>.
                   </p>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="p-0 h-auto text-blue-600 hover:text-blue-800 underline text-xs"
-                    onClick={() => {
-                      onClose()
-                      onOpenSettings?.()
-                    }}
-                  >
-                    Change GCash number
-                  </Button>
                 </div>
               )}
 
-              {/* Payment Method Buttons - GCash only */}
-              <div className="flex gap-2 md:gap-4 mb-4 md:mb-6">
-                {/* <Button
-                  type="button"
-                  variant={selectedPaymentMethod === "cash" ? "default" : "outline"}
-                  className={`h-20 flex-1 flex flex-col items-center justify-center space-y-2q`}
-                  onClick={() => setSelectedPaymentMethod("cash")}
-                >
-                  <span className="text-2xl font-bold">₱</span>
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant={selectedPaymentMethod === "visa" ? "default" : "outline"}
-                  className={`h-20 flex-1 flex flex-col items-center justify-center space-y-2`}
-                  onClick={() => setSelectedPaymentMethod("visa")}
-                >
-                  <img src="/visa.png" alt="VISA" className="h-8 w-auto" />
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant={selectedPaymentMethod === "mastercard" ? "default" : "outline"}
-                  className={`h-20 flex-1 flex flex-col items-center justify-center space-y-2`}
-                  onClick={() => setSelectedPaymentMethod("mastercard")}
-                >
-                  <img src="/mastercard.png" alt="Mastercard" className="h-8 w-auto" />
-                </Button> */}
-                
-                <Button
-                  type="button"
-                  variant={selectedPaymentMethod === "gcash" ? "default" : "outline"}
-                  className="h-16 md:h-20 flex-1 flex flex-col items-center justify-center space-y-2 bg-yellow-500 text-white"
-                  onClick={() => setSelectedPaymentMethod("gcash")}
-                >
-                  <img src="/gcash.png" alt="GCash" className="h-6 md:h-8 w-auto" />
-                </Button>
+              {/* Notification */}
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+                  <span className="text-[12px] text-white font-bold">i</span>
+                </div>
+                <p className="text-[12px] text-yellow-600">
+                  Other payment methods will be available soon
+                </p>
               </div>
 
-              {/* Payment Proof Upload - Dashed border box */}
-              <div className="border-2 border-dashed border-gray-400 rounded-lg p-4 md:p-8 text-center hover:border-yellow-500 transition-colors cursor-pointer">
+              {/* Payment Proof Upload */}
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
                 <input
                   id="payment-screenshot"
                   type="file"
@@ -688,8 +597,13 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   className="hidden"
                 />
                 <label htmlFor="payment-screenshot" className="cursor-pointer">
-                  <Upload className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2 md:mb-3 text-gray-600" />
-                  <p className="text-xs md:text-base text-gray-700 font-medium">
+                  <div className="w-12 h-12 mx-auto mb-3 text-gray-400 flex items-center justify-center">
+                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                      <path d="M14 7a1 1 0 11-2 0 1 1 0 012 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-500">
                     Click to upload payment proof
                   </p>
                 </label>
@@ -700,13 +614,15 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   <img src={previewUrl} alt="Payment proof" className="w-full rounded border object-contain max-h-32" />
                 </div>
               )}
-
             </div>
           </div>
 
           {/* Right Column - Order Summary */}
-          <div className="flex-1 bg-gray-50 px-4 md:px-8 pt-4 md:pt-8 pb-4 md:pb-8">
-            <h3 className="text-lg md:text-xl font-semibold mb-4 md:mb-6">Order Summary</h3>
+          <div className="flex-1 px-2 md:px-6 pt-2 md:pt-6 pb-2 md:pb-6">
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+              <h3 className="text-lg md:text-xl font-semibold">Order Summary</h3>
+              <span className="text-[12px] text-gray-600">Total items: {totalItems}</span>
+            </div>
             
             <div className="space-y-3 md:space-y-4">
               {items.map((item, index) => (
@@ -715,7 +631,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     <div className="font-medium text-sm md:text-base">{item.name}</div>
                     {item.size && <div className="text-xs md:text-sm text-gray-600">{item.size}</div>}
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1 md:space-x-2">
                     <Button
                       type="button"
                       variant="outline"
@@ -742,7 +658,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     >
                       +
                     </Button>
-                    <span className="ml-2 md:ml-3 font-semibold text-yellow-600 text-xs md:text-sm">
+                    <span className="ml-1 md:ml-3 text-xs md:text-sm">
                       ₱{(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
@@ -752,16 +668,13 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
             <Separator className="my-6" />
             
-            <div className="space-y-2 md:space-y-3 text-sm md:text-base">
+            <div className="space-y-2 text-xs md:space-y-3 text-sm md:text-base">
               <div className="flex justify-between">
-                <span className="text-gray-600">Total items: {totalItems}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal</span>
+                <span>Subtotal</span>
                 <span>₱{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Platform fee</span>
+                <span>Platform fee</span>
                 <span>₱{platformFee.toFixed(2)}</span>
               </div>
               <Separator />
@@ -773,7 +686,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
             <Button 
               type="submit" 
-              className="w-full mt-6 md:mt-8 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-4 md:py-6 rounded-lg text-sm md:text-lg"
+              className="w-full mt-4 md:mt-6 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 md:py-4 rounded-lg text-sm md:text-base"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Placing Order..." : "Confirm order"}
