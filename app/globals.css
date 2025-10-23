@@ -129,10 +129,13 @@
     font-size: var(--text-4xl);
   }
 
-  /* Touch-friendly targets */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
+  /* Custom Gilroy font weight utilities */
+  .font-heavy {
+    font-weight: 900; /* Gilroy Heavy weight */
+  }
+  
+  .font-black {
+    font-weight: 950; /* Gilroy Black weight */
   }
 
   /* Mobile-specific utilities */

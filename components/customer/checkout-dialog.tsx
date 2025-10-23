@@ -359,7 +359,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
             <h2 className="text-lg md:text-2xl font-medium text-gray-800 leading-none">
               for
             </h2>
-            <h2 className="text-[2em] md:text-[2.5em] font-bold text-gray-800 leading-none mt-1">
+            <h2 className="text-[2.5em] md:text-[3em] font-black text-gray-800 leading-none mt-1">
               {orderType === "dine-in" ? "Dine In" : orderType === "takeaway" ? "Takeout" : orderType === "delivery" ? "Delivery" : "Pre-order"}
             </h2>
             
