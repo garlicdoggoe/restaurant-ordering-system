@@ -90,7 +90,7 @@
   --radius: 0.75rem;
 
   /* Fonts */
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "Gilroy", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 @layer base {
