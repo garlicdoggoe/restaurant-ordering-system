@@ -242,6 +242,16 @@ interface DataContextType {
 
   // Orders
   orders: Order[]
+  ordersByStatus: {
+    pending: Order[]
+    accepted: Order[]
+    ready: Order[]
+    completed: Order[]
+    denied: Order[]
+    cancelled: Order[]
+    "in-transit": Order[]
+    delivered: Order[]
+  }
   addOrder: (order: Omit<Order, "_id" | "createdAt" | "updatedAt">) => void
   updateOrder: (id: string, data: Partial<Order>) => void
   getOrderById: (id: string) => Order | undefined
@@ -291,6 +301,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Get current user from Convex
   const currentUserDoc = useQuery(api.users.getCurrentUser)
   
+  // NEW: Separate role query (caches independently from order queries)
+  const userRoleDoc = useQuery(api.orders.getCurrentUserRole)
+  
   // Transform Convex user data to our User interface
   const currentUser: User | null = currentUserDoc ? {
     _id: currentUserDoc._id,
@@ -318,7 +331,71 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // currentUserDoc === undefined => loading; null => not found yet
   const hasConvexUser = currentUserDoc !== undefined && currentUserDoc !== null
   const shouldFetchOrders = !!clerkUser && !!isLoaded && hasConvexUser
-  const ordersDocs = useQuery(api.orders.list, shouldFetchOrders ? {} : undefined) ?? []
+  
+  // NEW: Pass role and userId to avoid internal user lookup - eliminates user dependency
+  const ordersDocs = useQuery(
+    api.orders.list, 
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role && userRoleDoc.userId
+      ? { userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  // NEW: Status-specific queries for owners to prevent full cache invalidation during status changes
+  const pendingOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "pending", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  const acceptedOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "accepted", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  const readyOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "ready", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  const completedOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "completed", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  const deniedOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "denied", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  const cancelledOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "cancelled", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  const inTransitOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "in-transit", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  const deliveredOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "delivered", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
   const vouchersDocs = useQuery(api.vouchers.list) ?? []
   const promotionsDocs = useQuery(api.promotions.list) ?? []
   const denialReasonsDocs = useQuery(api.denial_reasons.list) ?? []
@@ -429,6 +506,50 @@ export function DataProvider({ children }: { children: ReactNode }) {
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   }))
+  
+  // NEW: Status-specific order arrays for owners - prevents full cache invalidation during status changes
+  const transformOrderArray = (orderDocs: any[]) => orderDocs.map((o) => ({
+    _id: o._id as string,
+    _creationTime: o._creationTime as number,
+    customerId: o.customerId,
+    customerName: o.customerName,
+    customerPhone: o.customerPhone,
+    customerAddress: o.customerAddress,
+    gcashNumber: o.gcashNumber,
+    items: o.items,
+    subtotal: o.subtotal,
+    platformFee: o.platformFee,
+    discount: o.discount,
+    total: o.total,
+    orderType: o.orderType,
+    preOrderFulfillment: o.preOrderFulfillment,
+    preOrderScheduledAt: o.preOrderScheduledAt,
+    paymentPlan: o.paymentPlan,
+    downpaymentAmount: o.downpaymentAmount,
+    downpaymentProofUrl: o.downpaymentProofUrl,
+    remainingPaymentMethod: o.remainingPaymentMethod,
+    remainingPaymentProofUrl: o.remainingPaymentProofUrl,
+    status: o.status,
+    paymentScreenshot: o.paymentScreenshot,
+    voucherCode: o.voucherCode,
+    denialReason: o.denialReason,
+    specialInstructions: o.specialInstructions,
+    estimatedPrepTime: o.estimatedPrepTime,
+    estimatedDeliveryTime: o.estimatedDeliveryTime,
+    createdAt: o.createdAt,
+    updatedAt: o.updatedAt,
+  }))
+  
+  const ordersByStatus = {
+    pending: transformOrderArray(pendingOrders),
+    accepted: transformOrderArray(acceptedOrders),
+    ready: transformOrderArray(readyOrders),
+    completed: transformOrderArray(completedOrders),
+    denied: transformOrderArray(deniedOrders),
+    cancelled: transformOrderArray(cancelledOrders),
+    "in-transit": transformOrderArray(inTransitOrders),
+    delivered: transformOrderArray(deliveredOrders),
+  }
   const vouchers: Voucher[] = vouchersDocs as Voucher[]
   const promotions: Promotion[] = promotionsDocs as Promotion[]
   const denialReasons: DenialReason[] = denialReasonsDocs as DenialReason[]
@@ -724,6 +845,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     deleteVariant,
     setVariantAttribute,
     orders,
+    ordersByStatus,
     addOrder,
     updateOrder,
     getOrderById,
