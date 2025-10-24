@@ -33,6 +33,8 @@ interface OrderCardProps {
     paymentStatus?: "Initially paid" | "Fully paid"
     status: string
     specialInstructions?: string
+    // Add pre-order specific fields
+    preOrderFulfillment?: "pickup" | "delivery"
   }
   onClick: () => void
   onStatusChange: () => void
@@ -79,11 +81,27 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
 
   const handleFinishOrder = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent card click
-    // For delivery orders from accepted -> in-transit; for dine-in/takeaway accepted -> ready
+    // Determine the next status based on order type and current status
     let newStatus: "in-transit" | "ready" | "completed" = "completed"
-    if (order.type === "delivery" && order.status === "accepted") newStatus = "in-transit"
-    else if ((order.type === "dine-in" || order.type === "takeaway") && order.status === "accepted") newStatus = "ready"
-    else if ((order.type === "dine-in" || order.type === "takeaway") && order.status === "ready") newStatus = "completed"
+    
+    // Handle pre-orders based on their fulfillment method
+    if (order.type === "pre-order") {
+      if (order.preOrderFulfillment === "delivery" && order.status === "accepted") {
+        newStatus = "in-transit"
+      } else if (order.preOrderFulfillment === "pickup" && order.status === "accepted") {
+        newStatus = "ready"
+      } else if (order.preOrderFulfillment === "pickup" && order.status === "ready") {
+        newStatus = "completed"
+      }
+    }
+    // Handle regular orders
+    else if (order.type === "delivery" && order.status === "accepted") {
+      newStatus = "in-transit"
+    } else if ((order.type === "dine-in" || order.type === "takeaway") && order.status === "accepted") {
+      newStatus = "ready"
+    } else if ((order.type === "dine-in" || order.type === "takeaway") && order.status === "ready") {
+      newStatus = "completed"
+    }
 
     updateOrder(order.id, { status: newStatus })
     const description =
@@ -111,8 +129,23 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
 
   // Show different buttons based on order status and type
   const showActionButtons = order.status === "pending"
-  const showFinishButton = order.status === "accepted" || ((order.type === "dine-in" || order.type === "takeaway") && order.status === "ready")
-  const showDeliveredButton = order.status === "in-transit" && order.type === "delivery"
+  
+  // Determine if finish button should be shown
+  const showFinishButton = (() => {
+    if (order.status === "accepted") return true
+    
+    // For dine-in, takeaway, and pre-order pickup: show button when ready
+    if (order.status === "ready") {
+      return order.type === "dine-in" || order.type === "takeaway" || 
+             (order.type === "pre-order" && order.preOrderFulfillment === "pickup")
+    }
+    
+    return false
+  })()
+  
+  // Show delivered button for in-transit delivery orders (including pre-order delivery)
+  const showDeliveredButton = order.status === "in-transit" && 
+    (order.type === "delivery" || (order.type === "pre-order" && order.preOrderFulfillment === "delivery"))
 
   return (
     <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={onClick}>
@@ -238,9 +271,14 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
             onClick={handleFinishOrder}
           >
             <CheckCircle className="w-4 h-4 mr-1" />
+            {/* Regular orders */}
             {order.type === "delivery" && order.status === "accepted" && "Send for Delivery"}
             {(order.type === "dine-in" || order.type === "takeaway") && order.status === "accepted" && "Mark Ready"}
             {(order.type === "dine-in" || order.type === "takeaway") && order.status === "ready" && "Complete Order"}
+            {/* Pre-order buttons */}
+            {order.type === "pre-order" && order.preOrderFulfillment === "delivery" && order.status === "accepted" && "Send for Delivery"}
+            {order.type === "pre-order" && order.preOrderFulfillment === "pickup" && order.status === "accepted" && "Mark Ready"}
+            {order.type === "pre-order" && order.preOrderFulfillment === "pickup" && order.status === "ready" && "Complete Order"}
           </Button>
         )}
 
