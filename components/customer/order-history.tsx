@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network, Filter, X, Calendar } from "lucide-react"
+import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network, Filter, X, Calendar, ChevronDown, ChevronUp } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -50,6 +50,9 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
   const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
   const [orderUploadStates, setOrderUploadStates] = useState<Record<string, { file: File | null; previewUrl: string | null }>>({})
   const [hasRestoredFromStorage, setHasRestoredFromStorage] = useState(false)
+  
+  // State for expanded/collapsed order cards
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
 
   // Convex mutations and queries for file upload
   const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
@@ -139,6 +142,19 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
   const handleCancelOrder = (orderId: string) => {
     updateOrder(orderId, { status: "cancelled" })
     setCancelOrderId(null)
+  }
+
+  // Toggle expanded state for order cards
+  const toggleOrderExpansion = (orderId: string) => {
+    setExpandedOrders(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId)
+      } else {
+        newSet.add(orderId)
+      }
+      return newSet
+    })
   }
 
   // Handle remaining payment proof selection (deferred upload with confirmation)
@@ -279,7 +295,7 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
   }
 
   return (
-    <div className="space-y-4 xs:space-y-6">
+    <div className="space-y-8 xs:space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -290,11 +306,6 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
             <h1 className="text-fluid-2xl font-bold">Order History</h1>
             <p className="text-fluid-sm text-muted-foreground">
               {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found
-            </p>
-            {/* Current date filter display */}
-            <p className="text-fluid-xs text-blue-600 flex items-center gap-1 mt-1">
-              <Calendar className="w-3 h-3" />
-              {getCurrentDateFilterText()}
             </p>
           </div>
         </div>
@@ -316,7 +327,7 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
       )}
 
       {/* Filter Tabs - Always visible in header */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
         {[
           { id: "all", label: "All Orders", icon: FileText },
           { id: "pre-orders", label: "Pre-orders", icon: Clock },
@@ -391,125 +402,152 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
             </CardContent>
           </Card>
         ) : (
-          filteredOrders.map((order) => (
-            <Card key={order._id} className={`${getOrderBorderClass(order.status)} h-fit`}>
-              <CardHeader className="p-3 xs:p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-semibold">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
-                      <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1 text-xs`}>
-                        {statusIcons[order.status as keyof typeof statusIcons]}
-                        <span className="capitalize">{order.status.replace('-', ' ')}</span>
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{new Date(order._creationTime ?? 0).toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 xs:p-4 space-y-3">
-                {/* GCash Number Display */}
-                {order.gcashNumber && (
-                  <div className="p-2 bg-blue-50 rounded text-xs">
-                    <p className="font-medium text-blue-800">
-                      💳 GCash: (+63) {order.gcashNumber}
-                    </p>
-                  </div>
-                )}
-
-                {/* Denial Reason Display */}
-                {order.status === "denied" && order.denialReason && (
-                  <div className="p-2 bg-red-50 rounded border border-red-200">
-                    <div className="flex items-start gap-1">
-                      <XCircle className="w-3 h-3 text-red-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs font-medium text-red-800">Order Denied</p>
-                        <p className="text-xs text-red-700 mt-1">
-                          {order.denialReason}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Order Items */}
-                <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
-                  {order.items.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-xs">
-                      <div className="flex-1 min-w-0">
-                        <div className="truncate">{item.quantity}x {item.name}</div>
-                        {(item.variantName || item.size) && (
-                          <div className="text-xs text-gray-500 truncate">
-                            {item.variantName || item.size}
+          filteredOrders.map((order) => {
+            const isExpanded = expandedOrders.has(order._id)
+            
+            return (
+              <Card key={order._id} className={`${getOrderBorderClass(order.status)} h-fit mb-[-10px] lg:mb-0`}>
+                {/* Mobile: Collapsed Header - Always visible on mobile */}
+                <CardHeader 
+                  className="p-3 xs:p-4 cursor-pointer hover:bg-gray-50/50 transition-colors lg:cursor-default lg:hover:bg-transparent"
+                  onClick={() => toggleOrderExpansion(order._id)}
+                >
+                  <div className="flex items-center justify-between mt-[-15px] mb-[-20px] lg:mt-0 lg:mb-0">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-semibold">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1 text-xs`}>
+                            {statusIcons[order.status as keyof typeof statusIcons]}
+                            <span className="capitalize">{order.status.replace('-', ' ')}</span>
+                          </Badge>
+                          {/* Expand/Collapse Icon - Only show on mobile */}
+                          <div className="lg:hidden">
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                      <span className="font-medium ml-2 flex-shrink-0">₱{(item.price * item.quantity).toFixed(2)}</span>
+                      <div className="flex items-center justify-between mt-1 lg:mr-0 mr-6 lg:mt-2">
+                        <p className="text-xs text-muted-foreground">{new Date(order._creationTime ?? 0).toLocaleString()}</p>
+                        <div className="flex justify-between font-semibold text-sm">
+                          <span>Total: ₱{order.total.toFixed(2)}</span>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-
-                {/* Special Instructions */}
-                {order.specialInstructions && (
-                  <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
-                    <p className="text-xs font-medium text-yellow-800 mb-1">📝 Instructions:</p>
-                    <p className="text-xs text-yellow-700 line-clamp-2">{order.specialInstructions}</p>
                   </div>
-                )}
+                </CardHeader>
 
-                <Separator />
-
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>₱{order.subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Platform fee</span>
-                    <span>₱{(order.platformFee || 0).toFixed(2)}</span>
-                  </div>
-                  {order.discount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Discount</span>
-                      <span>-₱{order.discount.toFixed(2)}</span>
+                {/* Mobile: Expanded Content - Only visible when expanded on mobile */}
+                {/* Desktop: Always show full content */}
+                <CardContent className={`p-3 xs:p-4 space-y-3 lg:space-y-4 ${isExpanded ? 'border-t' : ''} lg:border-t ${isExpanded ? 'block' : 'hidden'} lg:block`}>
+                  {/* GCash Number Display */}
+                  {order.gcashNumber && (
+                    <div className="p-2 bg-blue-50 rounded text-xs">
+                      <p className="font-medium text-blue-800">
+                        💳 GCash: (+63) {order.gcashNumber}
+                      </p>
                     </div>
                   )}
-                </div>
 
-                <Separator />
+                  {/* Denial Reason Display */}
+                  {order.status === "denied" && order.denialReason && (
+                    <div className="p-2 bg-red-50 rounded border border-red-200">
+                      <div className="flex items-start gap-1">
+                        <XCircle className="w-3 h-3 text-red-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-medium text-red-800">Order Denied</p>
+                          <p className="text-xs text-red-700 mt-1">
+                            {order.denialReason}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                <div className="flex justify-between font-semibold text-sm">
-                  <span>Total</span>
-                  <span>₱{order.total.toFixed(2)}</span>
-                </div>
+                  {/* Order Items */}
+                  <div className="space-y-1 lg:space-y-2 max-h-32 overflow-y-auto pr-1">
+                    {order.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-xs">
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate">{item.quantity}x {item.name}</div>
+                          {(item.variantName || item.size) && (
+                            <div className="text-xs text-gray-500 truncate">
+                              {item.variantName || item.size}
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-medium ml-2 flex-shrink-0">₱{(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedOrderId(order._id)}
-                    className="flex-1 touch-target text-xs"
-                  >
-                    <MessageSquare className="w-3 h-3 mr-1" />
-                    <span>Details</span>
-                  </Button>
-                  {order.status === "pending" && (
+                  {/* Special Instructions */}
+                  {order.specialInstructions && (
+                    <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
+                      <p className="text-xs font-medium text-yellow-800 mb-1">📝 Instructions:</p>
+                      <p className="text-xs text-yellow-700 line-clamp-2">{order.specialInstructions}</p>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div className="space-y-1 lg:space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>₱{order.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Platform fee</span>
+                      <span>₱{(order.platformFee || 0).toFixed(2)}</span>
+                    </div>
+                    {order.discount > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Discount</span>
+                        <span>-₱{order.discount.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex justify-between font-semibold text-sm">
+                    <span>Total</span>
+                    <span>₱{order.total.toFixed(2)}</span>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-1 lg:pt-2">
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
-                      onClick={() => setCancelOrderId(order._id)}
-                      className="touch-target text-xs"
+                      onClick={() => setSelectedOrderId(order._id)}
+                      className="flex-1 touch-target text-xs"
                     >
-                      <Ban className="w-3 h-3" />
+                      <MessageSquare className="w-3 h-3 mr-1" />
+                      <span>Details</span>
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                    {order.status === "pending" && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setCancelOrderId(order._id)}
+                        className="touch-target text-xs"
+                      >
+                        <Ban className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
         )}
       </div>
+      
       {/* Dialogs */}
       {selectedOrderId && <ChatDialog orderId={selectedOrderId} open={chatOpen} onOpenChange={setChatOpen} />}
 
@@ -624,24 +662,6 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
                 )
               })}
             </div>
-          </div>
-
-          {/* Current Filter Display */}
-          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-800">Current Filters</span>
-            </div>
-            <p className="text-xs text-blue-700">
-              Date: {getCurrentDateFilterText()}
-            </p>
-            <p className="text-xs text-blue-700">
-              Type: {statusFilter === "all" ? "All Orders" : 
-                     statusFilter === "pre-orders" ? "Pre-orders" :
-                     statusFilter === "completed" ? "Completed" :
-                     statusFilter === "cancelled" ? "Cancelled" :
-                     statusFilter === "denied" ? "Denied" : statusFilter}
-            </p>
           </div>
 
           {/* Action Buttons */}
