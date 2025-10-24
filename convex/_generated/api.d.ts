@@ -14,6 +14,7 @@ import type * as denial_reasons from "../denial_reasons.js";
 import type * as files from "../files.js";
 import type * as menu from "../menu.js";
 import type * as migrations from "../migrations.js";
+import type * as order_modifications from "../order_modifications.js";
 import type * as orders from "../orders.js";
 import type * as promotions from "../promotions.js";
 import type * as restaurant from "../restaurant.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   menu: typeof menu;
   migrations: typeof migrations;
+  order_modifications: typeof order_modifications;
   orders: typeof orders;
   promotions: typeof promotions;
   restaurant: typeof restaurant;

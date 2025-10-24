@@ -203,6 +203,24 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_variantId", ["variantId"]).index("by_variantId_attributeId", ["variantId", "attributeId"]),
+
+  // Order modification audit log
+  order_modifications: defineTable({
+    orderId: v.id("orders"),
+    modifiedBy: v.string(), // User ID who made the change
+    modifiedByName: v.string(),
+    modificationType: v.union(
+      v.literal("item_added"),
+      v.literal("item_removed"),
+      v.literal("item_quantity_changed"),
+      v.literal("item_price_changed"),
+      v.literal("order_edited")
+    ),
+    previousValue: v.string(), // JSON stringified previous state
+    newValue: v.string(), // JSON stringified new state
+    itemDetails: v.optional(v.string()), // Description of what changed
+    timestamp: v.number(),
+  }).index("by_orderId", ["orderId"]),
 });
 
 

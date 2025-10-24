@@ -189,6 +189,18 @@ export const update = mutation({
       downpaymentProofUrl: v.optional(v.string()),
       remainingPaymentMethod: v.optional(v.union(v.literal("online"), v.literal("cash"))),
       remainingPaymentProofUrl: v.optional(v.string()),
+      items: v.optional(v.array(
+        v.object({ 
+          menuItemId: v.string(), 
+          name: v.string(), 
+          price: v.number(), 
+          quantity: v.number(),
+          variantId: v.optional(v.string()),
+          variantName: v.optional(v.string()),
+          attributes: v.optional(v.record(v.string(), v.string())),
+          unitPrice: v.optional(v.number()),
+        })
+      )),
     }),
   },
   handler: async (ctx, { id, data }) => {
@@ -246,6 +258,96 @@ export const update = mutation({
     }
     
     return id;
+  },
+});
+
+export const updateOrderItems = mutation({
+  args: {
+    orderId: v.id("orders"),
+    items: v.array(
+      v.object({
+        menuItemId: v.string(),
+        name: v.string(),
+        price: v.number(),
+        quantity: v.number(),
+        variantId: v.optional(v.string()),
+        variantName: v.optional(v.string()),
+        attributes: v.optional(v.record(v.string(), v.string())),
+        unitPrice: v.optional(v.number()),
+      })
+    ),
+    modificationType: v.string(),
+    itemDetails: v.optional(v.string()),
+  },
+  handler: async (ctx, { orderId, items, modificationType, itemDetails }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    // Only owners can modify order items
+    if (currentUser.role !== "owner") {
+      throw new Error("Only owners can modify order items");
+    }
+
+    const existing = await ctx.db.get(orderId);
+    if (!existing) throw new Error("Order not found");
+
+    // Only allow modification for pending and accepted orders
+    if (existing.status !== "pending" && existing.status !== "accepted") {
+      throw new Error("Only pending and accepted orders can be modified");
+    }
+
+    // Validate items array is not empty
+    if (items.length === 0) {
+      throw new Error("Order must have at least one item");
+    }
+
+    // Calculate new totals
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const platformFee = existing.platformFee || 0;
+    const discount = existing.discount || 0;
+    const total = subtotal + platformFee - discount;
+
+    // Store previous state for audit log
+    const previousValue = JSON.stringify({
+      items: existing.items,
+      subtotal: existing.subtotal,
+      total: existing.total,
+    });
+
+    // Update the order
+    await ctx.db.patch(orderId, {
+      items,
+      subtotal,
+      total,
+      updatedAt: Date.now(),
+    });
+
+    // Create audit log entry
+    const newValue = JSON.stringify({
+      items,
+      subtotal,
+      total,
+    });
+
+    await ctx.db.insert("order_modifications", {
+      orderId,
+      modifiedBy: currentUser._id as unknown as string,
+      modifiedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+      modificationType: modificationType as any,
+      previousValue,
+      newValue,
+      itemDetails,
+      timestamp: Date.now(),
+    });
+
+    return orderId;
   },
 });
 

@@ -10,8 +10,9 @@ import { RestaurantSettings } from "./restaurant-settings"
 import { VouchersView } from "./vouchers-view"
 import { PromotionsView } from "./promotions-view"
 import { ChatView } from "./chat-view" // Added chat view import
+import { HistoryLogView } from "./history-log-view" // Added history log view import
 
-export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" | "promotions" | "chat" // Added chat & history to view types
+export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" | "promotions" | "chat" | "history-log" // Added chat, history & history-log to view types
 
 export function OwnerDashboard() {
   const [currentView, setCurrentView] = useState<OwnerView>("orders")
@@ -31,6 +32,7 @@ export function OwnerDashboard() {
           {currentView === "vouchers" && <VouchersView />}
           {currentView === "promotions" && <PromotionsView />}
           {currentView === "chat" && <ChatView />} {/* Added chat view */}
+          {currentView === "history-log" && <HistoryLogView />} {/* Added history log view */}
         </main>
       </div>
     </div>

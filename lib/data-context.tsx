@@ -197,6 +197,18 @@ export interface ChatMessage {
   timestamp: number
 }
 
+export interface OrderModification {
+  _id: string
+  orderId: string
+  modifiedBy: string
+  modifiedByName: string
+  modificationType: "item_added" | "item_removed" | "item_quantity_changed" | "item_price_changed" | "order_edited"
+  previousValue: string
+  newValue: string
+  itemDetails?: string
+  timestamp: number
+}
+
 // Context
 interface DataContextType {
   // User
@@ -264,6 +276,11 @@ interface DataContextType {
     message: string,
   ) => void
   getOrderMessages: (orderId: string) => ChatMessage[]
+
+  // Order Modifications
+  orderModifications: OrderModification[]
+  getOrderModifications: (orderId: string) => OrderModification[]
+  updateOrderItems: (orderId: string, items: OrderItem[], modificationType: string, itemDetails: string) => Promise<void>
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
@@ -305,6 +322,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const vouchersDocs = useQuery(api.vouchers.list) ?? []
   const promotionsDocs = useQuery(api.promotions.list) ?? []
   const denialReasonsDocs = useQuery(api.denial_reasons.list) ?? []
+  // Order modifications - backend handles authorization by returning empty array for non-owners
+  const orderModificationsDocs = useQuery(api.order_modifications.listAll) ?? []
 
   // Debug logging for data context
   console.log("Data Context - Categories:", categoriesDocs)
@@ -337,6 +356,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const addDenialReasonMut = useMutation(api.denial_reasons.add)
   const initializePresetReasonsMut = useMutation(api.denial_reasons.initializePresetReasons)
   const sendChatMut = useMutation(api.chat.send)
+  const createOrderModificationMut = useMutation(api.order_modifications.create)
 
   // Mapped values
   const restaurant: Restaurant = restaurantDoc
@@ -640,6 +660,51 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return [] as ChatMessage[]
   }, [])
 
+  // Order modifications methods
+  const orderModifications = orderModificationsDocs.map((doc: any) => ({
+    _id: doc._id as string,
+    orderId: doc.orderId as string,
+    modifiedBy: doc.modifiedBy,
+    modifiedByName: doc.modifiedByName,
+    modificationType: doc.modificationType,
+    previousValue: doc.previousValue,
+    newValue: doc.newValue,
+    itemDetails: doc.itemDetails,
+    timestamp: doc.timestamp,
+  }))
+
+  const getOrderModifications = useCallback((orderId: string) => {
+    return orderModifications.filter(mod => mod.orderId === orderId)
+  }, [orderModifications])
+
+  const updateOrderItems = useCallback(async (orderId: string, items: OrderItem[], modificationType: string, itemDetails: string) => {
+    try {
+      // Update the order items using the existing update mutation
+      await patchOrder({ 
+        id: orderId as Id<"orders">, 
+        data: { items } 
+      })
+      
+      // Log the modification for audit purposes
+      if (currentUser) {
+        await createOrderModificationMut({
+          orderId: orderId as Id<"orders">,
+          modifiedBy: currentUser._id,
+          modifiedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+          modificationType: modificationType as any,
+          previousValue: JSON.stringify([]), // We don't have the previous items here
+          newValue: JSON.stringify(items),
+          itemDetails: itemDetails
+        })
+      }
+      
+      console.log("Order items updated successfully:", { orderId, modificationType, itemDetails })
+    } catch (error) {
+      console.error("Failed to update order items:", error)
+      throw error
+    }
+  }, [patchOrder, createOrderModificationMut, currentUser])
+
   const value: DataContextType = {
     currentUser,
     restaurant,
@@ -679,6 +744,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     chatMessages,
     sendMessage,
     getOrderMessages,
+    orderModifications,
+    getOrderModifications,
+    updateOrderItems,
   }
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>

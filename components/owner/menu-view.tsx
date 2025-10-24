@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Plus, Search } from "lucide-react"
 import { MenuItemCard } from "./menu-item-card"
 import { MenuItemDialog } from "./menu-item-dialog"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CategoryFilter, Category } from "@/components/ui/category-filter"
 import { useData } from "@/lib/data-context"
 
 export function MenuView() {
@@ -41,7 +41,7 @@ export function MenuView() {
     { _id: "9", name: "Salad", icon: "🥗", order: 9 },
   ]
 
-  const allCategories = [
+  const allCategories: Category[] = [
     { 
       id: "all", 
       name: "All Items", 
@@ -93,19 +93,13 @@ export function MenuView() {
         </div>
       </div>
 
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-        <TabsList className="bg-muted">
-          {allCategories.map((category) => (
-            <TabsTrigger key={category.id} value={category.id} className="gap-2 flex-shrink-0">
-              <span>{category.icon}</span>
-              {category.name}
-              <span className="text-xs bg-muted-foreground/20 px-1.5 py-0.5 rounded-full">
-                {category.count}
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <CategoryFilter
+        categories={allCategories}
+        selectedCategories={selectedCategory}
+        onToggleCategory={setSelectedCategory}
+        mode="buttons"
+        allowMultiple={false}
+      />
 
       {/* Filter summary */}
       <div className="text-sm text-muted-foreground">

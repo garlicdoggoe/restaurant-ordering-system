@@ -3,12 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { X, Printer, Check, XCircle } from "lucide-react"
+import { X, Printer, Check, XCircle, Edit, Plus, Minus, Trash2, History } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useState } from "react"
 import { AcceptOrderDialog } from "./accept-order-dialog"
 import { DenyOrderDialog } from "./deny-order-dialog"
-import { useData } from "@/lib/data-context"
+import { AddOrderItemDialog } from "./add-order-item-dialog"
+import { useData, type OrderItem } from "@/lib/data-context"
 import Image from "next/image"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
@@ -20,9 +21,79 @@ interface OrderDetailsProps {
 export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
   const [showAcceptDialog, setShowAcceptDialog] = useState(false)
   const [showDenyDialog, setShowDenyDialog] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false)
+  const [showModificationHistory, setShowModificationHistory] = useState(false)
+  const [editedItems, setEditedItems] = useState<OrderItem[]>([])
 
-  const { getOrderById } = useData()
+  const { getOrderById, updateOrderItems, getOrderModifications } = useData()
   const order = getOrderById(orderId)
+  const modifications = getOrderModifications(orderId)
+
+  // Initialize edited items when entering edit mode
+  const handleEditMode = () => {
+    if (order) {
+      setEditedItems([...order.items])
+      setIsEditMode(true)
+    }
+  }
+
+  // Cancel edit mode
+  const handleCancelEdit = () => {
+    setIsEditMode(false)
+    setEditedItems([])
+  }
+
+  // Save changes
+  const handleSaveChanges = async () => {
+    if (!order || editedItems.length === 0) return
+
+    try {
+      await updateOrderItems(
+        orderId,
+        editedItems,
+        "order_edited",
+        `Modified ${editedItems.length} items`
+      )
+      setIsEditMode(false)
+      setEditedItems([])
+    } catch (error) {
+      console.error("Failed to update order:", error)
+    }
+  }
+
+  // Add item to order
+  const handleAddItem = (newItem: OrderItem) => {
+    setEditedItems(prev => [...prev, newItem])
+    setShowAddItemDialog(false)
+  }
+
+  // Update item quantity
+  const handleQuantityChange = (index: number, newQuantity: number) => {
+    if (newQuantity <= 0) return
+    setEditedItems(prev => 
+      prev.map((item, i) => 
+        i === index ? { ...item, quantity: newQuantity } : item
+      )
+    )
+  }
+
+  // Remove item from order
+  const handleRemoveItem = (index: number) => {
+    setEditedItems(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Calculate totals for edited items
+  const calculateTotals = (items: OrderItem[]) => {
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    const platformFee = order?.platformFee || 0
+    const discount = order?.discount || 0
+    const total = subtotal + platformFee - discount
+    return { subtotal, platformFee, discount, total }
+  }
+
+  const currentItems = isEditMode ? editedItems : (order?.items || [])
+  const totals = calculateTotals(currentItems)
 
   if (!order) {
     return null
@@ -76,17 +147,85 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
             )}
 
             <div>
-              <h3 className="font-semibold mb-3">Ordered Items ({order.items.length})</h3>
-              <div className="space-y-2">
-                {order.items.map((item, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span>
-                      {item.quantity}x {item.name}
-                    </span>
-                    <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">Ordered Items ({currentItems.length})</h3>
+                {!isEditMode && (order.status === "pending" || order.status === "accepted") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEditMode}
+                    className="gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit Order
+                  </Button>
+                )}
               </div>
+
+              {isEditMode ? (
+                <div className="space-y-3">
+                  {currentItems.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-sm text-muted-foreground">₱{item.price.toFixed(2)} each</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="w-6 h-6"
+                            onClick={() => handleQuantityChange(index, item.quantity - 1)}
+                          >
+                            <Minus className="w-3 h-3" />
+                          </Button>
+                          <span className="w-8 text-center text-sm">{item.quantity}</span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="w-6 h-6"
+                            onClick={() => handleQuantityChange(index, item.quantity + 1)}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="w-6 h-6 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveItem(index)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                        <div className="text-right ml-2">
+                          <div className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => setShowAddItemDialog(true)}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Item
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {currentItems.map((item, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span>
+                        {item.quantity}x {item.name}
+                      </span>
+                      <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -96,22 +235,26 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>₱{order.subtotal.toFixed(2)}</span>
+                  <span className={isEditMode ? "text-blue-600 font-medium" : ""}>
+                    ₱{totals.subtotal.toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Platform fee</span>
-                  <span>₱{(order.platformFee || 0).toFixed(2)}</span>
+                  <span>₱{totals.platformFee.toFixed(2)}</span>
                 </div>
-                {order.discount > 0 && (
+                {totals.discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>
-                    <span>-₱{order.discount.toFixed(2)}</span>
+                    <span>-₱{totals.discount.toFixed(2)}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-base">
                   <span>Total</span>
-                  <span>₱{order.total.toFixed(2)}</span>
+                  <span className={isEditMode ? "text-blue-600" : ""}>
+                    ₱{totals.total.toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -140,7 +283,24 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
               </div>
             </div>
 
-            {order.status === "pending" && (
+            {/* Edit Mode Controls */}
+            {isEditMode && (
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" onClick={handleCancelEdit} className="flex-1">
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveChanges}
+                  disabled={editedItems.length === 0}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  Save Changes
+                </Button>
+              </div>
+            )}
+
+            {/* Normal Order Actions */}
+            {!isEditMode && order.status === "pending" && (
               <>
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" className="flex-1 gap-2 bg-transparent">
@@ -182,6 +342,43 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                 )}
               </div>
             )}
+
+            {/* Modification History */}
+            {modifications.length > 0 && (
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setShowModificationHistory(!showModificationHistory)}
+                >
+                  <History className="w-4 h-4" />
+                  Modification History ({modifications.length})
+                </Button>
+                
+                {showModificationHistory && (
+                  <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
+                    {modifications.map((mod: any, index: number) => (
+                      <div key={index} className="p-2 bg-muted rounded text-xs">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="font-medium">{mod.modifiedByName}</span>
+                            <span className="text-muted-foreground ml-2">
+                              {new Date(mod.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {mod.modificationType.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        {mod.itemDetails && (
+                          <p className="text-muted-foreground mt-1">{mod.itemDetails}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -205,6 +402,14 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
             setShowDenyDialog(false)
             onClose()
           }}
+        />
+      )}
+
+      {showAddItemDialog && (
+        <AddOrderItemDialog
+          isOpen={showAddItemDialog}
+          onClose={() => setShowAddItemDialog(false)}
+          onAddItem={handleAddItem}
         />
       )}
     </>

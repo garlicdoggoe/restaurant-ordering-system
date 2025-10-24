@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
-import { MenuCategoryTabs } from "./menu-category-tabs"
+import { CategoryFilter, Category } from "@/components/ui/category-filter"
 import { MenuItemGrid } from "./menu-item-grid"
 import { PromotionBanner } from "./promotion-banner"
 import { useData } from "@/lib/data-context"
@@ -35,7 +35,7 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
     { _id: "9", name: "Salad", icon: "🥗", order: 9 },
   ]
 
-  const categories = useMemo(
+  const categories: Category[] = useMemo(
     () => [
       { 
         id: "all", 
@@ -135,10 +135,13 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
         />
       </div>
 
-      <MenuCategoryTabs
+      <CategoryFilter
         categories={categories}
         selectedCategories={selectedCategories}
         onToggleCategory={handleToggleCategory}
+        mode="buttons"
+        title="Category"
+        allowMultiple={true}
       />
 
       {/* Filter summary */}

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Home, UtensilsCrossed, Settings, Ticket, Megaphone, LogOut, HelpCircle, MessageSquare, History } from "lucide-react" // Added MessageSquare icon & History icon
+import { Home, UtensilsCrossed, Settings, Ticket, Megaphone, LogOut, HelpCircle, MessageSquare, History, FileText } from "lucide-react" // Added MessageSquare icon & History icon & FileText icon
 import type { OwnerView } from "./owner-dashboard"
 
 interface OwnerSidebarProps {
@@ -16,6 +16,7 @@ export function OwnerSidebar({ currentView, onViewChange }: OwnerSidebarProps) {
     { id: "history" as OwnerView, icon: History, label: "History" },
     { id: "menu" as OwnerView, icon: UtensilsCrossed, label: "Menu" },
     { id: "chat" as OwnerView, icon: MessageSquare, label: "Chat" }, // Added chat menu item
+    { id: "history-log" as OwnerView, icon: FileText, label: "History Log" }, // Added history log menu item
     { id: "vouchers" as OwnerView, icon: Ticket, label: "Vouchers" },
     { id: "promotions" as OwnerView, icon: Megaphone, label: "Promotions" },
     { id: "settings" as OwnerView, icon: Settings, label: "Settings" },
