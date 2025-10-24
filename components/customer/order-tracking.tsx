@@ -258,29 +258,12 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-4 xs:p-6 space-y-4">
-          {/* Order Preparation Status Display */}
-          {order.status === "accepted" && (
-            <div className="flex flex-col items-center gap-3 p-2">
-              <CookingAnimation size="lg" />
-              <div className="text-center">
-                <p className="text-fluid-sm font-semibold text-yellow-500 mb-1">
-                  Order Being Prepared
-                </p>
-                <p className="text-xs text-yellow-500">
-                  Your order has been accepted and is now being prepared by our kitchen team.
-                </p>
-              </div>
-            </div>
-          )}
-
+        <CardContent className="p-4 xs:p-6 space-y-4 mt-[-50]">
           {/* GCash Number Display */}
           {order.gcashNumber && (
-            <div className="p-3">
-              <p className="text-fluid-xs font-medium">
-                💳 GCash Number Used: (+63) {order.gcashNumber}
-              </p>
-            </div>
+            <p className="text-fluid-xs font-medium">
+              💳 GCash Number Used: (+63) {order.gcashNumber}
+            </p>
           )}
 
           {/* Denial Reason Display */}

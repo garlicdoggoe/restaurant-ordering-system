@@ -108,7 +108,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
 
           <div className="space-y-2 pt-2">
             {hasActiveOrder ? (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="hidden lg:block p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-fluid-sm text-yellow-800 font-medium">You have an active order</p>
                 <p className="text-xs text-yellow-700 mt-1">
                   Please wait for your current order to be completed, denied, or cancelled before placing a new one.

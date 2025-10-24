@@ -12,6 +12,10 @@ export function PromotionBanner() {
   const { promotions } = useData()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+  
+  // Touch/swipe state for mobile navigation
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
 
   // Debug logging
   console.log("PromotionBanner - All promotions:", promotions)
@@ -60,20 +64,21 @@ export function PromotionBanner() {
       const debugPromotion = promotions[0]
       return (
       <Card className="overflow-hidden bg-gradient-to-r from-red-100 to-orange-100 border-red-200">
-        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-center gap-4">
+        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4">
           <div className="flex-1">
             <Badge className="mb-2 gap-1 bg-red-500">
               <Sparkles className="w-3 h-3" />
               DEBUG: {debugPromotion.title}
             </Badge>
-            <h2 className="text-fluid-2xl font-bold mb-1">{debugPromotion.description}</h2>
-            <p className="text-fluid-sm text-muted-foreground">
+            <h2 className="text-lg lg:text-fluid-2xl font-bold mb-1">{debugPromotion.description}</h2>
+            <p className="text-xs lg:text-fluid-sm text-muted-foreground">
               Status: {debugPromotion.active ? "Active" : "Inactive"} | 
               Start: {new Date(debugPromotion.startDate).toLocaleDateString()} | 
               End: {new Date(debugPromotion.endDate).toLocaleDateString()}
             </p>
           </div>
-          <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden">
+          {/* Center image on mobile; revert to left on desktop to align with row layout */}
+          <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden self-center lg:self-auto mx-auto lg:mx-0">
             <Image src={debugPromotion.image || "/menu-sample.jpg"} alt={debugPromotion.title} fill className="object-cover" />
           </div>
         </div>
@@ -87,18 +92,19 @@ export function PromotionBanner() {
     const single = promotionsToShow[0]
     return (
       <Card className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
-        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-center gap-4">
+        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4">
           <div className="flex-1">
             <Badge className="mb-2 gap-1">
               <Sparkles className="w-3 h-3" />
               {single.title}
             </Badge>
-            <h2 className="text-fluid-2xl font-bold mb-1">{single.description}</h2>
-            <p className="text-fluid-sm text-muted-foreground">
+            <h2 className="text-lg lg:text-fluid-2xl font-bold mb-1">{single.description}</h2>
+            <p className="text-xs lg:text-fluid-sm text-muted-foreground">
               Valid until {new Date(single.endDate).toLocaleDateString()}
             </p>
           </div>
-          <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden">
+          {/* Center image on mobile; revert to left on desktop to align with row layout */}
+          <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden self-center lg:self-auto mx-auto lg:mx-0">
             <Image src={single.image || "/menu-sample.jpg"} alt={single.title} fill className="object-cover" />
           </div>
         </div>
@@ -119,11 +125,41 @@ export function PromotionBanner() {
     setIsAutoPlaying(false)
   }
 
+  // Touch/swipe handlers for mobile navigation
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > 50
+    const isRightSwipe = distance < -50
+
+    if (isLeftSwipe) {
+      goNext()
+    }
+    if (isRightSwipe) {
+      goPrev()
+    }
+  }
+
   const current = promotionsToShow[currentIndex]
 
   return (
-    <Card className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 relative">
-      <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-center gap-4">
+    <Card 
+      className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 relative"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <Badge className="gap-1">
@@ -131,18 +167,19 @@ export function PromotionBanner() {
               {current.title}
             </Badge>
           </div>
-          <h2 className="text-fluid-2xl font-bold mb-1">{current.description}</h2>
-          <p className="text-fluid-sm text-muted-foreground">
+          <h2 className="text-lg lg:text-fluid-2xl font-bold mb-1">{current.description}</h2>
+          <p className="text-xs lg:text-fluid-sm text-muted-foreground">
             Valid until {new Date(current.endDate).toLocaleDateString()}
           </p>
         </div>
-        <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden">
+        {/* Center image on mobile; revert to left on desktop to align with row layout */}
+        <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden self-center lg:self-auto mx-auto lg:mx-0">
           <Image src={current.image || "/menu-sample.jpg"} alt={current.title} fill className="object-cover" />
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="absolute top-1/2 -translate-y-1/2 left-2 right-2 flex justify-between pointer-events-none">
+      {/* Controls - Hidden on mobile, visible on desktop */}
+      <div className="hidden lg:flex absolute top-1/2 -translate-y-1/2 left-2 right-2 justify-between pointer-events-none">
         <Button
           variant="outline"
           size="icon"

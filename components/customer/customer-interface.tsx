@@ -7,6 +7,7 @@ import { Cart } from "./cart"
 import { OrderHistory } from "./order-history"
 import { UserProfileSettings } from "./user-profile-settings"
 import { OrderTracking } from "./order-tracking"
+import { StickyOrderStatus } from "./sticky-order-status"
 import { useData } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { toast } from "sonner"
@@ -121,14 +122,13 @@ export function CustomerInterface() {
 
           {/* Cart content */}
           <div className="flex-1 overflow-y-auto p-3 xs:p-6">
-            {activeOrder ? (
-              <OrderTracking orderId={activeOrder._id} />
-            ) : (
-              <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} onOpenSettings={() => setCurrentView("profile")} />
-            )}
+            <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} onOpenSettings={() => setCurrentView("profile")} />
           </div>
         </div>
       </div>
+
+      {/* Sticky Order Status - Mobile Only */}
+      <StickyOrderStatus customerId={customerId} />
 
     </div>
   )
