@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network, Filter, X, Calendar } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -39,6 +40,11 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
 
   // Set default filter to "all" since order tracking is now handled by floating component
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus | "pre-orders">("all")
+  
+  // Date and time filter state
+  const [fromDate, setFromDate] = useState<string>("")
+  const [toDate, setToDate] = useState<string>("")
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
 
   // State for remaining payment proof upload - per order
   const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
@@ -54,6 +60,19 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
   
   const filteredOrders = customerOrders
     .filter((order) => {
+      // Date filtering: compare created time using either Convex _creationTime or legacy createdAt
+      // For "From" date, start from beginning of day (00:00:00.000) to include the entire selected day
+      const fromTs = fromDate ? new Date(fromDate).setHours(0, 0, 0, 0) : null
+      // For "To" date, extend to end of day (23:59:59.999) to include the entire selected day
+      const toTs = toDate ? new Date(toDate).setHours(23, 59, 59, 999) : null
+      
+      const createdTs = (order._creationTime ?? order.createdAt) || 0
+      
+      // Inclusive filtering: >= fromTs and <= toTs
+      if (fromTs !== null && createdTs < fromTs) return false
+      if (toTs !== null && createdTs > toTs) return false
+      
+      // Status filtering
       if (statusFilter === "all") {
         // Exclude realtime orders from "all" view since they're handled by floating component
         if (order.orderType === "pre-order") {
@@ -187,6 +206,34 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
     })
   }
 
+  // Helper function to clear all filters
+  const clearAllFilters = () => {
+    setFromDate("")
+    setToDate("")
+    setStatusFilter("all")
+  }
+
+  // Helper function to format current date filter display
+  const getCurrentDateFilterText = () => {
+    if (!fromDate && !toDate) return "All dates"
+    
+    const formatDate = (dateStr: string) => {
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })
+    }
+    
+    if (fromDate && toDate) {
+      return `${formatDate(fromDate)} - ${formatDate(toDate)}`
+    } else if (fromDate) {
+      return `From ${formatDate(fromDate)}`
+    } else {
+      return `Until ${formatDate(toDate)}`
+    }
+  }
+
   const statusIcons = {
     completed: <CheckCircle className="w-4 h-4 text-green-600" />,
     accepted: <CheckCircle className="w-4 h-4 text-green-600" />,
@@ -244,11 +291,31 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
             <p className="text-fluid-sm text-muted-foreground">
               {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found
             </p>
+            {/* Current date filter display */}
+            <p className="text-fluid-xs text-blue-600 flex items-center gap-1 mt-1">
+              <Calendar className="w-3 h-3" />
+              {getCurrentDateFilterText()}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Mobile Filter Button - Fixed (outside header so it stays on screen) */}
+      {!isFilterDrawerOpen && (
+        <div className="lg:hidden fixed top-15 right-4 z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsFilterDrawerOpen(true)}
+            className="touch-target flex items-center gap-2 shadow-lg bg-background/95 backdrop-blur-sm border-2"
+          >
+            <Filter className="h-4 w-4" />
+            <span className="text-xs">Filter</span>
+          </Button>
+        </div>
+      )}
+
+      {/* Filter Tabs - Always visible in header */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {[
           { id: "all", label: "All Orders", icon: FileText },
@@ -272,6 +339,41 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
             </Button>
           )
         })}
+      </div>
+
+      {/* Desktop Date Filters */}
+      <div className="hidden lg:block space-y-3">
+        <Label className="text-sm font-medium">Date Range</Label>
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <Label htmlFor="desktop-from-date" className="text-xs text-muted-foreground">From Date</Label>
+            <Input
+              id="desktop-from-date"
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="text-sm"
+            />
+          </div>
+          <div className="flex-1">
+            <Label htmlFor="desktop-to-date" className="text-xs text-muted-foreground">To Date</Label>
+            <Input
+              id="desktop-to-date"
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="text-sm"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearAllFilters}
+            className="touch-target"
+          >
+            Clear All
+          </Button>
+        </div>
       </div>
 
       {/* Orders List */}
@@ -440,6 +542,128 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Mobile Filter Drawer */}
+      {isFilterDrawerOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-50"
+          onClick={() => setIsFilterDrawerOpen(false)}
+        />
+      )}
+      
+      <div className={`
+        lg:hidden fixed top-0 left-0 right-0 bg-background border-b z-50
+        transform transition-transform duration-300 ease-in-out
+        ${isFilterDrawerOpen ? 'translate-y-0' : '-translate-y-full'}
+      `}>
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Filter Orders</h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsFilterDrawerOpen(false)}
+              className="touch-target"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* Date Filters */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Date Range</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="from-date" className="text-xs text-muted-foreground">From Date</Label>
+                <Input
+                  id="from-date"
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <Label htmlFor="to-date" className="text-xs text-muted-foreground">To Date</Label>
+                <Input
+                  id="to-date"
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Order Type Filters */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Order Type</Label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "all", label: "All Orders", icon: FileText },
+                { id: "pre-orders", label: "Pre-orders", icon: Clock },
+                { id: "completed", label: "Completed", icon: CheckCircle },
+                { id: "cancelled", label: "Cancelled", icon: XCircle },
+                { id: "denied", label: "Denied", icon: Ban },
+              ].map((tab) => {
+                const Icon = tab.icon
+                const isActive = statusFilter === tab.id
+                return (
+                  <Button
+                    key={tab.id}
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter(tab.id as any)}
+                    className={`flex-shrink-0 gap-2 touch-target text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{tab.label}</span>
+                  </Button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Current Filter Display */}
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">Current Filters</span>
+            </div>
+            <p className="text-xs text-blue-700">
+              Date: {getCurrentDateFilterText()}
+            </p>
+            <p className="text-xs text-blue-700">
+              Type: {statusFilter === "all" ? "All Orders" : 
+                     statusFilter === "pre-orders" ? "Pre-orders" :
+                     statusFilter === "completed" ? "Completed" :
+                     statusFilter === "cancelled" ? "Cancelled" :
+                     statusFilter === "denied" ? "Denied" : statusFilter}
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearAllFilters}
+              className="flex-1 touch-target"
+            >
+              Clear All
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setIsFilterDrawerOpen(false)}
+              className="flex-1 touch-target"
+            >
+              Apply Filters
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
