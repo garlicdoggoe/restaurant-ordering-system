@@ -576,7 +576,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   <img src="/gcash.png" alt="GCash" className="h-8 w-auto" />
                   <p className="text-xs text-gray-800">
                     Manual GCash payment. Please send payment to {" "}
-                    <span className="text-blue-600 font-medium">L** G** (+63) 915-777-0545.</span>.
+                    <span className="text-blue-600 font-medium">L** G** (+63) 915-777-0545</span>.
                   </p>
                 </div>
               )}

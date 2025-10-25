@@ -197,6 +197,38 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
               </div>
             )}
 
+            {/* Pre-order Details Section */}
+            {order.orderType === "pre-order" && (order.preOrderFulfillment || order.preOrderScheduledAt) && (
+              <div className="space-y-2">
+                <h3 className="font-semibold">Pre-Order Details</h3>
+                <div className="space-y-2">
+                  {/* Fulfillment Method Badge */}
+                  {order.preOrderFulfillment && (
+                    <Badge 
+                      variant="outline" 
+                      className={`w-full justify-center text-xs py-1 ${
+                        order.preOrderFulfillment === "pickup" 
+                          ? "border-blue-200 bg-blue-50 text-blue-800" 
+                          : "border-purple-200 bg-purple-50 text-purple-800"
+                      }`}
+                    >
+                      Fulfillment: {order.preOrderFulfillment === "pickup" ? "Pickup" : "Delivery"}
+                    </Badge>
+                  )}
+                  
+                  {/* Scheduled Date Badge */}
+                  {order.preOrderScheduledAt && (
+                    <Badge 
+                      variant="outline" 
+                      className="w-full justify-center text-xs py-1 border-orange-200 bg-orange-50 text-orange-800"
+                    >
+                      Scheduled: {new Date(order.preOrderScheduledAt).toLocaleString()}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Ordered Items ({currentItems.length})</h3>

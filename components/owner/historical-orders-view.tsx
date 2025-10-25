@@ -46,7 +46,8 @@ export function HistoricalOrdersView() {
     { value: "delivered", label: "Delivered" },
     { value: "completed", label: "Completed" },
     { value: "denied", label: "Denied" },
-    { value: "cancelled", label: "Cancelled" }
+    { value: "cancelled", label: "Cancelled" },
+    { value: "pre-order-pending", label: "Pre-order Pending" }
   ]
 
   // Include all orders regardless of status in history
@@ -105,6 +106,7 @@ export function HistoricalOrdersView() {
     cancelled: "bg-red-100 text-red-800 border-red-200",
     "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
     delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
   }
 
   return (
