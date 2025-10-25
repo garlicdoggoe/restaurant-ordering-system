@@ -16,15 +16,31 @@ export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" 
 
 export function OwnerDashboard() {
   const [currentView, setCurrentView] = useState<OwnerView>("orders")
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-muted/30">
-      <OwnerSidebar currentView={currentView} onViewChange={setCurrentView} />
+    <div className="min-h-screen bg-muted/30 flex">
+      {/* Mobile overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-[45]"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Sidebar */}
+      <OwnerSidebar 
+        currentView={currentView} 
+        onViewChange={setCurrentView}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onMobileMenuToggle={setIsMobileMenuOpen}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         <OwnerHeader />
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 xs:p-6">
           {currentView === "orders" && <OrdersView />}
           {currentView === "history" && <HistoricalOrdersView />}
           {currentView === "menu" && <MenuView />}

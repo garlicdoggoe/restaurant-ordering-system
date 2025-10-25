@@ -112,11 +112,75 @@ export function HistoricalOrdersView() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Order History</h1>
+        <h1 className="text-fluid-2xl font-bold">Order History</h1>
       </div>
 
-      {/* Filters Row */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-end">
+      {/* Mobile Filters - Sticky */}
+      <div className="lg:hidden sticky top-0 z-40 bg-background pb-4 space-y-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Search</span>
+          <Input
+            placeholder="Search by #ID, name, or phone"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Order Type</span>
+            <Select value={selectedOrderType} onValueChange={setSelectedOrderType}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Order Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {orderTypes.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Status</span>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {orderStatuses.map((status) => (
+                  <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">From</span>
+            <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">To</span>
+            <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full" />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Sort</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDateSortOrder(dateSortOrder === "asc" ? "desc" : "asc")}
+            className="w-full justify-start"
+          >
+            {dateSortOrder === "asc" ? "↑ Oldest First" : "↓ Newest First"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Desktop Filters */}
+      <div className="hidden lg:flex flex-col gap-3 md:flex-row md:items-end">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Search</span>
           <Input
@@ -179,8 +243,76 @@ export function HistoricalOrdersView() {
         </div>
       </div>
 
-      {/* Rows Header */}
-      <div className="rounded-lg border overflow-hidden">
+      {/* Mobile Cards */}
+      <div className="lg:hidden space-y-4">
+        {filteredOrders.map((order) => {
+          const createdTs = (order._creationTime ?? order.createdAt) || 0
+          const idShort = order._id.slice(-6).toUpperCase()
+          return (
+            <div
+              key={order._id}
+              className="border rounded-lg p-4 space-y-3 hover:bg-accent/40 transition-colors"
+              onClick={() => setSelectedOrderId(order._id)}
+            >
+              <div className="flex items-center justify-between">
+                <button className="text-left font-mono text-sm hover:text-primary">
+                  #{idShort}
+                </button>
+                <Badge
+                  variant="outline"
+                  className={statusColors[order.status] ?? ""}
+                >
+                  {order.status}
+                </Badge>
+              </div>
+              <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
+              <div className="space-y-1">
+                <div className="text-sm font-medium">{order.customerName}</div>
+                <div className="text-sm text-muted-foreground">{formatPhoneForDisplay(order.customerPhone)}</div>
+                {order.gcashNumber && (
+                  <div className="text-sm text-blue-600 font-medium">
+                    GCash: (+63) {order.gcashNumber}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {order.orderType === 'dine-in' ? 'Dine In' : 
+                     order.orderType === 'takeaway' ? 'Takeaway' :
+                     order.orderType === 'delivery' ? 'Delivery' :
+                     order.orderType === 'pre-order' ? 'Pre-order' : order.orderType}
+                  </Badge>
+                  {(order.paymentScreenshot || order.downpaymentProofUrl) && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setPaymentUrl(order.paymentScreenshot || null)
+                        setPaymentOpen(true)
+                      }}
+                    >
+                      {order.paymentScreenshot && order.downpaymentProofUrl 
+                        ? "View Payment Proofs" 
+                        : "View Payment"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        {filteredOrders.length === 0 && (
+          <div className="px-4 py-8 text-sm text-muted-foreground text-center">No orders match the selected filters.</div>
+        )}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden lg:block rounded-lg border overflow-hidden">
         <div className="grid grid-cols-9 gap-2 bg-muted px-4 py-3 text-sm font-medium">
           <div>Order ID</div>
           <div>Placed At</div>

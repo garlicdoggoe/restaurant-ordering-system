@@ -28,9 +28,9 @@ export function VouchersView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Vouchers</h1>
-        <Button className="gap-2" onClick={() => setShowDialog(true)}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h1 className="text-fluid-2xl font-bold">Vouchers</h1>
+        <Button className="gap-2 w-full lg:w-auto" onClick={() => setShowDialog(true)}>
           <Plus className="w-4 h-4" />
           Create Voucher
         </Button>

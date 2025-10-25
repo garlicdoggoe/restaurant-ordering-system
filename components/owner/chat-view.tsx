@@ -46,7 +46,7 @@ export function ChatView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Customer Chats</h1>
+        <h1 className="text-fluid-2xl font-bold">Customer Chats</h1>
         <p className="text-muted-foreground">Communicate with customers about their orders</p>
       </div>
 
@@ -58,7 +58,7 @@ export function ChatView() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
           {ordersWithChat.map((order) => {
             const messageCount = getMessageCount(order._id)
             const lastMessage = getLastMessage(order._id)

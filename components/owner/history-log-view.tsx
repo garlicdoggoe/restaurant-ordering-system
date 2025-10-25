@@ -89,9 +89,9 @@ export function HistoryLogView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Order Modification History</h1>
-        <Button onClick={handleExport} className="gap-2">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h1 className="text-fluid-2xl font-bold">Order Modification History</h1>
+        <Button onClick={handleExport} className="gap-2 w-full lg:w-auto">
           <Download className="w-4 h-4" />
           Export CSV
         </Button>
@@ -109,11 +109,11 @@ export function HistoryLogView() {
           />
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-2 border rounded-md text-sm"
+            className="px-3 py-2 border rounded-md text-sm w-full sm:w-auto"
           >
             <option value="all">All Time</option>
             <option value="today">Today</option>
@@ -125,7 +125,7 @@ export function HistoryLogView() {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 border rounded-md text-sm"
+            className="px-3 py-2 border rounded-md text-sm w-full sm:w-auto"
           >
             <option value="all">All Types</option>
             <option value="item_added">Item Added</option>

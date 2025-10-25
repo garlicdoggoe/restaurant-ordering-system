@@ -5,6 +5,7 @@ import { useData, type Order } from "@/lib/data-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { OrderCard } from "./order-card"
 import { OrderDetails } from "./order-details"
@@ -93,13 +94,47 @@ export function OrdersView() {
     status: order.status,
   })
 
+  const statusOptions = [
+    { value: "pending", label: "Pending", count: statusCounts.pending, color: "bg-yellow-100 text-yellow-800" },
+    { value: "preparing", label: "Preparing", count: statusCounts.preparing, color: "bg-blue-100 text-blue-800" },
+    { value: "ready", label: "Ready", count: statusCounts.ready, color: "bg-indigo-100 text-indigo-800" },
+    { value: "completed", label: "Completed", count: statusCounts.completed, color: "bg-green-100 text-green-800" },
+    { value: "in-transit", label: "In Transit", count: statusCounts["in-transit"], color: "bg-yellow-100 text-yellow-800" },
+    { value: "delivered", label: "Delivered", count: statusCounts.delivered, color: "bg-emerald-100 text-emerald-800" },
+    { value: "cancelled", label: "Cancelled", count: statusCounts.cancelled, color: "bg-gray-100 text-gray-800" },
+    { value: "denied", label: "Denied", count: statusCounts.denied, color: "bg-red-100 text-red-800" },
+    { value: "pre-order-pending", label: "Pre-Orders", count: statusCounts["pre-order-pending"], color: "bg-blue-100 text-blue-800" },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Order Line</h1>
+        <h1 className="text-fluid-2xl font-bold">Order Line</h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      {/* Mobile Select - Sticky */}
+      <div className="lg:hidden sticky top-0 z-40 bg-background pb-4">
+        <Select value={selectedStatus} onValueChange={(v) => setSelectedStatus(v as OrderStatus)}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                <div className="flex items-center gap-2">
+                  <span>{option.label}</span>
+                  <Badge variant="secondary" className={`rounded-full ${option.color}`}>
+                    {option.count}
+                  </Badge>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Desktop Tabs */}
+      <div className="hidden lg:flex items-center gap-4">
         <Tabs value={selectedStatus} onValueChange={(v) => setSelectedStatus(v as OrderStatus)}>
           <TabsList className="bg-muted grid grid-cols-9 w-full">
             <TabsTrigger value="pending" className="gap-2">
@@ -169,7 +204,7 @@ export function OrdersView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
         {nonPreOrders.map((order) => toCard(order)).map((order) => (
           <OrderCard
             key={order.id}
@@ -194,9 +229,9 @@ export function OrdersView() {
       {preOrders.length > 0 && (
         <>
           <div className="mt-6">
-            <h2 className="text-xl font-semibold">Pre-orders</h2>
+            <h2 className="text-fluid-xl font-semibold">Pre-orders</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {preOrders.map((order) => toCard(order)).map((order) => (
               <OrderCard 
                 key={order.id} 

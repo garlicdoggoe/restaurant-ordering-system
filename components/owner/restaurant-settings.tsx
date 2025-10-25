@@ -270,7 +270,7 @@ export function RestaurantSettings() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <h1 className="text-3xl font-bold">Restaurant Settings</h1>
+      <h1 className="text-fluid-2xl font-bold">Restaurant Settings</h1>
 
       <Card>
         <CardHeader>
@@ -283,7 +283,7 @@ export function RestaurantSettings() {
           {/* Operating Hours Section */}
           <div className="space-y-3">
             <h4 className="font-medium">Operating Hours</h4>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="opening-time">Opening Time</Label>
                 <Input
@@ -443,7 +443,7 @@ export function RestaurantSettings() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <PhoneInput
                 id="phone"
                 label="Phone"
@@ -471,7 +471,7 @@ export function RestaurantSettings() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="prep-time">Average Preparation Time (min)</Label>
                 <Input

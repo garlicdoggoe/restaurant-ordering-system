@@ -7,9 +7,9 @@ import { UserProfileDropdown } from "@/components/user-profile-dropdown"
 
 export function OwnerHeader() {
   return (
-    <header className="h-16 border-b bg-background px-6 flex items-center justify-end">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="relative">
+    <header className="h-16 border-b bg-background px-3 xs:px-6 flex items-center justify-end">
+      <div className="flex items-center gap-2 xs:gap-4">
+        <Button variant="ghost" size="icon" className="relative touch-target">
           <Bell className="w-5 h-5" />
           <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-destructive text-[10px]">
             3

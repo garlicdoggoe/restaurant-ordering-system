@@ -73,16 +73,16 @@ export function MenuView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Menu Management</h1>
-        <Button onClick={() => setShowAddDialog(true)} className="gap-2">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h1 className="text-fluid-2xl font-bold">Menu Management</h1>
+        <Button onClick={() => setShowAddDialog(true)} className="gap-2 w-full lg:w-auto">
           <Plus className="w-4 h-4" />
           Add Menu Item
         </Button>
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search menu items..."
@@ -102,7 +102,7 @@ export function MenuView() {
       />
 
       {/* Filter summary */}
-      <div className="text-sm text-muted-foreground">
+      <div className="text-fluid-sm text-muted-foreground">
         Showing {filteredItems.length} of {menuItems.length} menu items
         {selectedCategory !== "all" && (
           <span> in {allCategories.find(cat => cat.id === selectedCategory)?.name}</span>
@@ -112,7 +112,7 @@ export function MenuView() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
         {filteredItems.map((item) => (
           <MenuItemCard key={item._id} item={item} onEdit={() => setEditingItem(item)} />
         ))}

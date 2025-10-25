@@ -29,9 +29,9 @@ export function PromotionsView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Promotions</h1>
-        <Button className="gap-2" onClick={() => setShowDialog(true)}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h1 className="text-fluid-2xl font-bold">Promotions</h1>
+        <Button className="gap-2 w-full lg:w-auto" onClick={() => setShowDialog(true)}>
           <Plus className="w-4 h-4" />
           Create Promotion
         </Button>
@@ -46,8 +46,8 @@ export function PromotionsView() {
           return (
             <Card key={promotion._id}>
               <CardContent className="p-6">
-                <div className="flex gap-4">
-                  <div className="relative w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative w-full sm:w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
                     <Image
                       src={promotion.image || "/menu-sample.jpg"}
                       alt={promotion.title}
