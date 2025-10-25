@@ -18,6 +18,7 @@ export function HistoricalOrdersView() {
 
   // Filters
   const [selectedOrderType, setSelectedOrderType] = useState<string>("all")
+  const [selectedStatus, setSelectedStatus] = useState<string>("all")
   const [fromDate, setFromDate] = useState<string>("") // ISO string from <input type="datetime-local">
   const [toDate, setToDate] = useState<string>("")
   const [search, setSearch] = useState<string>("")
@@ -34,6 +35,18 @@ export function HistoricalOrdersView() {
     { value: "takeaway", label: "Takeaway" },
     { value: "delivery", label: "Delivery" },
     { value: "pre-order", label: "Pre-order" }
+  ]
+
+  // Order statuses for filtering
+  const orderStatuses = [
+    { value: "pending", label: "Pending" },
+    { value: "accepted", label: "Accepted" },
+    { value: "ready", label: "Ready" },
+    { value: "in-transit", label: "In Transit" },
+    { value: "delivered", label: "Delivered" },
+    { value: "completed", label: "Completed" },
+    { value: "denied", label: "Denied" },
+    { value: "cancelled", label: "Cancelled" }
   ]
 
   // Include all orders regardless of status in history
@@ -65,10 +78,13 @@ export function HistoricalOrdersView() {
         if (!matches) return false
       }
 
-      if (selectedOrderType === "all") return true
+      // Order type filter
+      if (selectedOrderType !== "all" && order.orderType !== selectedOrderType) return false
 
-      // Order type filter: match the order's orderType
-      return order.orderType === selectedOrderType
+      // Order status filter
+      if (selectedStatus !== "all" && order.status !== selectedStatus) return false
+
+      return true
     })
 
     // Sort by date
@@ -77,7 +93,7 @@ export function HistoricalOrdersView() {
       const bTs = (b._creationTime ?? b.createdAt) || 0
       return dateSortOrder === "asc" ? aTs - bTs : bTs - aTs
     })
-  }, [historicalBase, fromDate, toDate, selectedOrderType, search, dateSortOrder])
+  }, [historicalBase, fromDate, toDate, selectedOrderType, selectedStatus, search, dateSortOrder])
 
   // Status badge colors aligned across the app
   const statusColors: Record<string, string> = {
@@ -118,6 +134,21 @@ export function HistoricalOrdersView() {
               <SelectItem value="all">All</SelectItem>
               {orderTypes.map((type) => (
                 <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Status</span>
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              {orderStatuses.map((status) => (
+                <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
