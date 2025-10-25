@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api"
 // Use api directly instead of casting to any
 
 // Types
-export type OrderStatus = "pending" | "accepted" | "ready" | "denied" | "completed" | "cancelled" | "in-transit" | "delivered"
+export type OrderStatus = "pending" | "accepted" | "ready" | "denied" | "completed" | "cancelled" | "in-transit" | "delivered" | "pre-order-pending"
 export type OrderType = "dine-in" | "takeaway" | "delivery" | "pre-order"
 export type PreOrderFulfillment = "pickup" | "delivery"
 export type PaymentPlan = "full" | "downpayment"
@@ -251,6 +251,7 @@ interface DataContextType {
     cancelled: Order[]
     "in-transit": Order[]
     delivered: Order[]
+    "pre-order-pending": Order[]
   }
   addOrder: (order: Omit<Order, "_id" | "createdAt" | "updatedAt">) => void
   updateOrder: (id: string, data: Partial<Order>) => void
@@ -394,6 +395,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     api.orders.listByStatus,
     shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
       ? { status: "delivered", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+      : "skip"
+  ) ?? []
+  
+  const preOrderPendingOrders = useQuery(
+    api.orders.listByStatus,
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
+      ? { status: "pre-order-pending", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
       : "skip"
   ) ?? []
   const vouchersDocs = useQuery(api.vouchers.list) ?? []
@@ -549,6 +557,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     cancelled: transformOrderArray(cancelledOrders),
     "in-transit": transformOrderArray(inTransitOrders),
     delivered: transformOrderArray(deliveredOrders),
+    "pre-order-pending": transformOrderArray(preOrderPendingOrders),
   }
   const vouchers: Voucher[] = vouchersDocs as Voucher[]
   const promotions: Promotion[] = promotionsDocs as Promotion[]
@@ -701,14 +710,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const getCustomerPendingOrder = useCallback((customerId: string) => {
     // Since orders are already filtered by role on the server, customers' lists only include their orders.
     // We still filter by customerId for safety when called by UI using explicit id.
+    // Only return non-pre-order pending orders to block simultaneous regular orders
+    // This allows customers to place regular orders even when they have active pre-orders
     return orders.find((o) => o.customerId === customerId && o.status === "pending" && o.orderType !== "pre-order")
   }, [orders])
 
   const getCustomerActiveOrder = useCallback((customerId: string) => {
-    // Get the most recent active order (not completed, cancelled, or delivered)
+    // Get the most recent active NON-PRE-ORDER (not completed, cancelled, or delivered)
+    // Pre-orders should not block regular orders, so we exclude them
+    // This allows customers to place regular orders even when they have active pre-orders
     const activeStatuses = ["pending", "accepted", "ready", "in-transit", "denied"]
     return orders
-      .filter((o) => o.customerId === customerId && activeStatuses.includes(o.status))
+      .filter((o) => o.customerId === customerId && activeStatuses.includes(o.status) && o.orderType !== "pre-order")
       .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))[0]
   }, [orders])
 

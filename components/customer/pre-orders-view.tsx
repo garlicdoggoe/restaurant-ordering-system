@@ -36,11 +36,11 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
   // State for expanded/collapsed order cards
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
 
-  // Filter for active pre-orders (pending or accepted status)
+  // Filter for active pre-orders (pre-order-pending, pending, or accepted status)
   const activePreOrders = orders.filter((order) => 
     order.customerId === customerId && 
     order.orderType === "pre-order" && 
-    (order.status === "pending" || order.status === "accepted")
+    (order.status === "pre-order-pending" || order.status === "pending" || order.status === "accepted")
   )
 
   const handleCancelOrder = (orderId: string) => {
@@ -64,11 +64,13 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
   const statusIcons = {
     accepted: <CheckCircle className="w-4 h-4 text-green-600" />,
     pending: <Clock className="w-4 h-4 text-yellow-600" />,
+    "pre-order-pending": <Clock className="w-4 h-4 text-blue-600" />,
   }
 
   const statusColors = {
     accepted: "bg-green-100 text-green-800 border-green-200",
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
   }
 
   const getOrderBorderClass = (status: string) => {
@@ -77,6 +79,8 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
         return "border-yellow-500 border-2"
       case "accepted":
         return "border-green-500 border-2"
+      case "pre-order-pending":
+        return "border-blue-500 border-2"
       default:
         return "border-2"
     }
@@ -159,6 +163,15 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
                     <div className="p-2 bg-blue-50 rounded text-xs">
                       <p className="font-medium text-blue-800">
                         📅 Scheduled for: {new Date(order.preOrderScheduledAt).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Pre-order-pending status indicator */}
+                  {order.status === "pre-order-pending" && (
+                    <div className="p-2 bg-orange-50 border border-orange-200 rounded text-xs">
+                      <p className="font-medium text-orange-800">
+                        ⏳ Awaiting owner acknowledgement
                       </p>
                     </div>
                   )}
@@ -246,7 +259,7 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
                       <MessageSquare className="w-3 h-3 mr-1" />
                       <span>Details</span>
                     </Button>
-                    {order.status === "pending" && (
+                    {(order.status === "pending" || order.status === "pre-order-pending") && (
                       <Button
                         size="sm"
                         onClick={() => setCancelOrderId(order._id)}

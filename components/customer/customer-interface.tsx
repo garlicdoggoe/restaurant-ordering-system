@@ -38,8 +38,8 @@ export function CustomerInterface() {
     addToCartContext(item)
   }
 
-  // Customer pre-orders (pending or accepted pre-orders)
-  const customerPreOrders = orders.filter((o) => o.customerId === customerId && o.orderType === "pre-order" && (o.status === "pending" || o.status === "accepted"))
+  // Customer pre-orders (pre-order-pending, pending, or accepted pre-orders)
+  const customerPreOrders = orders.filter((o) => o.customerId === customerId && o.orderType === "pre-order" && (o.status === "pre-order-pending" || o.status === "pending" || o.status === "accepted"))
   const preOrdersCount = customerPreOrders.length
 
   return (

@@ -259,6 +259,7 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
     cancelled: <Ban className="w-4 h-4 text-gray-600" />,
     "in-transit": <Truck className="w-4 h-4 text-yellow-600" />,
     delivered: <Package className="w-4 h-4 text-emerald-600" />,
+    "pre-order-pending": <Clock className="w-4 h-4 text-blue-600" />,
   }
 
   const statusColors = {
@@ -270,6 +271,7 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
     cancelled: "bg-gray-100 text-gray-800 border-gray-200",
     "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
     delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
   }
 
   const getOrderBorderClass = (status: string) => {

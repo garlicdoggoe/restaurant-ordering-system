@@ -48,7 +48,8 @@ export const listByStatus = query({
       v.literal("completed"),
       v.literal("cancelled"),
       v.literal("in-transit"),
-      v.literal("delivered")
+      v.literal("delivered"),
+      v.literal("pre-order-pending")
     )),
     userRole: v.union(v.literal("owner"), v.literal("customer")),
     userId: v.string()
@@ -157,7 +158,8 @@ export const create = mutation({
       v.literal("completed"),
       v.literal("cancelled"),
       v.literal("in-transit"),
-      v.literal("delivered")
+      v.literal("delivered"),
+      v.literal("pre-order-pending")
     ),
     paymentScreenshot: v.optional(v.string()),
     voucherCode: v.optional(v.string()),
@@ -220,7 +222,8 @@ export const update = mutation({
           v.literal("completed"),
           v.literal("cancelled"),
           v.literal("in-transit"),
-          v.literal("delivered")
+          v.literal("delivered"),
+          v.literal("pre-order-pending")
         )
       ),
       denialReason: v.optional(v.string()),

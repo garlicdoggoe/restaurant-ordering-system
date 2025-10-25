@@ -321,7 +321,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
         downpaymentAmount: orderType === "pre-order" && paymentPlan === "downpayment" ? total * 0.5 : undefined,
         downpaymentProofUrl: undefined,
         remainingPaymentMethod: orderType === "pre-order" && paymentPlan === "downpayment" ? (downpaymentMethod === "online" ? "online" : "cash") : undefined,
-        status: "pending",
+        status: orderType === "pre-order" ? "pre-order-pending" : "pending",
         paymentScreenshot: paymentScreenshotStorageId,
         specialInstructions: specialInstructions.trim() || undefined, 
       })

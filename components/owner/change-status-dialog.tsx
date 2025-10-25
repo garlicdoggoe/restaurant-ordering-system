@@ -14,7 +14,7 @@ interface ChangeStatusDialogProps {
 }
 
 export function ChangeStatusDialog({ orderId, onClose, onSuccess }: ChangeStatusDialogProps) {
-  const [selectedStatus, setSelectedStatus] = useState<"pending" | "accepted">("pending")
+  const [selectedStatus, setSelectedStatus] = useState<"pending" | "accepted" | "pre-order-pending">("pending")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { updateOrder } = useData()
@@ -28,7 +28,9 @@ export function ChangeStatusDialog({ orderId, onClose, onSuccess }: ChangeStatus
         denialReason: undefined,
       })
       
-      const statusText = selectedStatus === "pending" ? "pending" : "preparing"
+      const statusText = selectedStatus === "pending" ? "pending" : 
+                        selectedStatus === "accepted" ? "preparing" : 
+                        "pre-order-pending"
       toast.success("Order status updated!", {
         description: `Order has been changed to ${statusText} status.`,
         duration: 3000,
@@ -57,7 +59,7 @@ export function ChangeStatusDialog({ orderId, onClose, onSuccess }: ChangeStatus
 
           <Select
             value={selectedStatus}
-            onValueChange={(value) => setSelectedStatus(value as "pending" | "accepted")}
+            onValueChange={(value) => setSelectedStatus(value as "pending" | "accepted" | "pre-order-pending")}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select status" />
@@ -65,6 +67,7 @@ export function ChangeStatusDialog({ orderId, onClose, onSuccess }: ChangeStatus
             <SelectContent>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="accepted">Preparing</SelectItem>
+              <SelectItem value="pre-order-pending">Pre-order Pending</SelectItem>
             </SelectContent>
           </Select>
 

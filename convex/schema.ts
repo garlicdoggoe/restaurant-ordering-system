@@ -107,7 +107,8 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("cancelled"),
       v.literal("in-transit"),
-      v.literal("delivered")
+      v.literal("delivered"),
+      v.literal("pre-order-pending")
     ),
     paymentScreenshot: v.optional(v.string()),
     voucherCode: v.optional(v.string()),

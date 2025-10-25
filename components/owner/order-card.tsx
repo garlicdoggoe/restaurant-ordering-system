@@ -83,6 +83,17 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
     onStatusChange()
   }
 
+  const handleAcknowledgePreOrder = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent card click
+    // Move pre-order from pre-order-pending to pending status
+    updateOrder(order.id, { status: "pending" })
+    toast.success("Pre-order acknowledged!", {
+      description: `Pre-order #${order.id.slice(-6).toUpperCase()} has been acknowledged and moved to pending.`,
+      duration: 3000,
+    })
+    onStatusChange()
+  }
+
   const handleDenyOrder = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent card click
     onDenyClick(order.id)
@@ -137,7 +148,7 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
   }
 
   // Show different buttons based on order status and type
-  const showActionButtons = order.status === "pending"
+  const showActionButtons = order.status === "pending" || order.status === "pre-order-pending"
   
   // Show change status button for denied orders
   const showChangeStatusButton = order.status === "denied"
@@ -269,7 +280,7 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
         </Badge>
 
         {/* Action Buttons */}
-        {showActionButtons && (
+        {showActionButtons && order.status === "pending" && (
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -278,6 +289,29 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
             >
               <Check className="w-4 h-4 mr-1" />
               Accept
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="flex-1"
+              onClick={handleDenyOrder}
+            >
+              <X className="w-4 h-4 mr-1" />
+              Deny
+            </Button>
+          </div>
+        )}
+
+        {/* Pre-order Acknowledgement Buttons - Show for pre-order-pending orders */}
+        {showActionButtons && order.status === "pre-order-pending" && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 bg-green-500 hover:bg-green-600"
+              onClick={handleAcknowledgePreOrder}
+            >
+              <Check className="w-4 h-4 mr-1" />
+              Acknowledge
             </Button>
             <Button
               size="sm"

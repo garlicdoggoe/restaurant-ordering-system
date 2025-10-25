@@ -11,7 +11,7 @@ import { OrderDetails } from "./order-details"
 import { DenyOrderDialog } from "./deny-order-dialog"
 import { AcceptOrderDialog } from "./accept-order-dialog"
 
-type OrderStatus = "pending" | "preparing" | "ready" | "completed" | "cancelled" | "denied" | "in-transit" | "delivered"
+type OrderStatus = "pending" | "preparing" | "ready" | "completed" | "cancelled" | "denied" | "in-transit" | "delivered" | "pre-order-pending"
 
 export function OrdersView() {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending")
@@ -31,6 +31,7 @@ export function OrdersView() {
     denied: ordersByStatus.denied.length,
     "in-transit": ordersByStatus["in-transit"].length,
     delivered: ordersByStatus.delivered.length,
+    "pre-order-pending": ordersByStatus["pre-order-pending"]?.length || 0,
   }
 
   // NEW: Get filtered orders directly from status-specific queries
@@ -43,6 +44,7 @@ export function OrdersView() {
     if (selectedStatus === "denied") return ordersByStatus.denied
     if (selectedStatus === "in-transit") return ordersByStatus["in-transit"]
     if (selectedStatus === "delivered") return ordersByStatus.delivered
+    if (selectedStatus === "pre-order-pending") return ordersByStatus["pre-order-pending"] || []
     return []
   }
 
@@ -98,7 +100,7 @@ export function OrdersView() {
 
       <div className="flex items-center gap-4">
         <Tabs value={selectedStatus} onValueChange={(v) => setSelectedStatus(v as OrderStatus)}>
-          <TabsList className="bg-muted grid grid-cols-8 w-full">
+          <TabsList className="bg-muted grid grid-cols-9 w-full">
             <TabsTrigger value="pending" className="gap-2">
               Pending
               <Badge variant="secondary" className="rounded-full bg-yellow-100 text-yellow-800">
@@ -145,6 +147,12 @@ export function OrdersView() {
               Denied
               <Badge variant="secondary" className="rounded-full bg-red-100 text-red-800">
                 {statusCounts.denied}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="pre-order-pending" className="gap-2">
+              Pre-Orders
+              <Badge variant="secondary" className="rounded-full bg-blue-100 text-blue-800">
+                {statusCounts["pre-order-pending"]}
               </Badge>
             </TabsTrigger>
           </TabsList>
