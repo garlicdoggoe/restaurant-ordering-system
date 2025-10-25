@@ -79,6 +79,7 @@ export function OrdersView() {
     remainingPaymentProofUrl: order.remainingPaymentProofUrl,
     // Include pre-order specific fields
     preOrderFulfillment: order.preOrderFulfillment,
+    preOrderScheduledAt: order.preOrderScheduledAt,
     // Compute payment status for pre-orders with downpayment and online remaining payment
     paymentStatus: (() => {
       const isEligible = order.orderType === "pre-order" && order.paymentPlan === "downpayment" && order.remainingPaymentMethod === "online"

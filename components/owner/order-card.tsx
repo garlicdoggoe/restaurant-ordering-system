@@ -39,6 +39,7 @@ interface OrderCardProps {
     specialInstructions?: string
     // Add pre-order specific fields
     preOrderFulfillment?: "pickup" | "delivery"
+    preOrderScheduledAt?: number
   }
   onClick: () => void
   onStatusChange: () => void
@@ -271,6 +272,28 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
         {order.paymentStatus && (
           <Badge variant="outline" className="w-full justify-center text-xs py-1 border-green-200 bg-green-50 text-green-800">
             {order.paymentStatus}
+          </Badge>
+        )}
+
+        {/* Pre-order Fulfillment Method Badge */}
+        {order.type === "pre-order" && order.preOrderFulfillment && (
+          <Badge 
+            variant="outline" 
+            className={cn(
+              "w-full justify-center text-xs py-1",
+              order.preOrderFulfillment === "pickup" 
+                ? "border-blue-200 bg-blue-50 text-blue-800" 
+                : "border-purple-200 bg-purple-50 text-purple-800"
+            )}
+          >
+            Fulfillment: {order.preOrderFulfillment === "pickup" ? "Pickup" : "Delivery"}
+          </Badge>
+        )}
+
+        {/* Pre-order Scheduled Date/Time Badge */}
+        {order.type === "pre-order" && order.preOrderScheduledAt && (
+          <Badge variant="outline" className="w-full justify-center text-xs py-1 border-orange-200 bg-orange-50 text-orange-800">
+            Scheduled: {new Date(order.preOrderScheduledAt).toLocaleString()}
           </Badge>
         )}
 
