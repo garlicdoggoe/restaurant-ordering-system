@@ -4,13 +4,15 @@ import React, { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { 
   Clock, 
   CheckCircle, 
   Truck, 
   ChevronUp,
   ChevronDown,
-  Pizza
+  Pizza,
+  XCircle
 } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { OrderTracking } from "./order-tracking"
@@ -37,12 +39,13 @@ function PrepTimeDisplay({ estimatedPrepTime, orderStatus, orderType }: { estima
 }
 
 export function StickyOrderStatus({ customerId }: StickyOrderStatusProps) {
-  const { getCustomerActiveOrder } = useData()
+  const { getCustomerActiveOrder, updateOrder } = useData()
   const [isVisible, setIsVisible] = useState(true)
   const [showToggle, setShowToggle] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [isScrollingDown, setIsScrollingDown] = useState(false)
+  const [confirmDenialId, setConfirmDenialId] = useState<string | null>(null)
 
   // Scroll detection hook
   const handleScroll = useCallback(() => {
@@ -77,7 +80,7 @@ export function StickyOrderStatus({ customerId }: StickyOrderStatusProps) {
   // Don't show for pre-orders in pending status or inactive statuses
   if (!customerId || !activeOrder || 
       (activeOrder.orderType === "pre-order" && activeOrder.status === "pending") ||
-      !["pending", "accepted", "ready", "in-transit"].includes(activeOrder.status)) {
+      !["pending", "accepted", "ready", "in-transit", "denied"].includes(activeOrder.status)) {
     return null
   }
 
@@ -120,6 +123,15 @@ export function StickyOrderStatus({ customerId }: StickyOrderStatusProps) {
           borderColor: "border-yellow-400",
           textColor: "text-blue-800"
         }
+      case "denied":
+        return {
+          icon: <XCircle className="w-10 h-10 text-red-600" />,
+          title: "Order denied",
+          description: "Your order has been denied by the store.",
+          bgColor: "bg-white",
+          borderColor: "border-red-400",
+          textColor: "text-red-800"
+        }
       default:
         return {
           icon: <Clock className="w-10 h-10 text-gray-600" />,
@@ -137,6 +149,16 @@ export function StickyOrderStatus({ customerId }: StickyOrderStatusProps) {
   const handleToggle = () => {
     setIsVisible(!isVisible)
     setShowToggle(false)
+  }
+
+  // Handle confirming denial - this will cancel the order and clear it
+  const handleConfirmDenial = async (orderId: string) => {
+    try {
+      await updateOrder(orderId, { status: "cancelled" })
+      setConfirmDenialId(null)
+    } catch (error) {
+      console.error("Failed to confirm denial:", error)
+    }
   }
 
   return (
@@ -169,8 +191,38 @@ export function StickyOrderStatus({ customerId }: StickyOrderStatusProps) {
                   </p>
                   {/* Estimated prep time for all orders */}
                   <PrepTimeDisplay estimatedPrepTime={activeOrder.estimatedPrepTime} orderStatus={activeOrder.status} orderType={activeOrder.orderType} />
+                  
+                  {/* Denial reason display for denied orders */}
+                  {activeOrder.status === "denied" && activeOrder.denialReason && (
+                    <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                      <div className="flex items-start gap-2">
+                        <XCircle className="w-3 h-3 text-red-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-medium text-red-800">Reason: {activeOrder.denialReason}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+              
+              {/* Confirm denial button for denied orders */}
+              {activeOrder.status === "denied" && (
+                <div className="mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setConfirmDenialId(activeOrder._id)
+                    }}
+                    className="w-full hover:text-gray-700 hover:bg-gray-50 text-xs"
+                  >
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Confirm & Clear
+                  </Button>
+                </div>
+              )}
               
               {/* Progress indicator for accepted status - positioned under status text
               {activeOrder.status === "accepted" && (
@@ -209,6 +261,28 @@ export function StickyOrderStatus({ customerId }: StickyOrderStatusProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Denial Dialog */}
+      <AlertDialog open={!!confirmDenialId} onOpenChange={() => setConfirmDenialId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Order Denial</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to confirm this order denial? This will clear the order and allow you to place a new one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, keep order</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (confirmDenialId) {
+                handleConfirmDenial(confirmDenialId)
+              }
+            }}>
+              Yes, confirm denial
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

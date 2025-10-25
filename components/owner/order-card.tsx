@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Check, X, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
+import { useState } from "react"
 import { useData } from "@/lib/data-context"
 import Image from "next/image"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
+import { PaymentModal } from "@/components/ui/payment-modal"
+import { ChangeStatusDialog } from "./change-status-dialog"
 
 interface OrderCardProps {
   order: {
@@ -30,6 +33,7 @@ interface OrderCardProps {
     platformFee: number
     total: number
     paymentScreenshot?: string
+    downpaymentProofUrl?: string
     paymentStatus?: "Initially paid" | "Fully paid"
     status: string
     specialInstructions?: string
@@ -58,6 +62,11 @@ const typeLabels: Record<"dine-in" | "takeaway" | "delivery" | "pre-order", stri
 
 export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAcceptClick }: OrderCardProps) {
   const { updateOrder } = useData()
+  
+  // Payment modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  // Change status dialog state
+  const [showChangeStatusDialog, setShowChangeStatusDialog] = useState(false)
 
   const handleAcceptOrder = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent card click
@@ -130,6 +139,9 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
   // Show different buttons based on order status and type
   const showActionButtons = order.status === "pending"
   
+  // Show change status button for denied orders
+  const showChangeStatusButton = order.status === "denied"
+  
   // Determine if finish button should be shown
   const showFinishButton = (() => {
     if (order.status === "accepted") return true
@@ -171,22 +183,38 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
         {/* Special Instructions */}
         {order.specialInstructions && (
           <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-xs font-medium text-yellow-800 mb-1">📝 Special Instructions:</p>
+            <p className="text-xs font-medium text-yellow-800 mb-1">📝 Landmark/Special Instructions:</p>
             <p className="text-xs text-yellow-700">{order.specialInstructions}</p>
           </div>
         )}
 
-        {/* Payment Screenshot */}
-        {order.paymentScreenshot && (
+        {/* Payment Screenshot - Handle both paymentScreenshot and downpaymentProofUrl */}
+        {(order.paymentScreenshot || order.downpaymentProofUrl) && (
           <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Payment Proof:</p>
-            <div className="relative aspect-video rounded-lg overflow-hidden border">
+            <p className="text-xs font-medium text-muted-foreground">
+              {order.paymentScreenshot && order.downpaymentProofUrl 
+                ? "Payment Proofs:" 
+                : "Payment Proof:"}
+            </p>
+            <div 
+              className="relative aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation() // Prevent card click
+                setPaymentModalOpen(true)
+              }}
+            >
               <Image
-                src={order.paymentScreenshot || "/menu-sample.jpg"}
+                src={order.paymentScreenshot || order.downpaymentProofUrl || "/menu-sample.jpg"}
                 alt="Payment proof"
                 fill
                 className="object-contain bg-muted"
               />
+              {/* Show indicator when both proofs are available */}
+              {order.paymentScreenshot && order.downpaymentProofUrl && (
+                <div className="absolute top-1 right-1 bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  2
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -294,6 +322,27 @@ export function OrderCard({ order, onClick, onStatusChange, onDenyClick, onAccep
           </Button>
         )}
       </CardContent>
+      
+      {/* Payment Modal for larger image view */}
+      <PaymentModal 
+        open={paymentModalOpen} 
+        onOpenChange={setPaymentModalOpen} 
+        paymentUrl={order.paymentScreenshot || null} 
+        downpaymentUrl={order.downpaymentProofUrl || null}
+        title={order.paymentScreenshot && order.downpaymentProofUrl ? "Payment Proofs" : "Payment Proof"} 
+      />
+
+      {/* Change Status Dialog for denied orders */}
+      {showChangeStatusDialog && (
+        <ChangeStatusDialog
+          orderId={order.id}
+          onClose={() => setShowChangeStatusDialog(false)}
+          onSuccess={() => {
+            setShowChangeStatusDialog(false)
+            onStatusChange()
+          }}
+        />
+      )}
     </Card>
   )
 }

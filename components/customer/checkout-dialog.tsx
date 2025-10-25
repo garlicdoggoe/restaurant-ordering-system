@@ -20,6 +20,7 @@ import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 import { useRouter } from "next/navigation"
+import { PaymentModal } from "@/components/ui/payment-modal"
 
 interface CartItem {
   id: string
@@ -73,6 +74,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
   // Optional coordinates for delivery address (lng, lat)
   const [deliveryCoordinates, setDeliveryCoordinates] = useState<[number, number] | null>(null)
+  
+  // Payment modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   
   // Default coordinates from user's saved coordinates or fallback to Libmanan, Camarines Sur
   const defaultCoordinates: [number, number] = currentUser?.coordinates 
@@ -542,7 +546,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
             {/* Special Instructions */}
             <div className="space-y-2">
-              <Label htmlFor="special-instructions" className="text-xs md:text-sm opacity-60">Special Instructions</Label>
+              <Label htmlFor="special-instructions" className="text-xs md:text-sm opacity-60">Landmark/Special Instructions</Label>
               <div className="relative">
                 <Input
                   id="special-instructions"
@@ -572,7 +576,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   <img src="/gcash.png" alt="GCash" className="h-8 w-auto" />
                   <p className="text-xs text-gray-800">
                     Manual GCash payment. Please send payment to {" "}
-                    <span className="text-blue-600 font-medium">(+63) 915-777-0545. L** G**</span>.
+                    <span className="text-blue-600 font-medium">L** G** (+63) 915-777-0545.</span>.
                   </p>
                 </div>
               )}
@@ -588,30 +592,68 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
               </div>
 
               {/* Payment Proof Upload */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
-                <input
-                  id="payment-screenshot"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <label htmlFor="payment-screenshot" className="cursor-pointer">
-                  <div className="w-12 h-12 mx-auto mb-3 text-gray-400 flex items-center justify-center">
-                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                      <path d="M14 7a1 1 0 11-2 0 1 1 0 012 0z" />
-                    </svg>
+              {!previewUrl ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
+                  <input
+                    id="payment-screenshot"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label htmlFor="payment-screenshot" className="cursor-pointer">
+                    <div className="w-12 h-12 mx-auto mb-3 text-gray-400 flex items-center justify-center">
+                      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        <path d="M14 7a1 1 0 11-2 0 1 1 0 012 0z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Click to upload payment proof
+                    </p>
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <img 
+                      src={previewUrl} 
+                      alt="Payment proof" 
+                      className="w-full rounded border object-contain max-h-32 cursor-pointer hover:opacity-90 transition-opacity" 
+                      onClick={() => setPaymentModalOpen(true)}
+                    />
                   </div>
-                  <p className="text-sm text-gray-500">
-                    Click to upload payment proof
-                  </p>
-                </label>
-              </div>
-              
-              {previewUrl && (
-                <div className="mt-3">
-                  <img src={previewUrl} alt="Payment proof" className="w-full rounded border object-contain max-h-32" />
+                  <div className="flex gap-2">
+                    <input
+                      id="payment-screenshot-change"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <label 
+                      htmlFor="payment-screenshot-change" 
+                      className="flex-1 text-yellow-600 text-sm font-medium py-1 px-4 rounded-lg cursor-pointer text-center transition-colors"
+                    >
+                      Change Photo
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPaymentScreenshot(null)
+                        setPreviewUrl(null)
+                        // Clear from localStorage
+                        try {
+                          window.localStorage.removeItem("checkout_payment_image")
+                        } catch {}
+                      }}
+                      className="text-sm"
+                    >
+                      Remove
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -694,6 +736,14 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
           </div>
         </form>
       </DialogContent>
+      
+      {/* Payment Modal for larger photo view */}
+      <PaymentModal 
+        open={paymentModalOpen} 
+        onOpenChange={setPaymentModalOpen} 
+        paymentUrl={previewUrl} 
+        title="Payment Proof Preview" 
+      />
     </Dialog>
   )
 }

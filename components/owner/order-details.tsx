@@ -12,6 +12,8 @@ import { AddOrderItemDialog } from "./add-order-item-dialog"
 import { useData, type OrderItem } from "@/lib/data-context"
 import Image from "next/image"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
+import { PaymentModal } from "@/components/ui/payment-modal"
+import { ChangeStatusDialog } from "./change-status-dialog"
 
 interface OrderDetailsProps {
   orderId: string
@@ -25,6 +27,12 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
   const [showAddItemDialog, setShowAddItemDialog] = useState(false)
   const [showModificationHistory, setShowModificationHistory] = useState(false)
   const [editedItems, setEditedItems] = useState<OrderItem[]>([])
+  const [showChangeStatusDialog, setShowChangeStatusDialog] = useState(false)
+  
+  // Payment modal states
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [remainingPaymentModalOpen, setRemainingPaymentModalOpen] = useState(false)
+  const [selectedPaymentUrl, setSelectedPaymentUrl] = useState<string | null>(null)
 
   const { getOrderById, updateOrderItems, getOrderModifications } = useData()
   const order = getOrderById(orderId)
@@ -119,24 +127,67 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
           </DialogHeader>
 
           <div className="space-y-4">
-            {order.paymentScreenshot && (
+            {/* Payment Screenshots Section - Handle both paymentScreenshot and downpaymentProofUrl */}
+            {(order.paymentScreenshot || order.downpaymentProofUrl) && (
               <div className="space-y-2">
-                <h3 className="font-semibold">Payment Screenshot</h3>
-                <div className="relative aspect-video rounded-lg overflow-hidden border">
-                  <Image
-                    src={order.paymentScreenshot || "/menu-sample.jpg"}
-                    alt="Payment proof"
-                    fill
-                    className="object-contain bg-muted"
-                  />
-                </div>
+                <h3 className="font-semibold">
+                  {order.paymentScreenshot && order.downpaymentProofUrl 
+                    ? "Payment Proofs" 
+                    : order.paymentScreenshot 
+                    ? "Payment Screenshot" 
+                    : "Downpayment Proof"}
+                </h3>
+                
+                {/* Show combined payment proof modal when both are present */}
+                {order.paymentScreenshot && order.downpaymentProofUrl ? (
+                  <div 
+                    className="relative aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      setSelectedPaymentUrl(order.paymentScreenshot || null)
+                      setPaymentModalOpen(true)
+                    }}
+                  >
+                    <Image
+                      src={order.paymentScreenshot || "/menu-sample.jpg"}
+                      alt="Payment proof"
+                      fill
+                      className="object-contain bg-muted"
+                    />
+                    {/* Overlay indicator showing there are multiple proofs */}
+                    <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                      2 Proofs
+                    </div>
+                  </div>
+                ) : (
+                  /* Show individual payment proof when only one is present */
+                  <div 
+                    className="relative aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      setSelectedPaymentUrl(order.paymentScreenshot || order.downpaymentProofUrl || null)
+                      setPaymentModalOpen(true)
+                    }}
+                  >
+                    <Image
+                      src={order.paymentScreenshot || order.downpaymentProofUrl || "/menu-sample.jpg"}
+                      alt="Payment proof"
+                      fill
+                      className="object-contain bg-muted"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
             {order.remainingPaymentProofUrl && (
               <div className="space-y-2">
                 <h3 className="font-semibold">Remaining Payment Screenshot</h3>
-                <div className="relative aspect-video rounded-lg overflow-hidden border">
+                <div 
+                  className="relative aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => {
+                    setSelectedPaymentUrl(order.remainingPaymentProofUrl || null)
+                    setRemainingPaymentModalOpen(true)
+                  }}
+                >
                   <Image
                     src={order.remainingPaymentProofUrl || "/menu-sample.jpg"}
                     alt="Remaining payment proof"
@@ -308,7 +359,7 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                     Print Receipt
                   </Button>
                   <Button
-                    className="flex-1 gap-2 bg-[#2d1b4e] hover:bg-[#2d1b4e]/90"
+                    className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
                     onClick={() => setShowAcceptDialog(true)}
                   >
                     <Check className="w-4 h-4" />
@@ -331,6 +382,13 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm font-medium text-red-800">Order Denied</p>
                 <p className="text-xs text-red-700 mt-1">{order.denialReason}</p>
+                <Button
+                  size="lg"
+                  className="mt-2 w-full bg-yellow-400 hover:bg-yellow-600"
+                  onClick={() => setShowChangeStatusDialog(true)}
+                >
+                  Change Status
+                </Button>
               </div>
             )}
 
@@ -410,6 +468,34 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
           isOpen={showAddItemDialog}
           onClose={() => setShowAddItemDialog(false)}
           onAddItem={handleAddItem}
+        />
+      )}
+
+      {/* Payment Modals for larger image views */}
+      <PaymentModal 
+        open={paymentModalOpen} 
+        onOpenChange={setPaymentModalOpen} 
+        paymentUrl={selectedPaymentUrl} 
+        downpaymentUrl={order?.downpaymentProofUrl || null}
+        title={order?.paymentScreenshot && order?.downpaymentProofUrl ? "Payment Proofs" : "Payment Screenshot"} 
+      />
+      
+      <PaymentModal 
+        open={remainingPaymentModalOpen} 
+        onOpenChange={setRemainingPaymentModalOpen} 
+        paymentUrl={selectedPaymentUrl} 
+        title="Remaining Payment Screenshot" 
+      />
+
+      {/* Change Status Dialog for denied orders */}
+      {showChangeStatusDialog && (
+        <ChangeStatusDialog
+          orderId={orderId}
+          onClose={() => setShowChangeStatusDialog(false)}
+          onSuccess={() => {
+            setShowChangeStatusDialog(false)
+            onClose()
+          }}
         />
       )}
     </>

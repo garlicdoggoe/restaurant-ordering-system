@@ -7,34 +7,34 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { OrderDetails } from "./order-details"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
+import { PaymentModal } from "@/components/ui/payment-modal"
 
 // Historical orders list for owners.
-// Displays orders in a row-based layout with filters for category and time range.
+// Displays orders in a row-based layout with filters for order type and time range.
 // Clicking a row opens the full order details modal reused from active orders view.
 export function HistoricalOrdersView() {
   const { orders, menuItems, categories } = useData()
 
   // Filters
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all")
+  const [selectedOrderType, setSelectedOrderType] = useState<string>("all")
   const [fromDate, setFromDate] = useState<string>("") // ISO string from <input type="datetime-local">
   const [toDate, setToDate] = useState<string>("")
   const [search, setSearch] = useState<string>("")
+  const [dateSortOrder, setDateSortOrder] = useState<"asc" | "desc">("desc") // Default to newest first
 
   // Modal state
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
 
-  // Build a lookup from menuItemId -> categoryId for efficient category filtering.
-  const menuItemIdToCategoryId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const item of menuItems) {
-      map.set(item._id, item.category)
-    }
-    return map
-  }, [menuItems])
+  // Order types for filtering
+  const orderTypes = [
+    { value: "dine-in", label: "Dine In" },
+    { value: "takeaway", label: "Takeaway" },
+    { value: "delivery", label: "Delivery" },
+    { value: "pre-order", label: "Pre-order" }
+  ]
 
   // Include all orders regardless of status in history
   const historicalBase = useMemo(() => {
@@ -48,7 +48,7 @@ export function HistoricalOrdersView() {
     // For "To" date, extend to end of day (23:59:59.999) to include the entire selected day
     const toTs = toDate ? new Date(toDate).setHours(23, 59, 59, 999) : null
 
-    return historicalBase.filter((order) => {
+    const filtered = historicalBase.filter((order) => {
       const createdTs = (order._creationTime ?? order.createdAt) || 0
 
       // Inclusive filtering: >= fromTs and <= toTs
@@ -65,16 +65,19 @@ export function HistoricalOrdersView() {
         if (!matches) return false
       }
 
-      if (selectedCategoryId === "all") return true
+      if (selectedOrderType === "all") return true
 
-      // Category filter: include order if ANY item belongs to the selected category
-      for (const item of order.items) {
-        const catId = menuItemIdToCategoryId.get(item.menuItemId)
-        if (catId === selectedCategoryId) return true
-      }
-      return false
+      // Order type filter: match the order's orderType
+      return order.orderType === selectedOrderType
     })
-  }, [historicalBase, fromDate, toDate, selectedCategoryId, search, menuItemIdToCategoryId])
+
+    // Sort by date
+    return filtered.sort((a, b) => {
+      const aTs = (a._creationTime ?? a.createdAt) || 0
+      const bTs = (b._creationTime ?? b.createdAt) || 0
+      return dateSortOrder === "asc" ? aTs - bTs : bTs - aTs
+    })
+  }, [historicalBase, fromDate, toDate, selectedOrderType, search, dateSortOrder])
 
   // Status badge colors aligned across the app
   const statusColors: Record<string, string> = {
@@ -106,15 +109,15 @@ export function HistoricalOrdersView() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Category</span>
-          <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+          <span className="text-xs text-muted-foreground">Order Type</span>
+          <Select value={selectedOrderType} onValueChange={setSelectedOrderType}>
             <SelectTrigger className="w-56">
-              <SelectValue placeholder="All Categories" />
+              <SelectValue placeholder="All Order Types" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>
+              {orderTypes.map((type) => (
+                <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -129,18 +132,31 @@ export function HistoricalOrdersView() {
           <span className="text-xs text-muted-foreground">To</span>
           <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-56" />
         </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Sort</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDateSortOrder(dateSortOrder === "asc" ? "desc" : "asc")}
+            className="w-56 justify-start"
+          >
+            {dateSortOrder === "asc" ? "↑ Oldest First" : "↓ Newest First"}
+          </Button>
+        </div>
       </div>
 
       {/* Rows Header */}
       <div className="rounded-lg border overflow-hidden">
-        <div className="grid grid-cols-8 gap-2 bg-muted px-4 py-3 text-sm font-medium">
+        <div className="grid grid-cols-9 gap-2 bg-muted px-4 py-3 text-sm font-medium">
           <div>Order ID</div>
+          <div>Placed At</div>
           <div>Customer</div>
           <div>Contact</div>
           <div>GCash</div>
-          <div>Placed At</div>
           <div>Total</div>
           <div>Status</div>
+          <div>Order Type</div>
           <div>Payment</div>
         </div>
 
@@ -152,7 +168,7 @@ export function HistoricalOrdersView() {
             return (
               <div
                 key={order._id}
-                className="grid grid-cols-8 gap-2 w-full px-4 py-3 hover:bg-accent/40 transition-colors"
+                className="grid grid-cols-9 gap-2 w-full px-4 py-3 hover:bg-accent/40 transition-colors"
               >
                 <button
                   className="text-left font-mono text-sm hover:text-primary"
@@ -160,6 +176,7 @@ export function HistoricalOrdersView() {
                 >
                   #{idShort}
                 </button>
+                <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
                 <button
                   className="text-left text-sm hover:text-primary"
                   onClick={() => setSelectedOrderId(order._id)}
@@ -170,7 +187,6 @@ export function HistoricalOrdersView() {
                 <div className="text-sm text-blue-600 font-medium">
                   {order.gcashNumber ? `(+63) ${order.gcashNumber}` : '-'}
                 </div>
-                <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
                 <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
                 <div>
                   <Badge
@@ -180,8 +196,16 @@ export function HistoricalOrdersView() {
                     {order.status}
                   </Badge>
                 </div>
+                <div className="text-sm">
+                  <Badge variant="outline" className="text-xs">
+                    {order.orderType === 'dine-in' ? 'Dine In' : 
+                     order.orderType === 'takeaway' ? 'Takeaway' :
+                     order.orderType === 'delivery' ? 'Delivery' :
+                     order.orderType === 'pre-order' ? 'Pre-order' : order.orderType}
+                  </Badge>
+                </div>
                 <div className="flex items-center gap-2">
-                  {order.paymentScreenshot && (
+                  {(order.paymentScreenshot || order.downpaymentProofUrl) && (
                     <Button
                       type="button"
                       size="sm"
@@ -191,7 +215,9 @@ export function HistoricalOrdersView() {
                         setPaymentOpen(true)
                       }}
                     >
-                      View Payment
+                      {order.paymentScreenshot && order.downpaymentProofUrl 
+                        ? "View Payment Proofs" 
+                        : "View Payment"}
                     </Button>
                   )}
                 </div>
@@ -209,18 +235,13 @@ export function HistoricalOrdersView() {
         <OrderDetails orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />
       )}
 
-      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Payment Screenshot</DialogTitle>
-          </DialogHeader>
-          {paymentUrl ? (
-            <img src={paymentUrl} alt="Payment Screenshot" className="w-full rounded border object-contain" />
-          ) : (
-            <p className="text-sm text-muted-foreground">No payment screenshot available.</p>
-          )}
-        </DialogContent>
-      </Dialog>
+      <PaymentModal 
+        open={paymentOpen} 
+        onOpenChange={setPaymentOpen} 
+        paymentUrl={paymentUrl} 
+        downpaymentUrl={null} // Note: Historical orders view doesn't have access to downpaymentProofUrl in this context
+        title="Payment Screenshot" 
+      />
     </div>
   )
 }

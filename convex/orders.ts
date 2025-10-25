@@ -179,7 +179,7 @@ export const create = mutation({
 
     // Validate special instructions length (max 100 characters)
     if (args.specialInstructions && args.specialInstructions.length > 100) {
-      throw new Error("Special instructions must be 100 characters or less");
+      throw new Error("Landmark/Special instructions must be 100 characters or less");
     }
 
     // If client sent a Convex storageId instead of a URL for payment screenshot, resolve it to a URL

@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { PaymentModal } from "@/components/ui/payment-modal"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
@@ -204,7 +204,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
   const statusDescriptions = {
     pending: "Waiting for restaurant confirmation",
     accepted: "Order confirmed - being prepared",
-    ready: "Order is ready for pickup/delivery",
+    ready: "Order is ready for pickup",
     "in-transit": "Order is on the way",
     denied: "Order was denied by restaurant",
     completed: "Order completed",
@@ -247,14 +247,21 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                 {/* Status Badge */}
                 <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1`}>
                   {statusIcons[order.status as keyof typeof statusIcons]}
-                  <span className="capitalize text-xs">{order.status.replace('-', ' ')}</span>
+                  <span className="capitalize text-xs">{order.status === 'accepted' ? 'Pending' : order.status.replace('-', ' ')}</span>
                 </Badge>
               </div>
               <p className="text-fluid-sm text-muted-foreground">Placed at {new Date(createdTs).toLocaleString()}</p>
               {/* Status Description */}
-              <p className="text-xs text-gray-600 mt-1">
+              <p className="text-xs text-yellow-600 mt-1">
                 {statusDescriptions[order.status as keyof typeof statusDescriptions]}
               </p>
+              {/* Estimated Time Display - Desktop Only */}
+              {order.estimatedPrepTime && order.status === "accepted" && order.orderType !== "pre-order" && (
+                <div className="hidden lg:block text-xs text-gray-600 mt-1 text-red-600">
+                  <Clock className="w-3 h-3 inline mr-1 text-red-600" />
+                  Estimated: {Math.max(0, order.estimatedPrepTime - 5)}-{order.estimatedPrepTime} minutes
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -302,7 +309,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
           {/* Special Instructions */}
           {order.specialInstructions && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-fluid-sm font-medium text-yellow-800 mb-1">📝 Special Instructions:</p>
+              <p className="text-fluid-sm font-medium text-yellow-800 mb-1">📝 Landmark/Special Instructions:</p>
               <p className="text-fluid-sm text-yellow-700">{order.specialInstructions}</p>
             </div>
           )}
@@ -359,7 +366,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                           size="sm"
                           onClick={() => handleConfirmRemainingPaymentUpload(order._id)}
                           disabled={uploadingOrderId === order._id}
-                          className="bg-yellow-600 hover:bg-yellow-700"
+                          className="bg-yellow-500 hover:bg-yellow-400"
                         >
                           {uploadingOrderId === order._id ? "Uploading..." : "Confirm Upload"}
                         </Button>
@@ -458,7 +465,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                 }}
                 className="flex-1"
               >
-                View Remaining
+                View Balance Proof
               </Button>
             )}
 
@@ -524,18 +531,13 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Payment Proof</DialogTitle>
-          </DialogHeader>
-          {paymentUrl ? (
-            <Image src={paymentUrl} alt="Payment Proof" width={400} height={300} className="w-full rounded border object-contain" />
-          ) : (
-            <p className="text-sm text-muted-foreground">No payment proof available.</p>
-          )}
-        </DialogContent>
-      </Dialog>
+      <PaymentModal 
+        open={paymentOpen} 
+        onOpenChange={setPaymentOpen} 
+        paymentUrl={paymentUrl} 
+        downpaymentUrl={null} // Note: Order tracking component handles paymentScreenshot and remainingPaymentProofUrl separately
+        title="Payment Proof" 
+      />
     </>
   )
 }
