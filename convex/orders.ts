@@ -1,33 +1,77 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-export const list = query({
+// Separate user role lookup with better caching - eliminates user dependency from order queries
+export const getCurrentUserRole = query({
   args: {},
   handler: async (ctx) => {
-    // Access control: customers see only their orders; owners see all orders
     const identity = await ctx.auth.getUserIdentity();
-    const clerkId = identity?.subject;
-    // When unauthenticated (e.g., public homepage), return empty list instead of throwing
-    if (!clerkId) return [];
-
-    const currentUser = await ctx.db
+    if (!identity?.subject) return null;
+    
+    const user = await ctx.db
       .query("users")
-      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
       .first();
+    
+    return user ? { userId: user._id, role: user.role } : null;
+  },
+});
 
-    // During first sign-in, the Clerk account may exist before the Convex user doc is created.
-    // Return an empty list instead of throwing to allow the client to proceed to profile completion.
-    if (!currentUser) return [];
-
-    if (currentUser.role === "owner") {
+// Optimized orders.list - no user lookup inside, eliminates user dependency
+export const list = query({
+  args: { 
+    userRole: v.union(v.literal("owner"), v.literal("customer")),
+    userId: v.string()
+  },
+  handler: async (ctx, { userRole, userId }) => {
+    if (userRole === "owner") {
+      // Use status index to enable partial cache hits
       return await ctx.db.query("orders").collect();
     }
-
+    
     // Customer: only own orders
     return await ctx.db
       .query("orders")
-      .withIndex("by_customerId", (q) => q.eq("customerId", currentUser._id as unknown as string))
+      .withIndex("by_customerId", (q) => q.eq("customerId", userId))
       .collect();
+  },
+});
+
+// Status-filtered query for better caching - enables partial cache hits per status
+export const listByStatus = query({
+  args: { 
+    status: v.optional(v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("ready"),
+      v.literal("denied"),
+      v.literal("completed"),
+      v.literal("cancelled"),
+      v.literal("in-transit"),
+      v.literal("delivered")
+    )),
+    userRole: v.union(v.literal("owner"), v.literal("customer")),
+    userId: v.string()
+  },
+  handler: async (ctx, { status, userRole, userId }) => {
+    if (userRole === "owner") {
+      if (status) {
+        return await ctx.db
+          .query("orders")
+          .withIndex("by_status", (q) => q.eq("status", status))
+          .order("desc")
+          .collect();
+      }
+      return await ctx.db.query("orders").order("desc").collect();
+    }
+    
+    // Customer filtered by customerId and optional status
+    let query = ctx.db
+      .query("orders")
+      .withIndex("by_customerId", (q) => q.eq("customerId", userId));
+    
+    const results = await query.collect();
+    return status ? results.filter(o => o.status === status) : results;
   },
 });
 

@@ -119,7 +119,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_customerId", ["customerId"]) 
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_status_createdAt", ["status", "createdAt"]), // NEW: for sorted queries with better caching
 
   vouchers: defineTable({
     code: v.string(),

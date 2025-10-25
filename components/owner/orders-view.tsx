@@ -19,30 +19,34 @@ export function OrdersView() {
   const [denyOrderId, setDenyOrderId] = useState<string | null>(null)
   const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null)
 
-  const { orders } = useData()
+  const { ordersByStatus } = useData()
 
+  // NEW: Use status-specific queries instead of client-side filtering for better cache performance
   const statusCounts = {
-    pending: orders.filter((o) => o.status === "pending").length,
-    preparing: orders.filter((o) => o.status === "accepted").length,
-    ready: orders.filter((o) => o.status === "ready").length,
-    completed: orders.filter((o) => o.status === "completed").length,
-    cancelled: orders.filter((o) => o.status === "cancelled").length,
-    denied: orders.filter((o) => o.status === "denied").length,
-    "in-transit": orders.filter((o) => o.status === "in-transit").length,
-    delivered: orders.filter((o) => o.status === "delivered").length,
+    pending: ordersByStatus.pending.length,
+    preparing: ordersByStatus.accepted.length,
+    ready: ordersByStatus.ready.length,
+    completed: ordersByStatus.completed.length,
+    cancelled: ordersByStatus.cancelled.length,
+    denied: ordersByStatus.denied.length,
+    "in-transit": ordersByStatus["in-transit"].length,
+    delivered: ordersByStatus.delivered.length,
   }
 
-  const filteredOrders = orders.filter((order) => {
-    if (selectedStatus === "pending") return order.status === "pending"
-    if (selectedStatus === "preparing") return order.status === "accepted"
-    if (selectedStatus === "ready") return order.status === "ready"
-    if (selectedStatus === "completed") return order.status === "completed"
-    if (selectedStatus === "cancelled") return order.status === "cancelled"
-    if (selectedStatus === "denied") return order.status === "denied"
-    if (selectedStatus === "in-transit") return order.status === "in-transit"
-    if (selectedStatus === "delivered") return order.status === "delivered"
-    return true
-  })
+  // NEW: Get filtered orders directly from status-specific queries
+  const getFilteredOrders = () => {
+    if (selectedStatus === "pending") return ordersByStatus.pending
+    if (selectedStatus === "preparing") return ordersByStatus.accepted
+    if (selectedStatus === "ready") return ordersByStatus.ready
+    if (selectedStatus === "completed") return ordersByStatus.completed
+    if (selectedStatus === "cancelled") return ordersByStatus.cancelled
+    if (selectedStatus === "denied") return ordersByStatus.denied
+    if (selectedStatus === "in-transit") return ordersByStatus["in-transit"]
+    if (selectedStatus === "delivered") return ordersByStatus.delivered
+    return []
+  }
+
+  const filteredOrders = getFilteredOrders()
 
   const nonPreOrders = filteredOrders.filter((o) => o.orderType !== "pre-order")
   const preOrders = filteredOrders.filter((o) => o.orderType === "pre-order")
