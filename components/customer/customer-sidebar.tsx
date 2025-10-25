@@ -17,15 +17,17 @@ import {
   LogOut,
   User,
   MapPin,
-  X
+  X,
+  Calendar
 } from "lucide-react"
 import { SignOutButton } from "@clerk/nextjs"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
 interface CustomerSidebarProps {
-  currentView: "menu" | "orders" | "profile"
-  onViewChange: (view: "menu" | "orders" | "profile") => void
+  currentView: "menu" | "orders" | "profile" | "preorders"
+  onViewChange: (view: "menu" | "orders" | "profile" | "preorders") => void
   cartItemCount: number
+  preOrdersCount: number
   onToggleCart?: () => void
 }
 
@@ -33,6 +35,7 @@ export function CustomerSidebar({
   currentView, 
   onViewChange, 
   cartItemCount, 
+  preOrdersCount,
   onToggleCart 
 }: CustomerSidebarProps) {
   const { user } = useUser()
@@ -57,6 +60,13 @@ export function CustomerSidebar({
       active: false,
       badge: cartItemCount > 0 ? cartItemCount : undefined,
       onClick: onToggleCart
+    },
+    {
+      id: "preorders",
+      label: "Pre-Orders",
+      icon: Calendar,
+      active: currentView === "preorders",
+      badge: preOrdersCount > 0 ? preOrdersCount : undefined
     },
     {
       id: "favorites",
@@ -85,8 +95,8 @@ export function CustomerSidebar({
   ]
 
   const handleNavigation = (item: typeof navigationItems[0]) => {
-    if (item.id === "menu" || item.id === "orders") {
-      onViewChange(item.id as "menu" | "orders")
+    if (item.id === "menu" || item.id === "orders" || item.id === "preorders") {
+      onViewChange(item.id as "menu" | "orders" | "preorders")
     } else if (item.id === "settings") {
       onViewChange("profile")
     } else if (item.onClick) {
@@ -159,7 +169,7 @@ export function CustomerSidebar({
                   <Icon className="h-5 w-5" />
                   <span className="flex-1 text-left text-fluid-base">{item.label}</span>
                   {item.badge && (
-                    <Badge variant="secondary" className="ml-auto">
+                    <Badge variant="secondary" className="ml-auto text-red-500 font-bold">
                       {item.badge}
                     </Badge>
                   )}

@@ -5,6 +5,7 @@ import { CustomerSidebar } from "./customer-sidebar"
 import { MenuBrowser } from "./menu-browser"
 import { Cart } from "./cart"
 import { OrderHistory } from "./order-history"
+import { PreOrdersView } from "./pre-orders-view"
 import { UserProfileSettings } from "./user-profile-settings"
 import { OrderTracking } from "./order-tracking"
 import { StickyOrderStatus } from "./sticky-order-status"
@@ -15,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { X, ShoppingCart } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-export type CustomerView = "menu" | "orders" | "profile"
+export type CustomerView = "menu" | "orders" | "profile" | "preorders"
 
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
@@ -39,6 +40,7 @@ export function CustomerInterface() {
 
   // Customer pre-orders (pending or accepted pre-orders)
   const customerPreOrders = orders.filter((o) => o.customerId === customerId && o.orderType === "pre-order" && (o.status === "pending" || o.status === "accepted"))
+  const preOrdersCount = customerPreOrders.length
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -62,6 +64,7 @@ export function CustomerInterface() {
         currentView={currentView} 
         onViewChange={setCurrentView} 
         cartItemCount={activeOrder ? 0 : getCartItemCount()}
+        preOrdersCount={preOrdersCount}
         onToggleCart={() => setIsCartOpen(!isCartOpen)}
       />
 
@@ -88,6 +91,10 @@ export function CustomerInterface() {
         ) : currentView === "orders" ? (
           <div className="p-3 xs:p-6">
             <OrderHistory onBackToMenu={() => setCurrentView("menu")} />
+          </div>
+        ) : currentView === "preorders" ? (
+          <div className="p-3 xs:p-6">
+            <PreOrdersView onBackToMenu={() => setCurrentView("menu")} />
           </div>
         ) : (
           <div className="p-3 xs:p-6">
