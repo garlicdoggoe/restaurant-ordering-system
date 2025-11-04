@@ -36,6 +36,11 @@ export function CustomerInterface() {
     }
     // Use the cart context's addToCart method
     addToCartContext(item)
+    // Show success notification when item is added to cart
+    toast.success("Added to cart", {
+      description: `${item.name || "Item"} has been added to your cart.`,
+      duration: 3000,
+    })
   }
 
   // Customer pre-orders (pre-order-pending, pending, or accepted pre-orders)

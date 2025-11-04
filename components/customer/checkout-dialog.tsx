@@ -726,7 +726,15 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
             <Button 
               type="submit" 
               className="w-full mt-4 md:mt-6 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 md:py-4 rounded-lg text-sm md:text-base"
-              disabled={isSubmitting}
+              disabled={
+                isSubmitting || 
+                (orderType === "pre-order" && (
+                  !preOrderDate || 
+                  !preOrderTime || 
+                  !!dateError || 
+                  !!timeError
+                ))
+              }
             >
               {isSubmitting ? "Placing Order..." : "Confirm order"}
             </Button>
