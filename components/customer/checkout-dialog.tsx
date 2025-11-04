@@ -42,7 +42,7 @@ interface CheckoutDialogProps {
 }
 
 export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess, onOpenSettings }: CheckoutDialogProps) {
-  const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("dine-in")
+  const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("pre-order")
   const { addOrder, currentUser, restaurant } = useData()
   const { updateQuantity } = useCart()
   const router = useRouter()
@@ -150,18 +150,20 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   }
 
   // Validation functions for pre-order date and time
-  // Ensures pre-order date is at least 1 day from current date
+  // Ensures pre-order date is between December 21-27, 2025 (Christmas week)
   const validatePreOrderDate = (date: string): string => {
     if (!date) return ""
     
     const selectedDate = new Date(date)
-    const today = new Date()
-    const oneDayFromNow = new Date(today)
-    oneDayFromNow.setDate(today.getDate() + 1)
-    oneDayFromNow.setHours(0, 0, 0, 0) // Start of day
+    const minDate = new Date("2025-12-21")
+    minDate.setHours(0, 0, 0, 0)
+    const maxDate = new Date("2025-12-27")
+    maxDate.setHours(23, 59, 59, 999)
     
-    if (selectedDate < oneDayFromNow) {
-      return "Pre-order date must be at least 1 day from today"
+    selectedDate.setHours(0, 0, 0, 0)
+    
+    if (selectedDate < minDate || selectedDate > maxDate) {
+      return "Pre-orders are only available for December 21-27, 2025"
     }
     
     return ""
@@ -175,27 +177,19 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
     return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`
   }
 
-  // Validates that pre-order time is within restaurant operating hours
+  // Validates that pre-order time is between 1:00 PM and 7:00 PM
   const validatePreOrderTime = (time: string, date: string): string => {
     if (!time || !date) return ""
     
-    // Check if restaurant has opening/closing times set
-    if (!restaurant?.openingTime || !restaurant?.closingTime) {
-      return "Restaurant operating hours not available"
-    }
-    
-    const [openingHour, openingMinute] = restaurant.openingTime.split(":").map(Number)
-    const [closingHour, closingMinute] = restaurant.closingTime.split(":").map(Number)
     const [selectedHour, selectedMinute] = time.split(":").map(Number)
-    
-    const openingMinutes = openingHour * 60 + openingMinute
-    const closingMinutes = closingHour * 60 + closingMinute
     const selectedMinutes = selectedHour * 60 + selectedMinute
     
-    if (selectedMinutes < openingMinutes || selectedMinutes > closingMinutes) {
-      const openingTime12 = formatTime12Hour(restaurant.openingTime)
-      const closingTime12 = formatTime12Hour(restaurant.closingTime)
-      return `Time must be between ${openingTime12} and ${closingTime12}`
+    // Pre-order hours: 1:00 PM (13:00) to 7:00 PM (19:00)
+    const minMinutes = 13 * 60 // 1:00 PM
+    const maxMinutes = 19 * 60 // 7:00 PM
+    
+    if (selectedMinutes < minMinutes || selectedMinutes > maxMinutes) {
+      return "Pre-order time must be between 1:00 PM and 7:00 PM"
     }
     
     return ""
@@ -366,7 +360,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
             <h2 className="text-[2.5em] md:text-[3em] font-black text-gray-800 leading-none mt-1">
               {orderType === "dine-in" ? "Dine In" : orderType === "takeaway" ? "Takeout" : orderType === "delivery" ? "Delivery" : "Pre-order"}
             </h2>
-            
             {/* Order Type Selection Buttons */}
             <div className="mt-3">
               <div className="grid grid-cols-2 gap-1 md:flex md:gap-1">
@@ -375,6 +368,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   variant={orderType === "dine-in" ? "default" : "outline"}
                   className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "dine-in" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                   onClick={() => setOrderType("dine-in")}
+                  disabled
                 >
                   DINE IN
                 </Button>
@@ -383,6 +377,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   variant={orderType === "takeaway" ? "default" : "outline"}
                   className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "takeaway" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                   onClick={() => setOrderType("takeaway")}
+                  disabled
                 >
                   TAKE OUT
                 </Button>
@@ -391,6 +386,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   variant={orderType === "delivery" ? "default" : "outline"}
                   className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "delivery" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                   onClick={() => setOrderType("delivery")}
+                  disabled
                 >
                   DELIVERY
                 </Button>
@@ -404,6 +400,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 </Button>
               </div>
             </div>
+            <p className="text-xs text-red-500">Currently, only for Christmas week pre-orders are being accepted.</p>
           </div>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row h-full">
@@ -421,6 +418,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     onCoordinatesChange={setDeliveryCoordinates}
                     mapHeightPx={180}
                     interactive={false}
+                    disabled={true}
                   />
                 </div>
                 <div className="flex justify-end">
@@ -506,7 +504,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                         }
                       }}
                       required
-                      min={new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                      min="2025-12-21"
+                      max="2025-12-27"
                       className="w-full text-xs"
                       placeholder="mm/dd/yyyy"
                     />
@@ -525,8 +524,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                         setTimeError(validatePreOrderTime(time, preOrderDate))
                       }}
                       required
-                      min={restaurant?.openingTime || "00:00"}
-                      max={restaurant?.closingTime || "23:59"}
+                      min="13:00"
+                      max="19:00"
                       className="w-full text-xs"
                       placeholder="--:--"
                     />
@@ -535,11 +534,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 {timeError ? (
                   <p className="text-[12px] text-red-500 mt-1">{timeError}</p>
                 ) : (
-                  restaurant?.openingTime && restaurant?.closingTime && (
-                    <p className="text-[12px] text-yellow-600 text-muted-foreground">
-                      Restaurant hours: {formatTime12Hour(restaurant.openingTime)} - {formatTime12Hour(restaurant.closingTime)}
-                    </p>
-                  )
+                  <p className="text-[12px] text-yellow-600 text-muted-foreground">
+                    Pre-order hours: 1:00 PM - 7:00 PM
+                  </p>
                 )}
               </div>
             )}

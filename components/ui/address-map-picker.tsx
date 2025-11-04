@@ -25,6 +25,9 @@ interface AddressMapPickerProps {
   
   // Whether the map should be interactive (default: true)
   interactive?: boolean
+  
+  // Whether the address input field should be disabled (default: false)
+  disabled?: boolean
 }
 
 /**
@@ -39,6 +42,7 @@ export function AddressMapPicker({
   onCoordinatesChange,
   mapHeightPx = 300,
   interactive = true,
+  disabled = false,
 }: AddressMapPickerProps) {
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || ""
 
@@ -154,6 +158,7 @@ export function AddressMapPicker({
           placeholder="123 Main St, City, State 12345"
           value={address}
           onChange={(e) => onAddressChange(e.target.value)}
+          disabled={disabled}
         />
       </div>
 
