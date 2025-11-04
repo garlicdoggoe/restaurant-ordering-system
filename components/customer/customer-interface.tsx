@@ -7,6 +7,7 @@ import { Cart } from "./cart"
 import { OrderHistory } from "./order-history"
 import { PreOrdersView } from "./pre-orders-view"
 import { UserProfileSettings } from "./user-profile-settings"
+import { InboxView } from "./inbox-view"
 import { OrderTracking } from "./order-tracking"
 import { StickyOrderStatus } from "./sticky-order-status"
 import { useData } from "@/lib/data-context"
@@ -16,7 +17,7 @@ import { Button } from "@/components/ui/button"
 import { X, ShoppingCart } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-export type CustomerView = "menu" | "orders" | "profile" | "preorders"
+export type CustomerView = "menu" | "orders" | "profile" | "preorders" | "inbox"
 
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
@@ -100,6 +101,10 @@ export function CustomerInterface() {
         ) : currentView === "preorders" ? (
           <div className="p-3 xs:p-6">
             <PreOrdersView onBackToMenu={() => setCurrentView("menu")} />
+          </div>
+        ) : currentView === "inbox" ? (
+          <div className="p-3 xs:p-6">
+            <InboxView />
           </div>
         ) : (
           <div className="p-3 xs:p-6">

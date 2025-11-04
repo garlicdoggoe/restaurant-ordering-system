@@ -24,8 +24,8 @@ import { SignOutButton } from "@clerk/nextjs"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
 interface CustomerSidebarProps {
-  currentView: "menu" | "orders" | "profile" | "preorders"
-  onViewChange: (view: "menu" | "orders" | "profile" | "preorders") => void
+  currentView: "menu" | "orders" | "profile" | "preorders" | "inbox"
+  onViewChange: (view: "menu" | "orders" | "profile" | "preorders" | "inbox") => void
   cartItemCount: number
   preOrdersCount: number
   onToggleCart?: () => void
@@ -84,7 +84,7 @@ export function CustomerSidebar({
       id: "inbox",
       label: "Inbox",
       icon: Inbox,
-      active: false
+      active: currentView === "inbox"
     },
     {
       id: "settings",
@@ -95,8 +95,8 @@ export function CustomerSidebar({
   ]
 
   const handleNavigation = (item: typeof navigationItems[0]) => {
-    if (item.id === "menu" || item.id === "orders" || item.id === "preorders") {
-      onViewChange(item.id as "menu" | "orders" | "preorders")
+    if (item.id === "menu" || item.id === "orders" || item.id === "preorders" || item.id === "inbox") {
+      onViewChange(item.id as "menu" | "orders" | "preorders" | "inbox")
     } else if (item.id === "settings") {
       onViewChange("profile")
     } else if (item.onClick) {

@@ -21,22 +21,29 @@ interface OwnerChatDialogProps {
 }
 
 export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialogProps) {
-  const { sendMessage, getOrderById, restaurant } = useData()
+  const { sendMessage, getOrderById, restaurant, currentUser } = useData()
   const [message, setMessage] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const order = getOrderById(orderId)
   const messages: ChatMessage[] = useQuery(api.chat.listByOrder, { orderId }) ?? []
-  const ownerId = "user1"
+  const ownerId = currentUser?._id || ""
 
   useEffect(() => {
+    // Find the scrollable viewport element within the ScrollArea
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      const viewport = scrollRef.current.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight
+      } else {
+        // Fallback: try scrolling the ref element itself
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      }
     }
   }, [messages])
 
   const handleSend = () => {
-    if (!message.trim()) return
+    if (!message.trim() || !ownerId) return
 
     sendMessage(orderId, ownerId, restaurant.name, "owner", message)
     setMessage("")
@@ -47,6 +54,71 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
       e.preventDefault()
       handleSend()
     }
+  }
+
+  // Helper function to linkify URLs in message text
+  const linkifyMessage = (text: string) => {
+    // Match URLs starting with http:// or https://
+    const urlPattern = /(https?:\/\/[^\s]+)/g
+    // Match paths starting with /
+    const pathPattern = /(\/[^\s]+)/g
+    
+    // Split text and replace URLs/paths with links
+    const parts: (string | React.ReactNode)[] = []
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    
+    // First, find all URL and path matches
+    const matches: Array<{ index: number; length: number; url: string }> = []
+    
+    // Find http(s) URLs
+    urlPattern.lastIndex = 0
+    while ((match = urlPattern.exec(text)) !== null) {
+      matches.push({ index: match.index, length: match[0].length, url: match[0] })
+    }
+    
+    // Find paths starting with /
+    pathPattern.lastIndex = 0
+    while ((match = pathPattern.exec(text)) !== null) {
+      // Avoid matching paths that are already part of http URLs
+      const isPartOfUrl = matches.some(
+        m => match !== null && match.index >= m.index && match.index < m.index + m.length
+      )
+      if (!isPartOfUrl && match !== null) {
+        matches.push({ index: match.index, length: match[0].length, url: match[0] })
+      }
+    }
+    
+    // Sort matches by index
+    matches.sort((a, b) => a.index - b.index)
+    
+    // Build the parts array with text and links
+    matches.forEach((m) => {
+      // Add text before the match
+      if (m.index > lastIndex) {
+        parts.push(text.substring(lastIndex, m.index))
+      }
+      // Add the link
+      parts.push(
+        <a
+          key={m.index}
+          href={m.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 underline hover:text-blue-800"
+        >
+          {m.url}
+        </a>
+      )
+      lastIndex = m.index + m.length
+    })
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex))
+    }
+    
+    return parts.length > 0 ? parts : text
   }
 
   const statusColors = {
@@ -74,7 +146,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
           </div>
         </DialogHeader>
 
-        <ScrollArea ref={scrollRef} className="flex-1 pr-4">
+        <ScrollArea ref={scrollRef} className="flex-1 min-h-0 pr-4 overflow-y-auto">
           <div className="space-y-4">
             {messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">No messages yet. Start a conversation!</div>
@@ -88,7 +160,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
                     )}
                   >
                     <p className="text-sm font-medium mb-1">{msg.senderName}</p>
-                    <p className="text-sm">{msg.message}</p>
+                    <p className="text-sm">{linkifyMessage(msg.message)}</p>
                     <p className="text-xs opacity-70 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</p>
                   </div>
                 </div>

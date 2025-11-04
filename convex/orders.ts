@@ -266,7 +266,24 @@ export const update = mutation({
 
     // Owners can update any order status; customers can only cancel their own pending orders
     if (currentUser.role === "owner") {
+      // Check if order is transitioning to accepted status
+      const wasAccepted = existing.status === "accepted";
       await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
+
+      // Seed chat message on first transition to accepted status
+      if (!wasAccepted && data.status === "accepted") {
+        // Get restaurant name for the message sender
+        const restaurant = await ctx.db.query("restaurant").first();
+        // Insert initial chat message announcing order acceptance
+        await ctx.db.insert("chat_messages", {
+          orderId: id as unknown as string,
+          senderId: currentUser._id as unknown as string,
+          senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+          senderRole: "owner",
+          message: `Order accepted. View details: /customer?orderId=${id}`,
+          timestamp: Date.now(),
+        });
+      }
       return id;
     }
 

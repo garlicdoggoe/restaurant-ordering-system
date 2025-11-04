@@ -6,30 +6,18 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MessageSquare } from "lucide-react"
 import { useData } from "@/lib/data-context"
-import { useQuery } from "convex/react"
-import { api } from "@/convex/_generated/api"
-import { OwnerChatDialog } from "./owner-chat-dialog"
+import { ChatDialog } from "./chat-dialog"
 
-export function ChatView() {
-  const { orders } = useData()
+export function InboxView() {
+  const { orders, currentUser } = useData()
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
 
-  const messagesByOrder: Record<string, any[]> = {}
-  for (const o of orders) {
-    // It's okay to call useQuery conditionally only if the list length is stable; instead, keep list UI minimal.
-    // Here we won't prefetch; we'll show chats button and load per dialog.
-    messagesByOrder[o._id] = []
-  }
-
-  // Get orders that are accepted (each accepted order gets a chat thread)
-  const ordersWithChat = orders.filter((order) => order.status === "accepted")
-
-  // Get message count for each order
-  const getMessageCount = (_orderId: string) => 0
-
-  // Get last message for each order
-  const getLastMessage = (_orderId: string) => undefined as any
+  // Get customer's accepted orders (each accepted order gets a chat thread)
+  const customerId = currentUser?._id || ""
+  const ordersWithChat = orders.filter(
+    (order) => order.customerId === customerId && order.status === "accepted"
+  )
 
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -46,8 +34,8 @@ export function ChatView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-fluid-2xl font-bold">Customer Chats</h1>
-        <p className="text-muted-foreground">Communicate with customers about their orders</p>
+        <h1 className="text-fluid-2xl font-bold">Inbox</h1>
+        <p className="text-muted-foreground">Chat with restaurant about your accepted orders</p>
       </div>
 
       {ordersWithChat.length === 0 ? (
@@ -60,16 +48,15 @@ export function ChatView() {
       ) : (
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
           {ordersWithChat.map((order) => {
-            const messageCount = getMessageCount(order._id)
-            const lastMessage = getLastMessage(order._id)
-
             return (
               <Card key={order._id} className="hover:shadow-lg transition-shadow cursor-pointer">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg">{order.customerName}</CardTitle>
-                      <p className="text-sm text-muted-foreground">Order #{order._id.slice(-6).toUpperCase()}</p>
+                      <CardTitle className="text-lg">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {new Date(order._creationTime ?? order.createdAt).toLocaleDateString()}
+                      </p>
                     </div>
                     <Badge variant="outline" className={statusColors[order.status]}>
                       {order.status}
@@ -77,19 +64,7 @@ export function ChatView() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {lastMessage ? (
-                    <div className="text-sm">
-                      <p className="font-medium text-muted-foreground">
-                        {lastMessage.senderRole === "customer" ? "Customer" : "You"}:
-                      </p>
-                      <p className="truncate">{lastMessage.message}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(lastMessage.timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No messages yet</p>
-                  )}
+                  <p className="text-sm text-muted-foreground">Chat thread ready</p>
 
                   <Button
                     className="w-full"
@@ -99,7 +74,7 @@ export function ChatView() {
                     }}
                   >
                     <MessageSquare className="w-4 h-4 mr-2" />
-                    {messageCount > 0 ? `View Chat (${messageCount})` : "Start Chat"}
+                    Open Chat
                   </Button>
                 </CardContent>
               </Card>
@@ -108,7 +83,9 @@ export function ChatView() {
         </div>
       )}
 
-      {selectedOrderId && <OwnerChatDialog orderId={selectedOrderId} open={chatOpen} onOpenChange={setChatOpen} />}
+      {selectedOrderId && (
+        <ChatDialog orderId={selectedOrderId} open={chatOpen} onOpenChange={setChatOpen} />
+      )}
     </div>
   )
 }
