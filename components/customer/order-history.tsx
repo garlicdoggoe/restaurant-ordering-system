@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network, Calendar, ChevronDown, ChevronUp } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
-import { ChatDialog } from "./chat-dialog"
+import { OrderTracking } from "./order-tracking"
 import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -34,7 +34,7 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
   const { orders, updateOrder, currentUser } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
-  const [chatOpen, setChatOpen] = useState(false)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
@@ -489,13 +489,17 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-1 lg:pt-2">
+                    {/* Details button - opens order details dialog */}
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setSelectedOrderId(order._id)}
+                      onClick={() => {
+                        setSelectedOrderId(order._id)
+                        setDetailsDialogOpen(true)
+                      }}
                       className="flex-1 touch-target text-xs"
                     >
-                      <MessageSquare className="w-3 h-3 mr-1" />
+                      <FileText className="w-3 h-3 mr-1" />
                       <span>Details</span>
                     </Button>
                     {/* Message button - navigates to inbox and opens chat for this order */}
@@ -529,7 +533,17 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
       </div>
       
       {/* Dialogs */}
-      {selectedOrderId && <ChatDialog orderId={selectedOrderId} open={chatOpen} onOpenChange={setChatOpen} />}
+      {/* Order Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+          </DialogHeader>
+          {selectedOrderId && (
+            <OrderTracking orderId={selectedOrderId} />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!cancelOrderId} onOpenChange={() => setCancelOrderId(null)}>
         <AlertDialogContent>
