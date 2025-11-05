@@ -368,7 +368,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   variant={orderType === "dine-in" ? "default" : "outline"}
                   className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "dine-in" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                   onClick={() => setOrderType("dine-in")}
-                  disabled
+                  // disabled
                 >
                   DINE IN
                 </Button>
@@ -506,7 +506,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       required
                       min="2025-12-21"
                       max="2025-12-27"
-                      className="w-full text-xs"
+                      className="w-full text-xs relative z-[100]"
                       placeholder="mm/dd/yyyy"
                     />
                     {dateError && (
@@ -526,7 +526,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       required
                       min="13:00"
                       max="19:00"
-                      className="w-full text-xs"
+                      className="w-full text-xs relative z-[100]"
                       placeholder="--:--"
                     />
                   </div>

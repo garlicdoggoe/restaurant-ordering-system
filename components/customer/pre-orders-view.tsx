@@ -25,9 +25,11 @@ import { toast } from "sonner"
 
 interface PreOrdersViewProps {
   onBackToMenu: () => void
+  // Optional callback to navigate to inbox with a specific orderId
+  onNavigateToInbox?: (orderId: string) => void
 }
 
-export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
+export function PreOrdersView({ onBackToMenu, onNavigateToInbox }: PreOrdersViewProps) {
   const { orders, updateOrder, currentUser } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -365,6 +367,18 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
                       <MessageSquare className="w-3 h-3 mr-1" />
                       <span>Details</span>
                     </Button>
+                    {/* Message button - navigates to inbox and opens chat for this order */}
+                    {onNavigateToInbox && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onNavigateToInbox(order._id)}
+                        className="flex-1 touch-target text-xs"
+                      >
+                        <MessageSquare className="w-3 h-3 mr-1" />
+                        <span>Message</span>
+                      </Button>
+                    )}
                     {/* Only show cancel button for cancellable statuses */}
                     {(order.status === "pending" || order.status === "pre-order-pending" || order.status === "accepted") && (
                       <Button

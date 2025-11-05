@@ -26,9 +26,11 @@ import { toast } from "sonner"
 
 interface OrderHistoryProps {
   onBackToMenu: () => void
+  // Optional callback to navigate to inbox with a specific orderId
+  onNavigateToInbox?: (orderId: string) => void
 }
 
-export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
+export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryProps) {
   const { orders, updateOrder, currentUser } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -496,6 +498,18 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
                       <MessageSquare className="w-3 h-3 mr-1" />
                       <span>Details</span>
                     </Button>
+                    {/* Message button - navigates to inbox and opens chat for this order */}
+                    {onNavigateToInbox && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onNavigateToInbox(order._id)}
+                        className="flex-1 touch-target text-xs"
+                      >
+                        <MessageSquare className="w-3 h-3 mr-1" />
+                        <span>Message</span>
+                      </Button>
+                    )}
                     {order.status === "pending" && (
                       <Button
                         variant="destructive"

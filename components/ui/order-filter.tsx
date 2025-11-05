@@ -82,7 +82,7 @@ export function OrderFilter({
               type="date"
               value={fromDate}
               onChange={(e) => onFromDateChange(e.target.value)}
-              className="text-sm"
+              className="text-sm relative z-[100]"
             />
           </div>
           <div className="flex-1">
@@ -92,7 +92,7 @@ export function OrderFilter({
               type="date"
               value={toDate}
               onChange={(e) => onToDateChange(e.target.value)}
-              className="text-sm"
+              className="text-sm relative z-[100]"
             />
           </div>
           <Button
@@ -144,7 +144,7 @@ export function OrderFilter({
                   type="date"
                   value={fromDate}
                   onChange={(e) => onFromDateChange(e.target.value)}
-                  className="text-sm"
+                  className="text-sm relative z-[100]"
                 />
               </div>
               <div>
@@ -154,7 +154,7 @@ export function OrderFilter({
                   type="date"
                   value={toDate}
                   onChange={(e) => onToDateChange(e.target.value)}
-                  className="text-sm"
+                  className="text-sm relative z-[100]"
                 />
               </div>
             </div>

@@ -22,8 +22,9 @@ export function ChatView() {
     messagesByOrder[o._id] = []
   }
 
-  // Get orders that are accepted (each accepted order gets a chat thread)
-  const ordersWithChat = orders.filter((order) => order.status === "accepted")
+  // Get all orders (chat is available for all orders after checkout)
+  // Exclude cancelled orders as they're no longer active
+  const ordersWithChat = orders.filter((order) => order.status !== "cancelled")
 
   // Get message count for each order
   const getMessageCount = (_orderId: string) => 0

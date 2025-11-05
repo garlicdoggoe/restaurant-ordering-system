@@ -22,10 +22,18 @@ export type CustomerView = "menu" | "orders" | "profile" | "preorders" | "inbox"
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
   const [isCartOpen, setIsCartOpen] = useState(false)
+  // State to track orderId to auto-open chat when navigating to inbox
+  const [orderIdToOpen, setOrderIdToOpen] = useState<string | null>(null)
   const { getCustomerActiveOrder, orders, currentUser } = useData()
   const { cartItems, addToCart: addToCartContext, updateQuantity, clearCart, getCartItemCount } = useCart()
   const customerId = currentUser?._id || ""
   const activeOrder = customerId ? getCustomerActiveOrder(customerId) : undefined
+
+  // Function to navigate to inbox and open chat for a specific order
+  const navigateToInboxWithOrder = (orderId: string) => {
+    setOrderIdToOpen(orderId)
+    setCurrentView("inbox")
+  }
 
   const addToCart = (item: any) => {
     if (activeOrder) {
@@ -96,15 +104,21 @@ export function CustomerInterface() {
           </div>
         ) : currentView === "orders" ? (
           <div className="p-3 xs:p-6">
-            <OrderHistory onBackToMenu={() => setCurrentView("menu")} />
+            <OrderHistory 
+              onBackToMenu={() => setCurrentView("menu")} 
+              onNavigateToInbox={navigateToInboxWithOrder}
+            />
           </div>
         ) : currentView === "preorders" ? (
           <div className="p-3 xs:p-6">
-            <PreOrdersView onBackToMenu={() => setCurrentView("menu")} />
+            <PreOrdersView 
+              onBackToMenu={() => setCurrentView("menu")} 
+              onNavigateToInbox={navigateToInboxWithOrder}
+            />
           </div>
         ) : currentView === "inbox" ? (
           <div className="p-3 xs:p-6">
-            <InboxView />
+            <InboxView orderIdToOpen={orderIdToOpen} onOrderOpened={() => setOrderIdToOpen(null)} />
           </div>
         ) : (
           <div className="p-3 xs:p-6">

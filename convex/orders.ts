@@ -199,13 +199,40 @@ export const create = mutation({
     }
 
     const now = Date.now();
-    return await ctx.db.insert("orders", {
+    const orderId = await ctx.db.insert("orders", {
       ...args,
       paymentScreenshot: resolvedPaymentScreenshot,
       customerId: currentUser._id as unknown as string,
       createdAt: now,
       updatedAt: now,
     });
+
+    // Seed initial chat message when order is created (after checkout)
+    // This allows customers and owners to chat about any order, regardless of status
+    const restaurant = await ctx.db.query("restaurant").first();
+    // Get the owner user to send the message with correct senderId
+    const ownerUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "owner"))
+      .first();
+    
+    const initialMessage = args.status === "pre-order-pending" 
+      ? `Pre-order placed. We'll review and confirm your order soon. Order #${orderId.toString().slice(-6).toUpperCase()}`
+      : `Order placed. We'll review and confirm your order soon. Order #${orderId.toString().slice(-6).toUpperCase()}`;
+    
+    // Only seed message if owner exists (should always exist, but check for safety)
+    if (ownerUser) {
+      await ctx.db.insert("chat_messages", {
+        orderId: orderId as unknown as string,
+        senderId: ownerUser._id as unknown as string,
+        senderName: restaurant?.name || `${ownerUser.firstName} ${ownerUser.lastName}`,
+        senderRole: "owner",
+        message: initialMessage,
+        timestamp: now,
+      });
+    }
+
+    return orderId;
   },
 });
 

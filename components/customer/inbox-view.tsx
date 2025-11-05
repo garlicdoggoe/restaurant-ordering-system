@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,15 +8,23 @@ import { MessageSquare } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
 
-export function InboxView() {
+interface InboxViewProps {
+  // Optional orderId to auto-open chat when component mounts or orderId changes
+  orderIdToOpen?: string | null
+  // Callback when chat is opened (to clear the orderIdToOpen state)
+  onOrderOpened?: () => void
+}
+
+export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {}) {
   const { orders, currentUser } = useData()
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
 
-  // Get customer's accepted orders (each accepted order gets a chat thread)
+  // Get all customer orders (chat is available for all orders after checkout)
+  // Exclude cancelled orders as they're no longer active
   const customerId = currentUser?._id || ""
   const ordersWithChat = orders.filter(
-    (order) => order.customerId === customerId && order.status === "accepted"
+    (order) => order.customerId === customerId && order.status !== "cancelled"
   )
 
   const statusColors = {
@@ -31,11 +39,28 @@ export function InboxView() {
     "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
   }
 
+  // Auto-open chat when orderIdToOpen is provided
+  // This allows opening chat for any order, not just accepted ones
+  React.useEffect(() => {
+    if (orderIdToOpen) {
+      // Verify the order exists and belongs to the customer
+      const orderToOpen = orders.find(
+        (order) => order._id === orderIdToOpen && order.customerId === customerId
+      )
+      if (orderToOpen) {
+        setSelectedOrderId(orderIdToOpen)
+        setChatOpen(true)
+        // Notify parent that chat has been opened
+        onOrderOpened?.()
+      }
+    }
+  }, [orderIdToOpen, orders, customerId, onOrderOpened])
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-fluid-2xl font-bold">Inbox</h1>
-        <p className="text-muted-foreground">Chat with restaurant about your accepted orders</p>
+        <p className="text-muted-foreground">Chat with restaurant about your orders</p>
       </div>
 
       {ordersWithChat.length === 0 ? (
