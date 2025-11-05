@@ -6,6 +6,7 @@ import { MenuBrowser } from "./menu-browser"
 import { Cart } from "./cart"
 import { OrderHistory } from "./order-history"
 import { PreOrdersView } from "./pre-orders-view"
+import { ActiveOrdersView } from "./active-orders-view"
 import { UserProfileSettings } from "./user-profile-settings"
 import { InboxView } from "./inbox-view"
 import { OrderTracking } from "./order-tracking"
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button"
 import { X, ShoppingCart } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-export type CustomerView = "menu" | "orders" | "profile" | "preorders" | "inbox"
+export type CustomerView = "menu" | "orders" | "profile" | "preorders" | "inbox" | "activeorders"
 
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
@@ -56,6 +57,19 @@ export function CustomerInterface() {
   const customerPreOrders = orders.filter((o) => o.customerId === customerId && o.orderType === "pre-order" && (o.status === "pre-order-pending" || o.status === "pending" || o.status === "accepted"))
   const preOrdersCount = customerPreOrders.length
 
+  // Active orders count - regular orders: pending, accepted, ready, in-transit, denied
+  // Pre-orders: accepted, ready, in-transit, denied (exclude pending)
+  const activeOrdersCount = orders.filter((o) => {
+    if (o.customerId !== customerId) return false
+    const regularActiveStatuses = ["pending", "accepted", "ready", "in-transit", "denied"]
+    const preOrderActiveStatuses = ["accepted", "ready", "in-transit", "denied"]
+    if (o.orderType === "pre-order") {
+      return preOrderActiveStatuses.includes(o.status)
+    } else {
+      return regularActiveStatuses.includes(o.status)
+    }
+  }).length
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Mobile cart toggle button */}
@@ -79,6 +93,7 @@ export function CustomerInterface() {
         onViewChange={setCurrentView} 
         cartItemCount={activeOrder ? 0 : getCartItemCount()}
         preOrdersCount={preOrdersCount}
+        activeOrdersCount={activeOrdersCount}
         onToggleCart={() => setIsCartOpen(!isCartOpen)}
       />
 
@@ -112,6 +127,13 @@ export function CustomerInterface() {
         ) : currentView === "preorders" ? (
           <div className="p-3 xs:p-6">
             <PreOrdersView 
+              onBackToMenu={() => setCurrentView("menu")} 
+              onNavigateToInbox={navigateToInboxWithOrder}
+            />
+          </div>
+        ) : currentView === "activeorders" ? (
+          <div className="p-3 xs:p-6">
+            <ActiveOrdersView 
               onBackToMenu={() => setCurrentView("menu")} 
               onNavigateToInbox={navigateToInboxWithOrder}
             />

@@ -368,12 +368,12 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   variant={orderType === "dine-in" ? "default" : "outline"}
                   className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "dine-in" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                   onClick={() => setOrderType("dine-in")}
-                  // disabled
+                  disabled
                 >
                   DINE IN
                 </Button>
                 <Button
-                  type="button"
+                type="button"
                   variant={orderType === "takeaway" ? "default" : "outline"}
                   className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "takeaway" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                   onClick={() => setOrderType("takeaway")}
