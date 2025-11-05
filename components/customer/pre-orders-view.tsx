@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, ArrowLeft, Calendar, ChevronDown, ChevronUp } from "lucide-react"
+import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, ArrowLeft, Calendar, ChevronDown, ChevronUp, CircleCheck } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
+import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,12 +37,51 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
   // State for expanded/collapsed order cards
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
 
-  // Filter for active pre-orders (pre-order-pending, pending, or accepted status)
-  const activePreOrders = orders.filter((order) => 
-    order.customerId === customerId && 
-    order.orderType === "pre-order" && 
-    (order.status === "pre-order-pending" || order.status === "pending" || order.status === "accepted")
-  )
+  // Filter state - support all possible statuses
+  const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all")
+  const [fromDate, setFromDate] = useState<string>("")
+  const [toDate, setToDate] = useState<string>("")
+
+  // Status filter options for pre-orders - includes all possible statuses
+  const statusFilterOptions: StatusFilterOption[] = [
+    { id: "all", label: "All", icon: Calendar },
+    { id: "pre-order-pending", label: "Pending Acknowledgment", icon: Clock },
+    { id: "pending", label: "Pending", icon: Clock },
+    { id: "accepted", label: "Accepted", icon: CheckCircle },
+    { id: "ready", label: "Ready", icon: CheckCircle },
+    { id: "denied", label: "Denied", icon: XCircle },
+    { id: "completed", label: "Completed", icon: CircleCheck },
+    { id: "cancelled", label: "Cancelled", icon: Ban },
+    { id: "in-transit", label: "In Transit", icon: Truck },
+    { id: "delivered", label: "Delivered", icon: Package },
+  ]
+
+  // Filter for ALL pre-orders - ensure only pre-order type orders are shown
+  // Apply date and status filtering - show all statuses now
+  const activePreOrders = orders
+    .filter((order) => {
+      // Always ensure only pre-order type orders are shown
+      if (order.customerId !== customerId || order.orderType !== "pre-order") {
+        return false
+      }
+
+      // Date filtering: compare created time using either Convex _creationTime or legacy createdAt
+      // For "From" date, start from beginning of day (00:00:00.000) to include the entire selected day
+      const fromTs = fromDate ? new Date(fromDate).setHours(0, 0, 0, 0) : null
+      // For "To" date, extend to end of day (23:59:59.999) to include the entire selected day
+      const toTs = toDate ? new Date(toDate).setHours(23, 59, 59, 999) : null
+      
+      const createdTs = (order._creationTime ?? order.createdAt) || 0
+      
+      // Inclusive filtering: >= fromTs and <= toTs
+      if (fromTs !== null && createdTs < fromTs) return false
+      if (toTs !== null && createdTs > toTs) return false
+
+      // Apply status filter - now includes all statuses (no active-only restriction)
+      if (statusFilter === "all") return true
+      return order.status === statusFilter
+    })
+    .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
 
   const handleCancelOrder = (orderId: string) => {
     updateOrder(orderId, { status: "cancelled" })
@@ -61,18 +101,40 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
     })
   }
 
+  // Helper function to clear all filters
+  const clearAllFilters = () => {
+    setFromDate("")
+    setToDate("")
+    setStatusFilter("all")
+  }
+
+  // Status icons for all possible order statuses
   const statusIcons = {
     accepted: <CheckCircle className="w-4 h-4 text-green-600" />,
     pending: <Clock className="w-4 h-4 text-yellow-600" />,
     "pre-order-pending": <Clock className="w-4 h-4 text-blue-600" />,
+    ready: <CheckCircle className="w-4 h-4 text-indigo-600" />,
+    denied: <XCircle className="w-4 h-4 text-red-600" />,
+    completed: <CircleCheck className="w-4 h-4 text-green-600" />,
+    cancelled: <Ban className="w-4 h-4 text-gray-600" />,
+    "in-transit": <Truck className="w-4 h-4 text-blue-600" />,
+    delivered: <Package className="w-4 h-4 text-emerald-600" />,
   }
 
+  // Status colors for all possible order statuses
   const statusColors = {
     accepted: "bg-green-100 text-green-800 border-green-200",
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
     "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
+    ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
+    denied: "bg-red-100 text-red-800 border-red-200",
+    completed: "bg-green-100 text-green-800 border-green-200",
+    cancelled: "bg-gray-100 text-gray-800 border-gray-200",
+    "in-transit": "bg-blue-100 text-blue-800 border-blue-200",
+    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
   }
 
+  // Border classes for all possible order statuses
   const getOrderBorderClass = (status: string) => {
     switch (status) {
       case "pending":
@@ -81,6 +143,18 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
         return "border-green-500 border-2"
       case "pre-order-pending":
         return "border-blue-500 border-2"
+      case "ready":
+        return "border-indigo-500 border-2"
+      case "denied":
+        return "border-red-500 border-2"
+      case "completed":
+        return "border-green-500 border-2"
+      case "cancelled":
+        return "border-gray-500 border-2"
+      case "in-transit":
+        return "border-blue-500 border-2"
+      case "delivered":
+        return "border-emerald-500 border-2"
       default:
         return "border-2"
     }
@@ -97,11 +171,24 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
           <div>
             <h1 className="text-fluid-2xl font-bold">Pre-Orders</h1>
             <p className="text-fluid-sm text-muted-foreground">
-              {activePreOrders.length} active pre-order{activePreOrders.length !== 1 ? 's' : ''}
+              {activePreOrders.length} pre-order{activePreOrders.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
       </div>
+
+      {/* Filter Component */}
+      <OrderFilter
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
+        statusFilter={statusFilter}
+        onStatusFilterChange={(filter) => setStatusFilter(filter as "all" | OrderStatus)}
+        statusFilterOptions={statusFilterOptions}
+        onClearAll={clearAllFilters}
+        drawerTitle="Filter Pre-Orders"
+      />
 
       {/* Pre-Orders List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -109,9 +196,9 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
           <Card className="md:col-span-2 lg:col-span-3 xl:col-span-4">
             <CardContent className="p-6 xs:p-8 text-center">
               <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-fluid-lg font-semibold mb-2">No active pre-orders</h3>
+              <h3 className="text-fluid-lg font-semibold mb-2">No pre-orders</h3>
               <p className="text-fluid-sm text-muted-foreground">
-                You don't have any active pre-orders at the moment.
+                You don't have any pre-orders {statusFilter !== "all" ? `with status "${statusFilter}"` : ""} at the moment.
               </p>
             </CardContent>
           </Card>
@@ -131,9 +218,9 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm font-semibold">Pre-Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
                         <div className="flex items-center gap-2">
-                          <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1 text-xs`}>
-                            {statusIcons[order.status as keyof typeof statusIcons]}
-                            <span className="capitalize">{order.status}</span>
+                          <Badge className={`${statusColors[order.status as keyof typeof statusColors] || "bg-gray-100 text-gray-800 border-gray-200"} flex items-center gap-1 text-xs`}>
+                            {statusIcons[order.status as keyof typeof statusIcons] || <Clock className="w-4 h-4 text-gray-600" />}
+                            <span className="capitalize">{order.status.replace(/-/g, " ")}</span>
                           </Badge>
                           {/* Expand/Collapse Icon - Only show on mobile */}
                           <div className="lg:hidden">
@@ -172,6 +259,25 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
                     <div className="p-2 bg-orange-50 border border-orange-200 rounded text-xs">
                       <p className="font-medium text-orange-800">
                         ⏳ Awaiting owner acknowledgement
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Denied status indicator with reason */}
+                  {order.status === "denied" && order.denialReason && (
+                    <div className="p-2 bg-red-50 border border-red-200 rounded text-xs">
+                      <p className="font-medium text-red-800 mb-1">
+                        ❌ Order Denied
+                      </p>
+                      <p className="text-red-700">{order.denialReason}</p>
+                    </div>
+                  )}
+
+                  {/* Cancelled status indicator */}
+                  {order.status === "cancelled" && (
+                    <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
+                      <p className="font-medium text-gray-800">
+                        🚫 Order Cancelled
                       </p>
                     </div>
                   )}
@@ -259,7 +365,8 @@ export function PreOrdersView({ onBackToMenu }: PreOrdersViewProps) {
                       <MessageSquare className="w-3 h-3 mr-1" />
                       <span>Details</span>
                     </Button>
-                    {(order.status === "pending" || order.status === "pre-order-pending") && (
+                    {/* Only show cancel button for cancellable statuses */}
+                    {(order.status === "pending" || order.status === "pre-order-pending" || order.status === "accepted") && (
                       <Button
                         size="sm"
                         onClick={() => setCancelOrderId(order._id)}

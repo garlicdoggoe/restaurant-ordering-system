@@ -5,11 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network, Filter, X, Calendar, ChevronDown, ChevronUp } from "lucide-react"
+import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network, Calendar, ChevronDown, ChevronUp } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
+import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   AlertDialog,
@@ -44,7 +43,15 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
   // Date and time filter state
   const [fromDate, setFromDate] = useState<string>("")
   const [toDate, setToDate] = useState<string>("")
-  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
+
+  // Status filter options for mobile drawer (same as tabs)
+  const statusFilterOptions: StatusFilterOption[] = [
+    { id: "all", label: "All Orders", icon: FileText },
+    { id: "pre-orders", label: "Pre-orders", icon: Clock },
+    { id: "completed", label: "Completed", icon: CheckCircle },
+    { id: "cancelled", label: "Cancelled", icon: XCircle },
+    { id: "denied", label: "Denied", icon: Ban },
+  ]
 
   // State for remaining payment proof upload - per order
   const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
@@ -313,30 +320,9 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
         </div>
       </div>
 
-      {/* Mobile Filter Button - Fixed (outside header so it stays on screen) */}
-      {!isFilterDrawerOpen && (
-        <div className="lg:hidden fixed top-15 right-4 z-50">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsFilterDrawerOpen(true)}
-            className="touch-target flex items-center gap-2 shadow-lg bg-background/95 backdrop-blur-sm border-2"
-          >
-            <Filter className="h-4 w-4" />
-            <span className="text-xs">Filter</span>
-          </Button>
-        </div>
-      )}
-
       {/* Filter Tabs - Always visible in header */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
-        {[
-          { id: "all", label: "All Orders", icon: FileText },
-          { id: "pre-orders", label: "Pre-orders", icon: Clock },
-          { id: "completed", label: "Completed", icon: CheckCircle },
-          { id: "cancelled", label: "Cancelled", icon: XCircle },
-          { id: "denied", label: "Denied", icon: Ban },
-        ].map((tab) => {
+        {statusFilterOptions.map((tab) => {
           const Icon = tab.icon
           const isActive = statusFilter === tab.id
           return (
@@ -354,40 +340,18 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
         })}
       </div>
 
-      {/* Desktop Date Filters */}
-      <div className="hidden lg:block space-y-3">
-        <Label className="text-sm font-medium">Date Range</Label>
-        <div className="flex gap-3 items-end">
-          <div className="flex-1">
-            <Label htmlFor="desktop-from-date" className="text-xs text-muted-foreground">From Date</Label>
-            <Input
-              id="desktop-from-date"
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="text-sm"
-            />
-          </div>
-          <div className="flex-1">
-            <Label htmlFor="desktop-to-date" className="text-xs text-muted-foreground">To Date</Label>
-            <Input
-              id="desktop-to-date"
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="text-sm"
-            />
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={clearAllFilters}
-            className="touch-target"
-          >
-            Clear All
-          </Button>
-        </div>
-      </div>
+      {/* Filter Component */}
+      <OrderFilter
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
+        statusFilter={statusFilter}
+        onStatusFilterChange={(filter) => setStatusFilter(filter as any)}
+        statusFilterOptions={statusFilterOptions}
+        onClearAll={clearAllFilters}
+        drawerTitle="Filter Orders"
+      />
 
       {/* Orders List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -582,110 +546,6 @@ export function OrderHistory({ onBackToMenu }: OrderHistoryProps) {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Mobile Filter Drawer */}
-      {isFilterDrawerOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-50"
-          onClick={() => setIsFilterDrawerOpen(false)}
-        />
-      )}
-      
-      <div className={`
-        lg:hidden fixed top-0 left-0 right-0 bg-background border-b z-50
-        transform transition-transform duration-300 ease-in-out
-        ${isFilterDrawerOpen ? 'translate-y-0' : '-translate-y-full'}
-      `}>
-        <div className="p-4 space-y-4">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Filter Orders</h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsFilterDrawerOpen(false)}
-              className="touch-target"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Date Filters */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Date Range</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="from-date" className="text-xs text-muted-foreground">From Date</Label>
-                <Input
-                  id="from-date"
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              <div>
-                <Label htmlFor="to-date" className="text-xs text-muted-foreground">To Date</Label>
-                <Input
-                  id="to-date"
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Order Type Filters */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Order Type</Label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { id: "all", label: "All Orders", icon: FileText },
-                { id: "pre-orders", label: "Pre-orders", icon: Clock },
-                { id: "completed", label: "Completed", icon: CheckCircle },
-                { id: "cancelled", label: "Cancelled", icon: XCircle },
-                { id: "denied", label: "Denied", icon: Ban },
-              ].map((tab) => {
-                const Icon = tab.icon
-                const isActive = statusFilter === tab.id
-                return (
-                  <Button
-                    key={tab.id}
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setStatusFilter(tab.id as any)}
-                    className={`flex-shrink-0 gap-2 touch-target text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{tab.label}</span>
-                  </Button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearAllFilters}
-              className="flex-1 touch-target"
-            >
-              Clear All
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setIsFilterDrawerOpen(false)}
-              className="flex-1 touch-target"
-            >
-              Apply Filters
-            </Button>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
