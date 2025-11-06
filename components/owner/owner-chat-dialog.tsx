@@ -8,11 +8,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { Send } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Send, Image as ImageIcon, MessageSquare } from "lucide-react"
 import { useData, type ChatMessage } from "@/lib/data-context"
 import { cn } from "@/lib/utils"
-import { useQuery } from "convex/react"
+import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { OrderDetails } from "./order-details"
+import { useRouter } from "next/navigation"
 
 interface OwnerChatDialogProps {
   orderId: string
@@ -20,14 +29,53 @@ interface OwnerChatDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+// Quick reply templates for owner
+const QUICK_REPLIES = [
+  "We updated your order.",
+  "Please see the changes above.",
+  "Thank you for your order!",
+  "Your order is being prepared.",
+  "We'll notify you when it's ready.",
+]
+
+// Component to render image message, resolving storageId to URL if needed
+function ChatImageMessage({ message, onImageClick }: { message: string; onImageClick?: (url: string) => void }) {
+  // StorageIds are alphanumeric strings without spaces - exclude text messages
+  const isStorageId = message && !message.startsWith('http') && !message.startsWith('/') && !message.includes('.') && message.length > 20 && !message.includes(' ')
+  const imageUrl = useQuery(
+    api.files.getUrl,
+    isStorageId ? { storageId: message as any } : "skip"
+  )
+  
+  const finalUrl = imageUrl || message
+  
+  return (
+    <img
+      src={finalUrl}
+      alt="Attachment"
+      className="rounded max-h-64 max-w-full object-contain cursor-zoom-in"
+      onClick={onImageClick ? () => onImageClick(finalUrl) : undefined}
+    />
+  )
+}
+
 export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialogProps) {
-  const { sendMessage, getOrderById, restaurant, currentUser } = useData()
+  const { sendMessage, getOrderById, restaurant, currentUser, updateOrder } = useData()
   const [message, setMessage] = useState("")
+  const [isUploading, setIsUploading] = useState(false)
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
   const order = getOrderById(orderId)
   const messages: ChatMessage[] = useQuery(api.chat.listByOrder, { orderId }) ?? []
   const ownerId = currentUser?._id || ""
+
+  // Mutations for file upload
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl)
 
   useEffect(() => {
     // Find the scrollable viewport element within the ScrollArea
@@ -54,6 +102,179 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
       e.preventDefault()
       handleSend()
     }
+  }
+
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !ownerId) return
+
+    // Check if file is an image
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file")
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      // Generate upload URL
+      const uploadUrl = await generateUploadUrl({})
+      
+      // Upload file to Convex storage
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      })
+      const { storageId } = await uploadResponse.json()
+
+      // Send the storageId as the message - it will be resolved to URL in rendering
+      // StorageIds are sent as-is and resolved client-side using useQuery
+      sendMessage(orderId, ownerId, restaurant.name, "owner", storageId)
+    } catch (error) {
+      console.error("Failed to upload image:", error)
+      alert("Failed to upload image. Please try again.")
+    } finally {
+      setIsUploading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }
+
+  // Handle quick reply selection
+  const handleQuickReply = (reply: string) => {
+    setMessage(reply)
+  }
+
+  // Helper function to check if message is an image URL or storageId
+  const isImageUrl = (text: string) => {
+    // Check if it's an HTTP(S) URL ending in image extension
+    if (/^https?:\/\/.*\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(text)) {
+      return true
+    }
+    // Check if it's a storageId (not starting with http, no dots, long string, no spaces)
+    // StorageIds from Convex are typically long alphanumeric strings without spaces
+    // Text messages contain spaces, so exclude them
+    if (text && !text.startsWith('http') && !text.startsWith('/') && !text.includes('.') && text.length > 20 && !text.includes(' ')) {
+      return true
+    }
+    return false
+  }
+
+  // Helper function to check if text is a storageId (not a URL)
+  const isStorageId = (text: string) => {
+    // StorageIds are alphanumeric strings without spaces - exclude text messages
+    return text && !text.startsWith('http') && !text.startsWith('/') && !text.includes('.') && text.length > 20 && !text.includes(' ')
+  }
+
+  // Helper function to parse message and replace "View details:" with a button
+  // Also adds "View details" button for denial messages
+  const parseMessage = (text: string) => {
+    const parts: (string | React.ReactNode)[] = []
+    
+    // Check if message contains "View details:" pattern
+    // Pattern: "View details: /customer?orderId=..." or "View details: ..."
+    const viewDetailsPattern = /View details:\s*([^\s]+)?/i
+    
+    if (viewDetailsPattern.test(text)) {
+      const match = text.match(viewDetailsPattern)
+      
+      if (match && match.index !== undefined) {
+        // Add text before "View details:"
+        if (match.index > 0) {
+          parts.push(text.substring(0, match.index))
+        }
+        
+        // Add button instead of "View details:" text
+        parts.push(
+          <Button
+            key="view-details-btn"
+            variant="link"
+            size="sm"
+            className="h-auto p-0 text-blue-600 underline hover:text-blue-800 inline"
+            onClick={() => setDetailsDialogOpen(true)}
+          >
+            View details
+          </Button>
+        )
+        
+        // Add remaining text after the match
+        const afterMatch = match.index + match[0].length
+        if (afterMatch < text.length) {
+          parts.push(text.substring(afterMatch))
+        }
+        
+        return parts.length > 0 ? parts : text
+      }
+    }
+
+    // Detect and render button for "Open in Order Line:" pattern
+    // Example: "Open in Order Line: /owner?orderId=<id>"
+    const openInOrderLinePattern = /Open in Order Line:\s*([^\s]+)?/i
+    if (openInOrderLinePattern.test(text)) {
+      const match = text.match(openInOrderLinePattern)
+      const url = match?.[1] || `/owner?orderId=${orderId}`
+
+      if (match && match.index !== undefined) {
+        if (match.index > 0) {
+          parts.push(text.substring(0, match.index))
+        }
+
+        parts.push(
+          <Button
+            key="open-order-line-btn"
+            variant="link"
+            size="sm"
+            className="h-auto p-0 text-blue-600 underline hover:text-blue-800 inline"
+            onClick={() => {
+              router.push(url)
+              onOpenChange(false)
+            }}
+          >
+            Open in Order Line
+          </Button>
+        )
+
+        const afterMatch = match.index + match[0].length
+        if (afterMatch < text.length) {
+          parts.push(text.substring(afterMatch))
+        }
+
+        return parts.length > 0 ? parts : text
+      }
+    }
+    
+    // Check if message is a denial message - add "View details" button after the message
+    const denialPattern = /Order denied\./i
+    if (denialPattern.test(text)) {
+      // First, linkify any URLs in the message
+      const linkifiedParts = linkifyMessage(text)
+      const linkifiedArray = Array.isArray(linkifiedParts) ? linkifiedParts : [linkifiedParts]
+      
+      // Add the linkified message parts
+      parts.push(...linkifiedArray)
+      
+      // Add a space and then the "View details" button
+      parts.push(" ")
+      parts.push(
+        <Button
+          key="view-details-denial-btn"
+          variant="link"
+          size="sm"
+          className="h-auto p-0 text-blue-600 underline hover:text-blue-800 inline ml-1"
+          onClick={() => setDetailsDialogOpen(true)}
+        >
+          View details
+        </Button>
+      )
+      
+      return parts.length > 0 ? parts : text
+    }
+    
+    // If no special patterns, use linkifyMessage for URLs
+    return linkifyMessage(text)
   }
 
   // Helper function to linkify URLs in message text
@@ -133,16 +354,34 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl h-[600px] flex flex-col">
+      <DialogContent className="w-[70vw] h-[70vh] max-w-none flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle>Chat with {order.customerName}</DialogTitle>
-              <p className="text-sm text-muted-foreground">Order #{orderId.slice(-6).toUpperCase()}</p>
+              <button
+                type="button"
+                className="text-sm text-blue-600 underline hover:text-blue-800 cursor-pointer"
+                onClick={() => setDetailsDialogOpen(true)}
+                aria-label="Open order details"
+              >
+                Order #{orderId.slice(-6).toUpperCase()}
+              </button>
             </div>
-            <Badge variant="outline" className={statusColors[order.status as keyof typeof statusColors]}>
-              {order.status}
-            </Badge>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Customer can send images</span>
+                <Switch
+                  checked={!!order.allowCustomerImages}
+                  onCheckedChange={(checked) => {
+                    updateOrder(orderId, { allowCustomerImages: checked })
+                  }}
+                />
+              </div>
+              <Badge variant="outline" className={statusColors[order.status as keyof typeof statusColors]}>
+                {order.status}
+              </Badge>
+            </div>
           </div>
         </DialogHeader>
 
@@ -156,11 +395,24 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
                   <div
                     className={cn(
                       "max-w-[70%] rounded-lg p-3",
-                      msg.senderRole === "owner" ? "bg-primary text-primary-foreground" : "bg-muted",
+                      msg.senderRole === "owner"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted border-2 border-border",
                     )}
                   >
-                    <p className="text-sm font-medium mb-1">{msg.senderName}</p>
-                    <p className="text-sm">{linkifyMessage(msg.message)}</p>
+                    <p className="text-sm font-medium mb-1">{msg.senderRole === "owner" ? "You" : msg.senderName}</p>
+                    {/* Render image if message is an image URL or storageId */}
+                    {isImageUrl(msg.message) ? (
+                      <ChatImageMessage
+                        message={msg.message}
+                        onImageClick={(url) => {
+                          setPreviewImageUrl(url)
+                          setImagePreviewOpen(true)
+                        }}
+                      />
+                    ) : (
+                      <p className="text-sm">{parseMessage(msg.message)}</p>
+                    )}
                     <p className="text-xs opacity-70 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</p>
                   </div>
                 </div>
@@ -170,17 +422,73 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
         </ScrollArea>
 
         <div className="flex gap-2 pt-4 border-t">
+          {/* Quick replies dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" disabled={isUploading}>
+                <MessageSquare className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {QUICK_REPLIES.map((reply, index) => (
+                <DropdownMenuItem key={index} onClick={() => handleQuickReply(reply)}>
+                  {reply}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Image upload button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            <ImageIcon className="w-4 h-4" />
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+
           <Input
             placeholder="Type your message..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
+            disabled={isUploading}
           />
-          <Button onClick={handleSend} size="icon">
+          <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim()}>
             <Send className="w-4 h-4" />
           </Button>
         </div>
       </DialogContent>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto flex items-center justify-center">
+          {previewImageUrl && (
+            <img
+              src={previewImageUrl}
+              alt="Preview"
+              className="max-w-[90vw] max-h-[80vh] object-contain rounded"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Order Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          {orderId && (
+            <OrderDetails orderId={orderId} onClose={() => setDetailsDialogOpen(false)} />
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

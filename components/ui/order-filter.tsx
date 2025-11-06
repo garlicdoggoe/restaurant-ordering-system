@@ -29,6 +29,9 @@ interface OrderFilterProps {
   // Clear all filters handler
   onClearAll: () => void
   
+  // Apply filters handler (parent decides when to commit staged values)
+  onApply?: () => void
+  
   // Optional title for the filter drawer
   drawerTitle?: string
 }
@@ -50,6 +53,7 @@ export function OrderFilter({
   onStatusFilterChange,
   statusFilterOptions,
   onClearAll,
+  onApply,
   drawerTitle = "Filter Orders",
 }: OrderFilterProps) {
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
@@ -72,37 +76,70 @@ export function OrderFilter({
       )}
 
       {/* Desktop Date Filters */}
-      <div className="hidden lg:block space-y-3">
-        <Label className="text-sm font-medium">Date Range</Label>
-        <div className="flex gap-3 items-end">
-          <div className="flex-1">
-            <Label htmlFor="desktop-from-date" className="text-xs text-muted-foreground">From Date</Label>
-            <Input
-              id="desktop-from-date"
-              type="date"
-              value={fromDate}
-              onChange={(e) => onFromDateChange(e.target.value)}
-              className="text-sm relative z-[100]"
-            />
+      <div className="hidden lg:block space-y-4">
+        {/* Date Range */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Date Range</Label>
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <Label htmlFor="desktop-from-date" className="text-xs text-muted-foreground">From Date</Label>
+              <Input
+                id="desktop-from-date"
+                type="date"
+                value={fromDate}
+                onChange={(e) => onFromDateChange(e.target.value)}
+                className="text-sm relative z-[100]"
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="desktop-to-date" className="text-xs text-muted-foreground">To Date</Label>
+              <Input
+                id="desktop-to-date"
+                type="date"
+                value={toDate}
+                onChange={(e) => onToDateChange(e.target.value)}
+                className="text-sm relative z-[100]"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClearAll}
+              className="touch-target"
+            >
+              Clear All
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => onApply?.()}
+              className="touch-target"
+            >
+              Apply Filters
+            </Button>
           </div>
-          <div className="flex-1">
-            <Label htmlFor="desktop-to-date" className="text-xs text-muted-foreground">To Date</Label>
-            <Input
-              id="desktop-to-date"
-              type="date"
-              value={toDate}
-              onChange={(e) => onToDateChange(e.target.value)}
-              className="text-sm relative z-[100]"
-            />
+        </div>
+
+        {/* Status */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Status</Label>
+          <div className="flex flex-wrap gap-2">
+            {statusFilterOptions.map((option) => {
+              const Icon = option.icon
+              const isActive = statusFilter === option.id
+              return (
+                <Button
+                  key={option.id}
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onStatusFilterChange(option.id)}
+                  className={`flex-shrink-0 gap-2 touch-target text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{option.label}</span>
+                </Button>
+              )
+            })}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onClearAll}
-            className="touch-target"
-          >
-            Clear All
-          </Button>
         </div>
       </div>
 
@@ -195,7 +232,10 @@ export function OrderFilter({
             </Button>
             <Button
               size="sm"
-              onClick={() => setIsFilterDrawerOpen(false)}
+              onClick={() => {
+                onApply?.()
+                setIsFilterDrawerOpen(false)
+              }}
               className="flex-1 touch-target"
             >
               Apply Filters

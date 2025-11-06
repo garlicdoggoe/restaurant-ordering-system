@@ -14,7 +14,7 @@ import { HistoryLogView } from "./history-log-view" // Added history log view im
 
 export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" | "promotions" | "chat" | "history-log" // Added chat, history & history-log to view types
 
-export function OwnerDashboard() {
+export function OwnerDashboard({ initialOrderId }: { initialOrderId?: string }) {
   const [currentView, setCurrentView] = useState<OwnerView>("orders")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -41,7 +41,7 @@ export function OwnerDashboard() {
         <OwnerHeader />
 
         <main className="flex-1 overflow-y-auto p-3 xs:p-6">
-          {currentView === "orders" && <OrdersView />}
+          {currentView === "orders" && <OrdersView initialOrderId={initialOrderId} />}
           {currentView === "history" && <HistoricalOrdersView />}
           {currentView === "menu" && <MenuView />}
           {currentView === "settings" && <RestaurantSettings />}

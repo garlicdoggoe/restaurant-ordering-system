@@ -203,12 +203,16 @@ export const create = mutation({
       ...args,
       paymentScreenshot: resolvedPaymentScreenshot,
       customerId: currentUser._id as unknown as string,
+      // Default: customers cannot send images unless explicitly enabled by owner
+      allowCustomerImages: false,
       createdAt: now,
       updatedAt: now,
     });
 
     // Seed initial chat message when order is created (after checkout)
-    // This allows customers and owners to chat about any order, regardless of status
+    // This allows customers and owners to chat about any order, regardless of status or orderType
+    // Messages are created for all orders including: pending non-preorders, pending pre-orders,
+    // and all other order types and statuses
     const restaurant = await ctx.db.query("restaurant").first();
     // Get the owner user to send the message with correct senderId
     const ownerUser = await ctx.db
@@ -216,9 +220,11 @@ export const create = mutation({
       .filter((q) => q.eq(q.field("role"), "owner"))
       .first();
     
+    // Use different message text for pre-order-pending status vs regular pending/other statuses
+    // Both pre-orders and regular orders (including pending non-preorders) get initial messages
     const initialMessage = args.status === "pre-order-pending" 
-      ? `Pre-order placed. We'll review and confirm your order soon. Order #${orderId.toString().slice(-6).toUpperCase()}`
-      : `Order placed. We'll review and confirm your order soon. Order #${orderId.toString().slice(-6).toUpperCase()}`;
+      ? `Pre-order placed. We'll review and confirm your order soon. Order #${orderId.toString().slice(-6).toUpperCase()} | View details: /owner?orderId=${orderId}`
+      : `Order placed. We'll review and confirm your order soon. Order #${orderId.toString().slice(-6).toUpperCase()} | View details: /owner?orderId=${orderId}`;
     
     // Only seed message if owner exists (should always exist, but check for safety)
     if (ownerUser) {
@@ -275,6 +281,8 @@ export const update = mutation({
           unitPrice: v.optional(v.number()),
         })
       )),
+      // Toggle if customer can send images in chat for this order
+      allowCustomerImages: v.optional(v.boolean()),
     }),
   },
   handler: async (ctx, { id, data }) => {
@@ -297,6 +305,22 @@ export const update = mutation({
       const wasAccepted = existing.status === "accepted";
       await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
 
+      // Auto-chat when owner acknowledges a pre-order
+      // Trigger condition: status transitions from "pre-order-pending" to "pending"
+      // This informs both customer and owner in the shared chat thread.
+      if (existing.status === "pre-order-pending" && data.status === "pending") {
+        const restaurant = await ctx.db.query("restaurant").first();
+        await ctx.db.insert("chat_messages", {
+          orderId: id as unknown as string,
+          senderId: currentUser._id as unknown as string,
+          senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+          senderRole: "owner",
+          // Include a customer-friendly details link parsed by chat dialogs into a button
+          message: `Pre-order acknowledged. We'll notify you when it's being prepared. View details: /customer?orderId=${id}`,
+          timestamp: Date.now(),
+        });
+      }
+
       // Seed chat message on first transition to accepted status
       if (!wasAccepted && data.status === "accepted") {
         // Get restaurant name for the message sender
@@ -307,7 +331,21 @@ export const update = mutation({
           senderId: currentUser._id as unknown as string,
           senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
           senderRole: "owner",
-          message: `Order accepted. View details: /customer?orderId=${id}`,
+          message: `Order now being prepared.`,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Auto-chat on denial with reason
+      if (data.status === "denied") {
+        const restaurant = await ctx.db.query("restaurant").first();
+        const reason = data.denialReason ?? existing.denialReason ?? "No reason provided";
+        await ctx.db.insert("chat_messages", {
+          orderId: id as unknown as string,
+          senderId: currentUser._id as unknown as string,
+          senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+          senderRole: "owner",
+          message: `Order denied. Reason: ${reason}`,
           timestamp: Date.now(),
         });
       }
@@ -331,6 +369,34 @@ export const update = mutation({
 
     if (allowedCancelUpdate) {
       await ctx.db.patch(id, { status: "cancelled", updatedAt: Date.now() });
+      
+      // Send customer cancellation message
+      await ctx.db.insert("chat_messages", {
+        orderId: id as unknown as string,
+        senderId: currentUser._id as unknown as string,
+        senderName: existing.customerName,
+        senderRole: "customer",
+        message: "I have cancelled this order",
+        timestamp: Date.now(),
+      });
+      
+      // Automatically send owner refund message
+      const restaurant = await ctx.db.query("restaurant").first();
+      const ownerUser = await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("role"), "owner"))
+        .first();
+      
+      if (ownerUser) {
+        await ctx.db.insert("chat_messages", {
+          orderId: id as unknown as string,
+          senderId: ownerUser._id as unknown as string,
+          senderName: restaurant?.name || `${ownerUser.firstName} ${ownerUser.lastName}`,
+          senderRole: "owner",
+          message: "Your refund is on the way! It will be processed within 1–3 business days. We’ll send it to the GCash number you provided and share a screenshot once completed 😊",
+          timestamp: Date.now(),
+        });
+      }
     } else if (allowedPaymentProofUpdate) {
       // If the client sent a Convex storageId instead of a URL, resolve it to a URL
       let remainingPaymentProofUrl = data.remainingPaymentProofUrl;
@@ -389,9 +455,12 @@ export const updateOrderItems = mutation({
     const existing = await ctx.db.get(orderId);
     if (!existing) throw new Error("Order not found");
 
-    // Only allow modification for pending and accepted orders
-    if (existing.status !== "pending" && existing.status !== "accepted") {
-      throw new Error("Only pending and accepted orders can be modified");
+    // Only allow modification when not in blocked states
+    // Blocked states: accepted, completed, in-transit, delivered, cancelled
+    // This allows modification for: pending, pre-order-pending, denied, ready
+    const blocked = new Set(["accepted", "completed", "in-transit", "delivered", "cancelled"]);
+    if (blocked.has(existing.status)) {
+      throw new Error("Order items cannot be modified in the current state");
     }
 
     // Validate items array is not empty
@@ -435,6 +504,59 @@ export const updateOrderItems = mutation({
       previousValue,
       newValue,
       itemDetails,
+      timestamp: Date.now(),
+    });
+
+    // Auto-chat summary of item changes
+    const prevItems = JSON.parse(previousValue)?.items ?? existing.items;
+    const nextItems = items;
+    
+    // Helper function to summarize item changes
+    const summarize = (prev: any[], next: any[]) => {
+      // Create a key from menuItemId and variantId (if present)
+      const byKey = (arr: any[]) => new Map(
+        arr.map(i => [`${i.menuItemId}${i.variantId || ""}`, i])
+      );
+      const prevMap = byKey(prev);
+      const nextMap = byKey(next);
+      
+      const added: string[] = [];
+      const removed: string[] = [];
+      const changed: string[] = [];
+      
+      // Check for added or changed items
+      for (const [k, v] of nextMap.entries()) {
+        const p = prevMap.get(k);
+        if (!p) {
+          added.push(`${v.name} x${v.quantity}`);
+        } else if (p.quantity !== v.quantity) {
+          changed.push(`${v.name} ${p.quantity}→${v.quantity}`);
+        }
+      }
+      
+      // Check for removed items
+      for (const [k, v] of prevMap.entries()) {
+        if (!nextMap.has(k)) {
+          removed.push(v.name);
+        }
+      }
+      
+      const parts: string[] = [];
+      if (added.length) parts.push(`added: ${added.join(", ")}`);
+      if (removed.length) parts.push(`removed: ${removed.join(", ")}`);
+      if (changed.length) parts.push(`qty: ${changed.join(", ")}`);
+      
+      return parts.join("; ") || "items updated";
+    };
+    
+    const summary = summarize(prevItems, nextItems);
+    const restaurant = await ctx.db.query("restaurant").first();
+    await ctx.db.insert("chat_messages", {
+      orderId: orderId as unknown as string,
+      senderId: currentUser._id as unknown as string,
+      senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+      senderRole: "owner",
+      message: `Order items updated (${summary}). New total: ₱${total.toFixed(2)}`,
       timestamp: Date.now(),
     });
 

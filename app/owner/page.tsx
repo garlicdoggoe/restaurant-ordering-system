@@ -4,7 +4,7 @@ import { OwnerDashboard } from "@/components/owner/owner-dashboard"
 import { SignupCallback } from "@/components/signup-callback"
 import { useData } from "@/lib/data-context"
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function OwnerPage() {
   return (
@@ -18,6 +18,8 @@ export default function OwnerPage() {
 function OwnerPageContent() {
   const { currentUser } = useData()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialOrderId = searchParams.get("orderId") || undefined
   
   // Redirect customers to customer page
   useEffect(() => {
@@ -49,5 +51,5 @@ function OwnerPageContent() {
     )
   }
   
-  return <OwnerDashboard />
+  return <OwnerDashboard initialOrderId={initialOrderId} />
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useData, type Order } from "@/lib/data-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,8 +14,8 @@ import { AcceptOrderDialog } from "./accept-order-dialog"
 
 type OrderStatus = "pending" | "preparing" | "ready" | "completed" | "cancelled" | "denied" | "in-transit" | "delivered" | "pre-order-pending"
 
-export function OrdersView() {
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus>("pending")
+export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?: string, initialStatus?: OrderStatus }) {
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus>(initialStatus || "pending")
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [denyOrderId, setDenyOrderId] = useState<string | null>(null)
   const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null)
@@ -50,6 +50,12 @@ export function OrdersView() {
   }
 
   const filteredOrders = getFilteredOrders()
+  // Open provided orderId on mount
+  useEffect(() => {
+    if (initialOrderId) {
+      setSelectedOrderId(initialOrderId)
+    }
+  }, [initialOrderId])
 
   const nonPreOrders = filteredOrders.filter((o) => o.orderType !== "pre-order")
   const preOrders = filteredOrders.filter((o) => o.orderType === "pre-order")

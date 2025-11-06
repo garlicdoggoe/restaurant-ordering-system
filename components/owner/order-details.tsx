@@ -232,7 +232,7 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold">Ordered Items ({currentItems.length})</h3>
-                {!isEditMode && (order.status === "pending" || order.status === "accepted") && (
+                {!isEditMode && (order.status === "pending" || order.status === "accepted" || order.status === "pre-order-pending") && (
                   <Button
                     variant="outline"
                     size="sm"

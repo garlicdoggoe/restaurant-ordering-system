@@ -208,7 +208,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
     "in-transit": "Order is on the way",
     denied: "Order was denied by restaurant",
     completed: "Order completed",
-    cancelled: "Order cancelled",
+    cancelled: "Waiting for the restaurant to refund payment",
     delivered: "Order delivered",
   }
 

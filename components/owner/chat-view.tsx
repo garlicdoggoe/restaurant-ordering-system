@@ -4,16 +4,26 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MessageSquare } from "lucide-react"
+import { MessageSquare, Clock, CheckCircle, XCircle, Truck, Timer, PackageCheck, Ban, ListFilter } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { OwnerChatDialog } from "./owner-chat-dialog"
+import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
 
 export function ChatView() {
   const { orders } = useData()
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
+
+  // Draft filters (controlled by UI)
+  const [fromDateDraft, setFromDateDraft] = useState("")
+  const [toDateDraft, setToDateDraft] = useState("")
+  const [statusFilterDraft, setStatusFilterDraft] = useState<string>("active")
+  // Applied filters (used for actual filtering)
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("active")
 
   const messagesByOrder: Record<string, any[]> = {}
   for (const o of orders) {
@@ -22,9 +32,45 @@ export function ChatView() {
     messagesByOrder[o._id] = []
   }
 
-  // Get all orders (chat is available for all orders after checkout)
-  // Exclude cancelled orders as they're no longer active
-  const ordersWithChat = orders.filter((order) => order.status !== "cancelled")
+  // Status filter options (includes an "Active" aggregate option)
+  const statusFilterOptions: StatusFilterOption[] = [
+    { id: "active", label: "Active", icon: ListFilter },
+    { id: "all", label: "All", icon: Clock },
+    { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
+    { id: "pending", label: "Pending", icon: Clock },
+    { id: "accepted", label: "Accepted", icon: CheckCircle },
+    { id: "ready", label: "Ready", icon: Timer },
+    { id: "in-transit", label: "In Transit", icon: Truck },
+    { id: "delivered", label: "Delivered", icon: PackageCheck },
+    { id: "denied", label: "Denied", icon: XCircle },
+    { id: "completed", label: "Completed", icon: CheckCircle },
+    { id: "cancelled", label: "Cancelled", icon: Ban },
+  ]
+
+  const activeStatuses = new Set(["pre-order-pending", "pending", "accepted", "ready", "in-transit"])
+
+  const withinDateRange = (t: number) => {
+    if (!fromDate && !toDate) return true
+    const start = fromDate ? new Date(fromDate + "T00:00:00").getTime() : -Infinity
+    const end = toDate ? new Date(toDate + "T23:59:59.999").getTime() : Infinity
+    return t >= start && t <= end
+  }
+
+  const matchesStatus = (status: string) => {
+    if (statusFilter === "all") return true
+    if (statusFilter === "active") return activeStatuses.has(status as any)
+    return status === statusFilter
+  }
+
+  // Apply filters and sort ascending by creation time
+  const ordersWithChat = orders
+    .filter((o) => matchesStatus(o.status))
+    .filter((o) => withinDateRange((o as any)._creationTime ?? (o as any).createdAt ?? 0))
+    .sort((a, b) => {
+      const ta = (a as any)._creationTime ?? (a as any).createdAt ?? 0
+      const tb = (b as any)._creationTime ?? (b as any).createdAt ?? 0
+      return ta - tb
+    })
 
   // Get message count for each order
   const getMessageCount = (_orderId: string) => 0
@@ -50,6 +96,33 @@ export function ChatView() {
         <h1 className="text-fluid-2xl font-bold">Customer Chats</h1>
         <p className="text-muted-foreground">Communicate with customers about their orders</p>
       </div>
+
+      {/* Filters */}
+      <OrderFilter
+        fromDate={fromDateDraft}
+        toDate={toDateDraft}
+        onFromDateChange={setFromDateDraft}
+        onToDateChange={setToDateDraft}
+        statusFilter={statusFilterDraft}
+        onStatusFilterChange={setStatusFilterDraft}
+        statusFilterOptions={statusFilterOptions}
+        onClearAll={() => {
+          // Reset both draft and applied to defaults
+          setFromDateDraft("")
+          setToDateDraft("")
+          setStatusFilterDraft("active")
+          setFromDate("")
+          setToDate("")
+          setStatusFilter("active")
+        }}
+        onApply={() => {
+          // Commit drafts to applied
+          setFromDate(fromDateDraft)
+          setToDate(toDateDraft)
+          setStatusFilter(statusFilterDraft)
+        }}
+        drawerTitle="Filter Chats"
+      />
 
       {ordersWithChat.length === 0 ? (
         <Card>

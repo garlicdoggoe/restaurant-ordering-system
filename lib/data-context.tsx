@@ -152,6 +152,8 @@ export interface Order {
   specialInstructions?: string // Customer special instructions (max 100 chars)
   estimatedPrepTime?: number
   estimatedDeliveryTime?: number
+  // Whether customer is allowed to send image attachments in chat
+  allowCustomerImages?: boolean
   createdAt: number // Keep for backward compatibility
   updatedAt: number
 }
@@ -432,6 +434,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const createOrder = useMutation(api.orders.create)
   const patchOrder = useMutation(api.orders.update)
+  const updateOrderItemsMut = useMutation(api.orders.updateOrderItems)
   const addVoucherMut = useMutation(api.vouchers.add)
   const updateVoucherMut = useMutation(api.vouchers.update)
   const deleteVoucherMut = useMutation(api.vouchers.remove)
@@ -511,6 +514,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     specialInstructions: o.specialInstructions,
     estimatedPrepTime: o.estimatedPrepTime,
     estimatedDeliveryTime: o.estimatedDeliveryTime,
+    allowCustomerImages: (o as any).allowCustomerImages ?? false,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   }))
@@ -544,6 +548,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     specialInstructions: o.specialInstructions,
     estimatedPrepTime: o.estimatedPrepTime,
     estimatedDeliveryTime: o.estimatedDeliveryTime,
+    allowCustomerImages: (o as any).allowCustomerImages ?? false,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   }))
@@ -700,6 +705,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       downpaymentProofUrl: data.downpaymentProofUrl,
       remainingPaymentMethod: data.remainingPaymentMethod,
       remainingPaymentProofUrl: data.remainingPaymentProofUrl,
+      allowCustomerImages: data.allowCustomerImages,
     } })
   }, [patchOrder])
 
@@ -812,32 +818,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [orderModifications])
 
   const updateOrderItems = useCallback(async (orderId: string, items: OrderItem[], modificationType: string, itemDetails: string) => {
-    try {
-      // Update the order items using the existing update mutation
-      await patchOrder({ 
-        id: orderId as Id<"orders">, 
-        data: { items } 
-      })
-      
-      // Log the modification for audit purposes
-      if (currentUser) {
-        await createOrderModificationMut({
-          orderId: orderId as Id<"orders">,
-          modifiedBy: currentUser._id,
-          modifiedByName: `${currentUser.firstName} ${currentUser.lastName}`,
-          modificationType: modificationType as any,
-          previousValue: JSON.stringify([]), // We don't have the previous items here
-          newValue: JSON.stringify(items),
-          itemDetails: itemDetails
-        })
-      }
-      
-      console.log("Order items updated successfully:", { orderId, modificationType, itemDetails })
-    } catch (error) {
-      console.error("Failed to update order items:", error)
-      throw error
-    }
-  }, [patchOrder, createOrderModificationMut, currentUser])
+    // Use the dedicated updateOrderItems mutation which handles audit logging and auto-chat
+    await updateOrderItemsMut({ 
+      orderId: orderId as Id<"orders">, 
+      items, 
+      modificationType, 
+      itemDetails 
+    })
+  }, [updateOrderItemsMut])
 
   const value: DataContextType = {
     currentUser,
