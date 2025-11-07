@@ -209,42 +209,6 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
         return parts.length > 0 ? parts : text
       }
     }
-
-    // Detect and render button for "Open in Order Line:" pattern
-    // Example: "Open in Order Line: /owner?orderId=<id>"
-    const openInOrderLinePattern = /Open in Order Line:\s*([^\s]+)?/i
-    if (openInOrderLinePattern.test(text)) {
-      const match = text.match(openInOrderLinePattern)
-      const url = match?.[1] || `/owner?orderId=${orderId}`
-
-      if (match && match.index !== undefined) {
-        if (match.index > 0) {
-          parts.push(text.substring(0, match.index))
-        }
-
-        parts.push(
-          <Button
-            key="open-order-line-btn"
-            variant="link"
-            size="sm"
-            className="h-auto p-0 text-blue-600 underline hover:text-blue-800 inline"
-            onClick={() => {
-              router.push(url)
-              onOpenChange(false)
-            }}
-          >
-            Open in Order Line
-          </Button>
-        )
-
-        const afterMatch = match.index + match[0].length
-        if (afterMatch < text.length) {
-          parts.push(text.substring(afterMatch))
-        }
-
-        return parts.length > 0 ? parts : text
-      }
-    }
     
     // Check if message is a denial message - add "View details" button after the message
     const denialPattern = /Order denied\./i

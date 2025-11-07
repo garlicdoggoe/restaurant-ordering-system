@@ -336,6 +336,66 @@ export const update = mutation({
         });
       }
 
+      // Auto-chat when order is marked as ready
+      // Check if order is transitioning to ready status (from any status except ready)
+      if (existing.status !== "ready" && data.status === "ready") {
+        const restaurant = await ctx.db.query("restaurant").first();
+        // Insert chat message announcing order is ready
+        await ctx.db.insert("chat_messages", {
+          orderId: id as unknown as string,
+          senderId: currentUser._id as unknown as string,
+          senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+          senderRole: "owner",
+          message: `Your order is ready for pickup! View details: /customer?orderId=${id}`,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Auto-chat when order is marked as in-transit
+      // Check if order is transitioning to in-transit status (from any status except in-transit)
+      if (existing.status !== "in-transit" && data.status === "in-transit") {
+        const restaurant = await ctx.db.query("restaurant").first();
+        // Insert chat message announcing order is in transit
+        await ctx.db.insert("chat_messages", {
+          orderId: id as unknown as string,
+          senderId: currentUser._id as unknown as string,
+          senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+          senderRole: "owner",
+          message: `Your order is on the way! View details: /customer?orderId=${id}`,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Auto-chat when order is marked as delivered
+      // Check if order is transitioning to delivered status (from any status except delivered)
+      if (existing.status !== "delivered" && data.status === "delivered") {
+        const restaurant = await ctx.db.query("restaurant").first();
+        // Insert chat message announcing order is delivered
+        await ctx.db.insert("chat_messages", {
+          orderId: id as unknown as string,
+          senderId: currentUser._id as unknown as string,
+          senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+          senderRole: "owner",
+          message: `Your order has been delivered! Thank you for your order. View details: /customer?orderId=${id}`,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Auto-chat when order is marked as completed
+      // Check if order is transitioning to completed status (from any status except completed)
+      if (existing.status !== "completed" && data.status === "completed") {
+        const restaurant = await ctx.db.query("restaurant").first();
+        // Insert chat message announcing order is completed
+        await ctx.db.insert("chat_messages", {
+          orderId: id as unknown as string,
+          senderId: currentUser._id as unknown as string,
+          senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+          senderRole: "owner",
+          message: `Your order has been completed! Thank you for your order. View details: /customer?orderId=${id}`,
+          timestamp: Date.now(),
+        });
+      }
+
       // Auto-chat on denial with reason
       if (data.status === "denied") {
         const restaurant = await ctx.db.query("restaurant").first();

@@ -384,8 +384,8 @@ export function PreOrdersView({ onBackToMenu, onNavigateToInbox }: PreOrdersView
                         <span>Message</span>
                       </Button>
                     )}
-                    {/* Only show cancel button for cancellable statuses */}
-                    {(order.status === "pending" || order.status === "pre-order-pending" || order.status === "accepted") && (
+                    {/* Only show cancel button for cancellable statuses - only allow cancellation for pending or pre-order-pending status */}
+                    {(order.status === "pending" || order.status === "pre-order-pending") && (
                       <Button
                         size="sm"
                         onClick={() => setCancelOrderId(order._id)}

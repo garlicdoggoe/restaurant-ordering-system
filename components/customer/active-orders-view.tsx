@@ -297,8 +297,8 @@ export function ActiveOrdersView({ onBackToMenu, onNavigateToInbox }: ActiveOrde
                         <span>Message</span>
                       </Button>
                     )}
-                    {/* Cancel button for cancellable statuses */}
-                    {(order.status === "pending" || (order.orderType === "pre-order" && order.status === "accepted")) && (
+                    {/* Cancel button for cancellable statuses - only allow cancellation for pending or pre-order-pending status */}
+                    {(order.status === "pending" || order.status === "pre-order-pending") && (
                       <Button
                         variant="destructive"
                         size="sm"

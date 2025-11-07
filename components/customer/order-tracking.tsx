@@ -469,7 +469,8 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
               </Button>
             )}
 
-            {order.status === "pending" && (
+            {/* Only allow cancellation for pending or pre-order-pending status */}
+            {(order.status === "pending" || order.status === "pre-order-pending") && (
               <Button
                 variant="outline"
                 size="sm"

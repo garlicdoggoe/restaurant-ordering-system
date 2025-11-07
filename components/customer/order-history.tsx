@@ -514,7 +514,8 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
                         <span>Message</span>
                       </Button>
                     )}
-                    {order.status === "pending" && (
+                    {/* Only allow cancellation for pending or pre-order-pending status */}
+                    {(order.status === "pending" || order.status === "pre-order-pending") && (
                       <Button
                         variant="destructive"
                         size="sm"
