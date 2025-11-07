@@ -30,6 +30,7 @@ interface CustomerSidebarProps {
   cartItemCount: number
   preOrdersCount: number
   activeOrdersCount?: number
+  unreadMessageCount?: number
   onToggleCart?: () => void
 }
 
@@ -39,6 +40,7 @@ export function CustomerSidebar({
   cartItemCount, 
   preOrdersCount,
   activeOrdersCount = 0,
+  unreadMessageCount = 0,
   onToggleCart 
 }: CustomerSidebarProps) {
   const { user } = useUser()
@@ -94,7 +96,8 @@ export function CustomerSidebar({
       id: "inbox",
       label: "Inbox",
       icon: Inbox,
-      active: currentView === "inbox"
+      active: currentView === "inbox",
+      badge: unreadMessageCount > 0 ? unreadMessageCount : undefined
     },
     {
       id: "settings",

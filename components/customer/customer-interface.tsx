@@ -17,6 +17,8 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { X, ShoppingCart } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 export type CustomerView = "menu" | "orders" | "profile" | "preorders" | "inbox" | "activeorders"
 
@@ -29,6 +31,9 @@ export function CustomerInterface() {
   const { cartItems, addToCart: addToCartContext, updateQuantity, clearCart, getCartItemCount } = useCart()
   const customerId = currentUser?._id || ""
   const activeOrder = customerId ? getCustomerActiveOrder(customerId) : undefined
+
+  // Query unread message count
+  const unreadMessageCount = useQuery(api.chat.getUnreadCount) ?? 0
 
   // Function to navigate to inbox and open chat for a specific order
   const navigateToInboxWithOrder = (orderId: string) => {
@@ -94,6 +99,7 @@ export function CustomerInterface() {
         cartItemCount={activeOrder ? 0 : getCartItemCount()}
         preOrdersCount={preOrdersCount}
         activeOrdersCount={activeOrdersCount}
+        unreadMessageCount={unreadMessageCount}
         onToggleCart={() => setIsCartOpen(!isCartOpen)}
       />
 

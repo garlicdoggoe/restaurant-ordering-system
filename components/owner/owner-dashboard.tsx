@@ -11,12 +11,17 @@ import { VouchersView } from "./vouchers-view"
 import { PromotionsView } from "./promotions-view"
 import { ChatView } from "./chat-view" // Added chat view import
 import { HistoryLogView } from "./history-log-view" // Added history log view import
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" | "promotions" | "chat" | "history-log" // Added chat, history & history-log to view types
 
 export function OwnerDashboard({ initialOrderId }: { initialOrderId?: string }) {
   const [currentView, setCurrentView] = useState<OwnerView>("orders")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Query unread message count
+  const unreadMessageCount = useQuery(api.chat.getUnreadCount) ?? 0
 
   return (
     <div className="min-h-screen bg-muted/30 flex">
@@ -34,6 +39,7 @@ export function OwnerDashboard({ initialOrderId }: { initialOrderId?: string }) 
         onViewChange={setCurrentView}
         isMobileMenuOpen={isMobileMenuOpen}
         onMobileMenuToggle={setIsMobileMenuOpen}
+        unreadMessageCount={unreadMessageCount}
       />
 
       {/* Main Content Area */}

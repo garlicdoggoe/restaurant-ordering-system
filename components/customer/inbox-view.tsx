@@ -1,12 +1,14 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Clock, CheckCircle, XCircle, Truck, Timer, PackageCheck, Ban, ListFilter } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
 
 interface InboxViewProps {
@@ -24,17 +26,18 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   // Draft filters (controlled)
   const [fromDateDraft, setFromDateDraft] = useState("")
   const [toDateDraft, setToDateDraft] = useState("")
-  const [statusFilterDraft, setStatusFilterDraft] = useState<string>("active")
+  const [statusFilterDraft, setStatusFilterDraft] = useState<string>("recent")
   // Applied filters (used for actual filtering)
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("active")
+  const [statusFilter, setStatusFilter] = useState<string>("recent")
 
   const customerId = currentUser?._id || ""
   // Status filter options
   const statusFilterOptions: StatusFilterOption[] = [
-    { id: "active", label: "Active", icon: ListFilter },
     { id: "all", label: "All", icon: Clock },
+    { id: "recent", label: "Recent (Today)", icon: Clock },
+    { id: "active", label: "Active", icon: ListFilter },
     { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
     { id: "accepted", label: "Accepted", icon: CheckCircle },
@@ -55,22 +58,47 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     return t >= start && t <= end
   }
 
-  const matchesStatus = (status: string) => {
+
+
+  // Build per-order chat stats for all of this customer's orders to support "recent" filtering
+  const allCustomerOrders = useMemo(() => orders.filter((o) => o.customerId === customerId), [orders, customerId])
+  const allOrderIds = useMemo(() => allCustomerOrders.map((o) => o._id as string), [allCustomerOrders])
+  const perOrderStats = useQuery(api.chat.getPerOrderUnreadAndLast, allOrderIds.length ? { orderIds: allOrderIds } : "skip") ?? []
+  const statsMap = useMemo(() => {
+    const m = new Map<string, { unreadCount: number; lastMessage: any | null }>()
+    for (const r of perOrderStats) m.set(r.orderId, { unreadCount: r.unreadCount, lastMessage: r.lastMessage })
+    return m
+  }, [perOrderStats])
+
+  const matchesStatus = (orderId: string, status: string) => {
     if (statusFilter === "all") return true
     if (statusFilter === "active") return activeStatuses.has(status as any)
+    if (statusFilter === "recent") {
+      const last = statsMap.get(orderId)?.lastMessage
+      if (!last) return false
+      const ts = new Date(last.timestamp)
+      const now = new Date()
+      return ts.getFullYear() === now.getFullYear() && ts.getMonth() === now.getMonth() && ts.getDate() === now.getDate()
+    }
     return status === statusFilter
   }
 
   // Apply filters for customer and sort ascending
-  const ordersWithChat = orders
-    .filter((order) => order.customerId === customerId)
-    .filter((o) => matchesStatus(o.status))
+  const ordersWithChat = allCustomerOrders
+    .filter((o) => matchesStatus(o._id as string, o.status))
     .filter((o) => withinDateRange((o as any)._creationTime ?? (o as any).createdAt ?? 0))
     .sort((a, b) => {
+      if (statusFilter === "recent") {
+        const la = statsMap.get(a._id as string)?.lastMessage?.timestamp ?? 0
+        const lb = statsMap.get(b._id as string)?.lastMessage?.timestamp ?? 0
+        return la - lb
+      }
       const ta = (a as any)._creationTime ?? (a as any).createdAt ?? 0
       const tb = (b as any)._creationTime ?? (b as any).createdAt ?? 0
       return ta - tb
     })
+
+  // statsMap already computed above for all customer orders
 
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -121,10 +149,10 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
           // Reset both draft and applied to defaults
           setFromDateDraft("")
           setToDateDraft("")
-          setStatusFilterDraft("active")
+          setStatusFilterDraft("recent")
           setFromDate("")
           setToDate("")
-          setStatusFilter("active")
+          setStatusFilter("recent")
         }}
         onApply={() => {
           setFromDate(fromDateDraft)
@@ -149,7 +177,17 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
+                        {(() => {
+                          const stats = statsMap.get(order._id)
+                          return stats && stats.unreadCount > 0 ? (
+                            <span className="bg-red-600 text-white font-bold text-[11px] leading-none px-1.5 py-1 rounded-md shadow mb-5px mt-[-5px]">
+                              {stats.unreadCount}
+                            </span>
+                          ) : null
+                        })()}
+                      </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         {new Date(order._creationTime ?? order.createdAt).toLocaleDateString()}
                       </p>
@@ -160,10 +198,22 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">Chat thread ready</p>
+                  {(() => {
+                    const stats = statsMap.get(order._id)
+                    const lastMessage = stats?.lastMessage
+                    const preview = lastMessage ? (lastMessage.message as string) : "No messages yet"
+                    return (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground truncate max-w-[75%]">{preview}</p>
+                        {!!stats?.unreadCount && (
+                          <Badge variant="secondary" className="rounded-full">{stats.unreadCount}</Badge>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   <Button
-                    className="w-full"
+                    className="w-full relative"
                     onClick={() => {
                       setSelectedOrderId(order._id)
                       setChatOpen(true)

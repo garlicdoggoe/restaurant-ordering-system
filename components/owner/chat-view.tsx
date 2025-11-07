@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,23 +19,27 @@ export function ChatView() {
   // Draft filters (controlled by UI)
   const [fromDateDraft, setFromDateDraft] = useState("")
   const [toDateDraft, setToDateDraft] = useState("")
-  const [statusFilterDraft, setStatusFilterDraft] = useState<string>("active")
+  const [statusFilterDraft, setStatusFilterDraft] = useState<string>("recent")
   // Applied filters (used for actual filtering)
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("active")
+  const [statusFilter, setStatusFilter] = useState<string>("recent")
 
-  const messagesByOrder: Record<string, any[]> = {}
-  for (const o of orders) {
-    // It's okay to call useQuery conditionally only if the list length is stable; instead, keep list UI minimal.
-    // Here we won't prefetch; we'll show chats button and load per dialog.
-    messagesByOrder[o._id] = []
-  }
+  // Aggregate chat stats per order without calling hooks in a loop
+  const filteredOrders = useMemo(() => orders, [orders])
+  const orderIds = useMemo(() => filteredOrders.map((o) => o._id as string), [filteredOrders])
+  const perOrderStats = useQuery(api.chat.getPerOrderUnreadAndLast, orderIds.length ? { orderIds } : "skip") ?? []
+  const statsMap = useMemo(() => {
+    const m = new Map<string, { unreadCount: number; lastMessage: any | null }>()
+    for (const r of perOrderStats) m.set(r.orderId, { unreadCount: r.unreadCount, lastMessage: r.lastMessage })
+    return m
+  }, [perOrderStats])
 
   // Status filter options (includes an "Active" aggregate option)
   const statusFilterOptions: StatusFilterOption[] = [
-    { id: "active", label: "Active", icon: ListFilter },
     { id: "all", label: "All", icon: Clock },
+    { id: "recent", label: "Recent (Today)", icon: Clock },
+    { id: "active", label: "Active", icon: ListFilter },
     { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
     { id: "accepted", label: "Accepted", icon: CheckCircle },
@@ -56,27 +60,37 @@ export function ChatView() {
     return t >= start && t <= end
   }
 
-  const matchesStatus = (status: string) => {
+  const matchesStatus = (orderId: string, status: string) => {
     if (statusFilter === "all") return true
     if (statusFilter === "active") return activeStatuses.has(status as any)
+    if (statusFilter === "recent") {
+      const last = statsMap.get(orderId)?.lastMessage
+      if (!last) return false
+      const ts = new Date(last.timestamp)
+      const now = new Date()
+      return ts.getFullYear() === now.getFullYear() && ts.getMonth() === now.getMonth() && ts.getDate() === now.getDate()
+    }
     return status === statusFilter
   }
 
   // Apply filters and sort ascending by creation time
   const ordersWithChat = orders
-    .filter((o) => matchesStatus(o.status))
+    .filter((o) => matchesStatus(o._id as string, o.status))
     .filter((o) => withinDateRange((o as any)._creationTime ?? (o as any).createdAt ?? 0))
     .sort((a, b) => {
+      if (statusFilter === "recent") {
+        const la = statsMap.get(a._id as string)?.lastMessage?.timestamp ?? 0
+        const lb = statsMap.get(b._id as string)?.lastMessage?.timestamp ?? 0
+        return la - lb
+      }
       const ta = (a as any)._creationTime ?? (a as any).createdAt ?? 0
       const tb = (b as any)._creationTime ?? (b as any).createdAt ?? 0
       return ta - tb
     })
 
-  // Get message count for each order
-  const getMessageCount = (_orderId: string) => 0
-
-  // Get last message for each order
-  const getLastMessage = (_orderId: string) => undefined as any
+  // Helpers for message count and last message
+  const getMessageCount = (orderId: string) => statsMap.get(orderId)?.unreadCount ?? 0
+  const getLastMessage = (orderId: string) => statsMap.get(orderId)?.lastMessage
 
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -110,10 +124,10 @@ export function ChatView() {
           // Reset both draft and applied to defaults
           setFromDateDraft("")
           setToDateDraft("")
-          setStatusFilterDraft("active")
+          setStatusFilterDraft("recent")
           setFromDate("")
           setToDate("")
-          setStatusFilter("active")
+          setStatusFilter("recent")
         }}
         onApply={() => {
           // Commit drafts to applied
@@ -142,7 +156,17 @@ export function ChatView() {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg">{order.customerName}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">{order.customerName}</CardTitle>
+                        {(() => {
+                          const stats = statsMap.get(order._id)
+                          return stats && stats.unreadCount > 0 ? (
+                            <span className="bg-red-600 text-white font-bold text-[18px] leading-none px-2 py-1 rounded-md shadow">
+                              {stats.unreadCount}
+                            </span>
+                          ) : null
+                        })()}
+                      </div>
                       <p className="text-sm text-muted-foreground">Order #{order._id.slice(-6).toUpperCase()}</p>
                     </div>
                     <Badge variant="outline" className={statusColors[order.status]}>

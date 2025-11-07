@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Home, UtensilsCrossed, Settings, Ticket, Megaphone, LogOut, HelpCircle, MessageSquare, History, FileText, Menu, X } from "lucide-react" // Added MessageSquare icon & History icon & FileText icon & Menu & X
 import type { OwnerView } from "./owner-dashboard"
@@ -10,14 +11,15 @@ interface OwnerSidebarProps {
   onViewChange: (view: OwnerView) => void
   isMobileMenuOpen: boolean
   onMobileMenuToggle: (open: boolean) => void
+  unreadMessageCount?: number
 }
 
-export function OwnerSidebar({ currentView, onViewChange, isMobileMenuOpen, onMobileMenuToggle }: OwnerSidebarProps) {
+export function OwnerSidebar({ currentView, onViewChange, isMobileMenuOpen, onMobileMenuToggle, unreadMessageCount = 0 }: OwnerSidebarProps) {
   const menuItems = [
     { id: "orders" as OwnerView, icon: Home, label: "Orders" },
     { id: "history" as OwnerView, icon: History, label: "History" },
     { id: "menu" as OwnerView, icon: UtensilsCrossed, label: "Menu" },
-    { id: "chat" as OwnerView, icon: MessageSquare, label: "Chat" }, // Added chat menu item
+    { id: "chat" as OwnerView, icon: MessageSquare, label: "Chat", badge: unreadMessageCount > 0 ? unreadMessageCount : undefined }, // Added chat menu item with badge
     { id: "history-log" as OwnerView, icon: FileText, label: "History Log" }, // Added history log menu item
     { id: "vouchers" as OwnerView, icon: Ticket, label: "Vouchers" },
     { id: "promotions" as OwnerView, icon: Megaphone, label: "Promotions" },
@@ -76,7 +78,7 @@ export function OwnerSidebar({ currentView, onViewChange, isMobileMenuOpen, onMo
                 key={item.id}
                 variant="ghost"
                 className={cn(
-                  "w-full justify-start gap-3 h-12 lg:h-12 lg:w-12 lg:justify-center lg:rounded-xl transition-colors cursor-pointer touch-target",
+                  "w-full justify-start gap-3 h-12 lg:h-12 lg:w-12 lg:justify-center lg:rounded-xl transition-colors cursor-pointer touch-target relative",
                   currentView === item.id
                     ? "bg-[#fbbf24] text-black hover:bg-[#f59e0b]"
                     : "text-gray-400 hover:text-white hover:bg-white/10",
@@ -86,6 +88,11 @@ export function OwnerSidebar({ currentView, onViewChange, isMobileMenuOpen, onMo
               >
                 <item.icon className="h-5 w-5 lg:h-6 lg:w-6" />
                 <span className="lg:hidden text-fluid-base">{item.label}</span>
+                {item.badge && (
+                  <Badge variant="secondary" className="ml-auto lg:absolute lg:top-0 lg:right-0 lg:ml-0 text-red-500 font-bold bg-red-100 border-red-200">
+                    {item.badge}
+                  </Badge>
+                )}
               </Button>
             ))}
           </nav>

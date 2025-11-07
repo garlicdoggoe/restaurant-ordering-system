@@ -167,6 +167,13 @@ export default defineSchema({
     timestamp: v.number(),
   }).index("by_orderId", ["orderId"]).index("by_timestamp", ["timestamp"]),
 
+  // Chat read status - tracks when each user last read messages for each order
+  chat_read_status: defineTable({
+    orderId: v.string(),
+    userId: v.string(),
+    lastReadTimestamp: v.number(), // Timestamp of the last message that was read
+  }).index("by_orderId_userId", ["orderId", "userId"]),
+
   delivery_fees: defineTable({
     barangay: v.string(),
     fee: v.number(),

@@ -59,6 +59,18 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
   // Mutations for file upload
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
+  // Mutation to mark messages as read
+  const markAsRead = useMutation(api.chat.markAsRead)
+
+  // Mark messages as read when dialog opens
+  useEffect(() => {
+    if (open && orderId) {
+      // Mark all messages in this order as read when dialog opens
+      markAsRead({ orderId }).catch((error) => {
+        console.error("Failed to mark messages as read:", error)
+      })
+    }
+  }, [open, orderId, markAsRead])
 
   useEffect(() => {
     // Find the scrollable viewport element within the ScrollArea
