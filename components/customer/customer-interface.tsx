@@ -85,9 +85,9 @@ export function CustomerInterface() {
         onClick={() => setIsCartOpen(true)}
       >
         <ShoppingCart className="h-6 w-6" />
-        {cartItems.length > 0 && (
+        {getCartItemCount() > 0 && (
           <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs bg-destructive text-destructive-foreground">
-            {cartItems.length}
+            {getCartItemCount()}
           </Badge>
         )}
       </Button>

@@ -5,17 +5,24 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ShoppingCart, History, UtensilsCrossed } from "lucide-react"
 import { useData } from "@/lib/data-context"
+import { useCart } from "@/lib/cart-context"
 import { UserProfileDropdown } from "@/components/user-profile-dropdown"
 import type { CustomerView } from "./customer-interface"
 
 interface CustomerHeaderProps {
   currentView: CustomerView
   onViewChange: (view: CustomerView) => void
-  cartItemCount: number
 }
 
-export function CustomerHeader({ currentView, onViewChange, cartItemCount }: CustomerHeaderProps) {
-  const { restaurant } = useData()
+export function CustomerHeader({ currentView, onViewChange }: CustomerHeaderProps) {
+  const { restaurant, getCustomerActiveOrder, currentUser } = useData()
+  const { getCartItemCount } = useCart()
+  
+  // Calculate cart item count (sum of all quantities)
+  // Set to 0 if user has an active order
+  const customerId = currentUser?._id || ""
+  const activeOrder = customerId ? getCustomerActiveOrder(customerId) : undefined
+  const cartItemCount = activeOrder ? 0 : getCartItemCount()
   
   return (
     <header className="border-b bg-background sticky top-0 z-50">

@@ -53,7 +53,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings }: C
         <CardHeader className="p-4 xs:p-6">
           <CardTitle className="flex items-center justify-between text-fluid-lg">
             <span>Your Order</span>
-            <Badge>{items.length} items</Badge>
+            <Badge>{items.reduce((total, item) => total + item.quantity, 0)} items</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 xs:p-6 space-y-4">
