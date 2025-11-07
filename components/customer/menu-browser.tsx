@@ -9,7 +9,7 @@ import { PromotionBanner } from "./promotion-banner"
 import { useData } from "@/lib/data-context"
 
 interface MenuBrowserProps {
-  onAddToCart: (item: any) => void
+  onAddToCart: (item: any, quantity?: number, suppressToast?: boolean) => void
 }
 
 export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {

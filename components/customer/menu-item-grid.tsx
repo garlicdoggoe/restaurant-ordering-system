@@ -15,7 +15,7 @@ interface MenuItemGridProps {
     price: number
     image: string
   }>
-  onAddToCart: (item: any) => void
+  onAddToCart: (item: any, quantity?: number, suppressToast?: boolean) => void
 }
 
 export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
@@ -91,10 +91,9 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
         item={activeItem}
         onClose={() => setActiveItem(null)}
         onConfirm={(payload, quantity) => {
-          // Add the selected item with quantity by calling onAddToCart repeatedly
-          for (let i = 0; i < quantity; i++) {
-            onAddToCart(payload)
-          }
+          // Add the selected item with quantity - pass quantity to addToCart so it handles it in one go
+          // This ensures only one toast notification is shown with the correct quantity
+          onAddToCart(payload, quantity)
           setActiveItem(null)
         }}
       />

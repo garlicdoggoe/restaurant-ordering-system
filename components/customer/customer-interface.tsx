@@ -41,7 +41,7 @@ export function CustomerInterface() {
     setCurrentView("inbox")
   }
 
-  const addToCart = (item: any) => {
+  const addToCart = (item: any, quantity: number = 1, suppressToast: boolean = false) => {
     if (activeOrder) {
       toast.info("You have an active order", {
         description: "Please wait for your current order to be completed, denied, or cancelled before adding new items.",
@@ -49,13 +49,29 @@ export function CustomerInterface() {
       })
       return
     }
-    // Use the cart context's addToCart method
-    addToCartContext(item)
-    // Show success notification when item is added to cart
-    toast.success("Added to cart", {
-      description: `${item.name || "Item"} has been added to your cart.`,
-      duration: 3000,
-    })
+    
+    // Get the current quantity of this item in the cart before adding
+    const existingItem = cartItems.find(i => i.id === item.id)
+    const quantityBefore = existingItem?.quantity || 0
+    
+    // Add the item(s) to cart multiple times if quantity > 1
+    // addToCartContext adds 1 at a time, so we call it 'quantity' times
+    for (let i = 0; i < quantity; i++) {
+      addToCartContext(item)
+    }
+    
+    // Only show toast if not suppressed
+    if (!suppressToast) {
+      // Calculate the final quantity after adding
+      const quantityAfter = quantityBefore + quantity
+      // Show a single toast notification with the item name and quantity
+      // If item already existed in cart, show total quantity; otherwise just show added quantity
+      const quantityText = quantity > 1 ? `${quantity}` : ""
+      toast.success("Added to cart", {
+        description: `${quantityText ? `${quantityText} ` : ""}${item.name || "Item"} has been added to your cart.`,
+        duration: 3000,
+      })
+    }
   }
 
   // Customer pre-orders (pre-order-pending, pending, or accepted pre-orders)
