@@ -184,7 +184,16 @@ export function CustomerInterface() {
                 {activeOrder ? (
                   <OrderTracking orderId={activeOrder._id} />
                 ) : (
-                  <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} onOpenSettings={() => setCurrentView("profile")} />
+                  <Cart 
+                    items={cartItems} 
+                    onUpdateQuantity={updateQuantity} 
+                    onClearCart={clearCart} 
+                    onOpenSettings={() => setCurrentView("profile")}
+                    onNavigateToView={(view) => {
+                      setCurrentView(view)
+                      setIsCartOpen(false)
+                    }}
+                  />
                 )}
               </div>
             </div>
@@ -247,7 +256,16 @@ export function CustomerInterface() {
 
           {/* Cart content */}
           <div className="flex-1 overflow-y-auto p-3 xs:p-6">
-            <Cart items={cartItems} onUpdateQuantity={updateQuantity} onClearCart={clearCart} onOpenSettings={() => setCurrentView("profile")} />
+            <Cart 
+              items={cartItems} 
+              onUpdateQuantity={updateQuantity} 
+              onClearCart={clearCart} 
+              onOpenSettings={() => setCurrentView("profile")}
+              onNavigateToView={(view) => {
+                setCurrentView(view)
+                setIsCartOpen(false)
+              }}
+            />
           </div>
         </div>
       </div>

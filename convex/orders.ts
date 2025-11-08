@@ -417,14 +417,46 @@ export const update = mutation({
       throw new Error("Unauthorized to update this order");
     }
 
-    // Allow customers to cancel pending orders or confirm denied orders
-    const allowedCancelUpdate = data.status === "cancelled" && (existing.status === "pending" || existing.status === "denied");
+    // Allow customers to cancel pending orders, denied orders, or pre-order-pending orders
+    // For pre-orders, cancellation must be at least 1 day before the scheduled date
+    const isCancellation = data.status === "cancelled";
+    const isPreOrder = existing.orderType === "pre-order";
+    const isPreOrderPending = existing.status === "pre-order-pending";
+    
+    let allowedCancelUpdate = false;
+    if (isCancellation) {
+      // Regular orders: allow cancellation for pending or denied status
+      if (!isPreOrder && (existing.status === "pending" || existing.status === "denied")) {
+        allowedCancelUpdate = true;
+      }
+      // Pre-orders: allow cancellation for pre-order-pending, pending, or denied status
+      // BUT only if cancelled at least 1 day before scheduled date
+      else if (isPreOrder && (isPreOrderPending || existing.status === "pending" || existing.status === "denied")) {
+        if (existing.preOrderScheduledAt) {
+          const now = Date.now();
+          const scheduledDate = existing.preOrderScheduledAt;
+          const oneDayInMs = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+          const timeUntilScheduled = scheduledDate - now;
+          
+          // Check if cancellation is at least 1 day before scheduled date
+          if (timeUntilScheduled >= oneDayInMs) {
+            allowedCancelUpdate = true;
+          } else {
+            throw new Error("Pre-orders can only be cancelled at least 1 day before the scheduled order date");
+          }
+        } else {
+          // If no scheduled date, allow cancellation (shouldn't happen, but handle gracefully)
+          allowedCancelUpdate = true;
+        }
+      }
+    }
+    
     // Allow customers to update remaining payment proof URL for their own orders
     const allowedPaymentProofUpdate = data.remainingPaymentProofUrl !== undefined && 
       Object.keys(data).length === 1; // Only updating remainingPaymentProofUrl
 
     if (!allowedCancelUpdate && !allowedPaymentProofUpdate) {
-      throw new Error("Customers can only cancel pending/denied orders or update remaining payment proof");
+      throw new Error("Customers can only cancel pending/denied/pre-order-pending orders or update remaining payment proof");
     }
 
     if (allowedCancelUpdate) {
@@ -453,7 +485,7 @@ export const update = mutation({
           senderId: ownerUser._id as unknown as string,
           senderName: restaurant?.name || `${ownerUser.firstName} ${ownerUser.lastName}`,
           senderRole: "owner",
-          message: "Your refund is on the way! It will be processed within 1–3 business days. We’ll send it to the GCash number you provided and share a screenshot once completed 😊",
+          message: "Your refund is on the way! It will be processed within 1–3 business days. We'll send it to the GCash number you provided and share a screenshot once completed 😊",
           timestamp: Date.now(),
         });
       }

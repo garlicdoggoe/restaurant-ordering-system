@@ -19,7 +19,6 @@ import { toast } from "sonner"
 import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
-import { useRouter } from "next/navigation"
 import { PaymentModal } from "@/components/ui/payment-modal"
 
 interface CartItem {
@@ -39,13 +38,13 @@ interface CheckoutDialogProps {
   onClose: () => void
   onSuccess: () => void
   onOpenSettings?: () => void
+  onNavigateToView?: (view: "preorders" | "activeorders") => void
 }
 
-export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess, onOpenSettings }: CheckoutDialogProps) {
+export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess, onOpenSettings, onNavigateToView }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("pre-order")
   const { addOrder, currentUser, restaurant } = useData()
   const { updateQuantity } = useCart()
-  const router = useRouter()
   
   // Initialize form fields from current user when available; fall back to empty
   const [customerAddress, setCustomerAddress] = useState(() => currentUser?.address ?? "")
@@ -333,6 +332,16 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
         URL.revokeObjectURL(previewUrl)
       }
       onSuccess()
+      
+      // Navigate to the appropriate tab based on order type
+      // Pre-orders go to Pre-Orders tab, all other orders go to Active Orders tab
+      if (onNavigateToView) {
+        if (orderType === "pre-order") {
+          onNavigateToView("preorders")
+        } else {
+          onNavigateToView("activeorders")
+        }
+      }
     } catch (error) {
       console.error("Failed to create order:", error)
       toast.error("Failed to place order", {

@@ -1,11 +1,8 @@
 "use client"
 
 import React, { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Package, Upload, ArrowLeft, Home, BarChart3, FileText, Users, Network, Calendar, ChevronDown, ChevronUp } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { FileText, Upload, Clock, CheckCircle, XCircle, Ban } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { OrderTracking } from "./order-tracking"
 import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
@@ -24,6 +21,7 @@ import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import { filterAndSortOrders } from "@/lib/order-filter-utils"
+import { OrderCard } from "./order-card"
 
 interface OrderHistoryProps {
   onBackToMenu: () => void
@@ -32,7 +30,7 @@ interface OrderHistoryProps {
 }
 
 export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryProps) {
-  const { orders, updateOrder, currentUser } = useData()
+  const { orders, updateOrder, currentUser, deliveryFees } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
@@ -251,51 +249,6 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
     }
   }
 
-  const statusIcons = {
-    completed: <CheckCircle className="w-4 h-4 text-green-600" />,
-    accepted: <CheckCircle className="w-4 h-4 text-green-600" />,
-    ready: <CheckCircle className="w-4 h-4 text-indigo-600" />,
-    pending: <Clock className="w-4 h-4 text-yellow-600" />,
-    denied: <XCircle className="w-4 h-4 text-red-600" />,
-    cancelled: <Ban className="w-4 h-4 text-gray-600" />,
-    "in-transit": <Truck className="w-4 h-4 text-yellow-600" />,
-    delivered: <Package className="w-4 h-4 text-emerald-600" />,
-    "pre-order-pending": <Clock className="w-4 h-4 text-blue-600" />,
-  }
-
-  const statusColors = {
-    completed: "bg-green-100 text-green-800 border-green-200",
-    accepted: "bg-green-100 text-green-800 border-green-200",
-    ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    denied: "bg-red-100 text-red-800 border-red-200",
-    cancelled: "bg-gray-100 text-gray-800 border-gray-200",
-    "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
-  }
-
-  const getOrderBorderClass = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "border-yellow-500 border-2"
-      case "ready":
-        return "border-indigo-500 border-2"
-      case "completed":
-      case "accepted":
-        return "border-green-500 border-2"
-      case "denied":
-        return "border-red-500 border-2"
-      case "cancelled":
-        return "border-gray-500 border-2"
-      case "in-transit":
-        return "border-yellow-500 border-2"
-      case "delivered":
-        return "border-emerald-500 border-2"
-      default:
-        return "border-2"
-    }
-  }
 
   return (
     <div className="space-y-8 xs:space-y-6">
@@ -329,162 +282,24 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
         ) : (
           filteredOrders.map((order) => {
             const isExpanded = expandedOrders.has(order._id)
-            
+            const showCancelButton = order.status === "pending" || order.status === "pre-order-pending"
+
             return (
-              <Card key={order._id} className={`${getOrderBorderClass(order.status)} h-fit mb-[-10px] lg:mb-0`}>
-                {/* Mobile: Collapsed Header - Always visible on mobile */}
-                <CardHeader 
-                  className="p-3 xs:p-4 cursor-pointer hover:bg-gray-50/50 transition-colors lg:cursor-default lg:hover:bg-transparent"
-                  onClick={() => toggleOrderExpansion(order._id)}
-                >
-                  <div className="flex items-center justify-between mt-[-15px] mb-[-20px] lg:mt-0 lg:mb-0">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-semibold">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
-                        <div className="flex items-center gap-2">
-                          <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1 text-xs`}>
-                            {statusIcons[order.status as keyof typeof statusIcons]}
-                            <span className="capitalize">{order.status.replace('-', ' ')}</span>
-                          </Badge>
-                          {/* Expand/Collapse Icon - Only show on mobile */}
-                          <div className="lg:hidden">
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between mt-1 lg:mr-0 mr-6 lg:mt-2">
-                        <p className="text-xs text-muted-foreground">{new Date(order._creationTime ?? 0).toLocaleString()}</p>
-                        <div className="flex justify-between font-semibold text-sm">
-                          <span>Total: ₱{order.total.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {/* Mobile: Expanded Content - Only visible when expanded on mobile */}
-                {/* Desktop: Always show full content */}
-                <CardContent className={`p-3 xs:p-4 space-y-3 lg:space-y-4 ${isExpanded ? 'border-t' : ''} lg:border-t ${isExpanded ? 'block' : 'hidden'} lg:block`}>
-                  {/* GCash Number Display */}
-                  {order.gcashNumber && (
-                    <div className="p-2 bg-blue-50 rounded text-xs">
-                      <p className="font-medium text-blue-800">
-                        💳 GCash: (+63) {order.gcashNumber}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Denial Reason Display */}
-                  {order.status === "denied" && order.denialReason && (
-                    <div className="p-2 bg-red-50 rounded border border-red-200">
-                      <div className="flex items-start gap-1">
-                        <XCircle className="w-3 h-3 text-red-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-xs font-medium text-red-800">Order Denied</p>
-                          <p className="text-xs text-red-700 mt-1">
-                            {order.denialReason}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Order Items */}
-                  <div className="space-y-1 lg:space-y-2 max-h-32 overflow-y-auto pr-1">
-                    {order.items.map((item: any, idx: number) => (
-                      <div key={idx} className="flex justify-between text-xs">
-                        <div className="flex-1 min-w-0">
-                          <div className="truncate">{item.quantity}x {item.name}</div>
-                          {(item.variantName || item.size) && (
-                            <div className="text-xs text-gray-500 truncate">
-                              {item.variantName || item.size}
-                            </div>
-                          )}
-                        </div>
-                        <span className="font-medium ml-2 flex-shrink-0">₱{(item.price * item.quantity).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Special Instructions */}
-                  {order.specialInstructions && (
-                    <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
-                      <p className="text-xs font-medium text-yellow-800 mb-1">📝 Instructions:</p>
-                      <p className="text-xs text-yellow-700 line-clamp-2">{order.specialInstructions}</p>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div className="space-y-1 lg:space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span>₱{order.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Platform fee</span>
-                      <span>₱{(order.platformFee || 0).toFixed(2)}</span>
-                    </div>
-                    {order.discount > 0 && (
-                      <div className="flex justify-between text-green-600">
-                        <span>Discount</span>
-                        <span>-₱{order.discount.toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex justify-between font-semibold text-sm">
-                    <span>Total</span>
-                    <span>₱{order.total.toFixed(2)}</span>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 pt-1 lg:pt-2">
-                    {/* Details button - opens order details dialog */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedOrderId(order._id)
-                        setDetailsDialogOpen(true)
-                      }}
-                      className="flex-1 touch-target text-xs"
-                    >
-                      <FileText className="w-3 h-3 mr-1" />
-                      <span>Details</span>
-                    </Button>
-                    {/* Message button - navigates to inbox and opens chat for this order */}
-                    {onNavigateToInbox && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onNavigateToInbox(order._id)}
-                        className="flex-1 touch-target text-xs"
-                      >
-                        <MessageSquare className="w-3 h-3 mr-1" />
-                        <span>Message</span>
-                      </Button>
-                    )}
-                    {/* Only allow cancellation for pending or pre-order-pending status */}
-                    {(order.status === "pending" || order.status === "pre-order-pending") && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setCancelOrderId(order._id)}
-                        className="touch-target text-xs"
-                      >
-                        <Ban className="w-3 h-3" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <OrderCard
+                key={order._id}
+                order={order}
+                isExpanded={isExpanded}
+                onToggleExpand={() => toggleOrderExpansion(order._id)}
+                onDetailsClick={() => {
+                  setSelectedOrderId(order._id)
+                  setDetailsDialogOpen(true)
+                }}
+                onNavigateToInbox={onNavigateToInbox}
+                onCancelClick={() => setCancelOrderId(order._id)}
+                canCancel={showCancelButton}
+                deliveryFees={deliveryFees}
+                showCancelButton={showCancelButton}
+              />
             )
           })
         )}
