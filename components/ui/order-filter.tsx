@@ -38,9 +38,10 @@ interface OrderFilterProps {
 
 /**
  * Reusable order filter component that provides:
- * - Mobile filter button (fixed position)
- * - Desktop date range filters
- * - Mobile filter drawer with date and status filters
+ * - Sticky filter section that locks below top nav on mobile (top-14)
+ * - Full-width filter bar with status tabs and date filter controls
+ * - Mobile: Compact view with status tabs and expandable drawer for date filters
+ * - Desktop: Full filter controls with date range and status filters
  * 
  * This component handles the UI and state management for filtering orders by date and status.
  */
@@ -60,90 +61,118 @@ export function OrderFilter({
 
   return (
     <>
-      {/* Mobile Filter Button - Fixed (outside header so it stays on screen) */}
-      {!isFilterDrawerOpen && (
-        <div className="lg:hidden fixed top-15 right-4 z-50">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsFilterDrawerOpen(true)}
-            className="touch-target flex items-center gap-2 shadow-lg bg-background/95 backdrop-blur-sm border-2"
-          >
-            <Filter className="h-4 w-4" />
-            <span className="text-xs">Filter</span>
-          </Button>
-        </div>
-      )}
-
-      {/* Desktop Date Filters */}
-      <div className="hidden lg:block space-y-4">
-        {/* Date Range */}
+      {/* Sticky Filter Section - Full width, locks below top nav on mobile */}
+      <div className="sticky top-14 lg:top-0 z-40 bg-background border-b shadow-sm -mx-3 xs:-mx-6 px-3 xs:px-6 py-3 xs:py-4">
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Date Range</Label>
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <Label htmlFor="desktop-from-date" className="text-xs text-muted-foreground">From Date</Label>
-              <Input
-                id="desktop-from-date"
-                type="date"
-                value={fromDate}
-                onChange={(e) => onFromDateChange(e.target.value)}
-                className="text-sm"
-              />
+          {/* Mobile: Compact filter bar with status tabs and expand button */}
+          <div className="lg:hidden">
+            {/* Status filter tabs - horizontal scroll */}
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+              {statusFilterOptions.map((option) => {
+                const Icon = option.icon
+                const isActive = statusFilter === option.id
+                return (
+                  <Button
+                    key={option.id}
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => onStatusFilterChange(option.id)}
+                    className={`flex-shrink-0 gap-2 touch-target text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="text-fluid-sm">{option.label}</span>
+                  </Button>
+                )
+              })}
             </div>
-            <div className="flex-1">
-              <Label htmlFor="desktop-to-date" className="text-xs text-muted-foreground">To Date</Label>
-              <Input
-                id="desktop-to-date"
-                type="date"
-                value={toDate}
-                onChange={(e) => onToDateChange(e.target.value)}
-                className="text-sm"
-              />
-            </div>
+            
+            {/* Expand button for date filters */}
             <Button
               variant="outline"
               size="sm"
-              onClick={onClearAll}
-              className="touch-target"
+              onClick={() => setIsFilterDrawerOpen(true)}
+              className="w-full touch-target flex items-center justify-center gap-2"
             >
-              Clear All
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => onApply?.()}
-              className="touch-target"
-            >
-              Apply Filters
+              <Filter className="h-4 w-4" />
+              <span className="text-xs">
+                {fromDate || toDate ? "Date Filters Applied" : "Date Filters"}
+              </span>
             </Button>
           </div>
-        </div>
 
-        {/* Status */}
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Status</Label>
-          <div className="flex flex-wrap gap-2">
-            {statusFilterOptions.map((option) => {
-              const Icon = option.icon
-              const isActive = statusFilter === option.id
-              return (
+          {/* Desktop: Full filter controls */}
+          <div className="hidden lg:block space-y-4">
+            {/* Date Range */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Date Range</Label>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <Label htmlFor="desktop-from-date" className="text-xs text-muted-foreground">From Date</Label>
+                  <Input
+                    id="desktop-from-date"
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => onFromDateChange(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="desktop-to-date" className="text-xs text-muted-foreground">To Date</Label>
+                  <Input
+                    id="desktop-to-date"
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => onToDateChange(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
                 <Button
-                  key={option.id}
-                  variant={isActive ? "default" : "outline"}
+                  variant="outline"
                   size="sm"
-                  onClick={() => onStatusFilterChange(option.id)}
-                  className={`flex-shrink-0 gap-2 touch-target text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
+                  onClick={onClearAll}
+                  className="touch-target"
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{option.label}</span>
+                  Clear All
                 </Button>
-              )
-            })}
+                {onApply && (
+                  <Button
+                    size="sm"
+                    onClick={() => onApply()}
+                    className="touch-target"
+                  >
+                    Apply Filters
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Status</Label>
+              <div className="flex flex-wrap gap-2">
+                {statusFilterOptions.map((option) => {
+                  const Icon = option.icon
+                  const isActive = statusFilter === option.id
+                  return (
+                    <Button
+                      key={option.id}
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => onStatusFilterChange(option.id)}
+                      className={`flex-shrink-0 gap-2 touch-target text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{option.label}</span>
+                    </Button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile Filter Drawer */}
+      {/* Mobile Filter Drawer - For date filters only */}
       {isFilterDrawerOpen && (
         <div 
           className="lg:hidden fixed inset-0 bg-black/50 z-50"
@@ -194,29 +223,6 @@ export function OrderFilter({
                   className="text-sm"
                 />
               </div>
-            </div>
-          </div>
-
-          {/* Status Filters */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Status</Label>
-            <div className="flex flex-wrap gap-2">
-              {statusFilterOptions.map((option) => {
-                const Icon = option.icon
-                const isActive = statusFilter === option.id
-                return (
-                  <Button
-                    key={option.id}
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => onStatusFilterChange(option.id)}
-                    className={`flex-shrink-0 gap-2 touch-target text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{option.label}</span>
-                  </Button>
-                )
-              })}
             </div>
           </div>
 

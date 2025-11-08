@@ -23,6 +23,7 @@ import {
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
+import { filterAndSortOrders } from "@/lib/order-filter-utils"
 
 interface OrderHistoryProps {
   onBackToMenu: () => void
@@ -66,26 +67,17 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
   // Convex mutations and queries for file upload
   const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
 
-  // Precompute customer orders (excluding realtime orders that are now handled by floating component)
-  const realtimeStatuses: OrderStatus[] = ["pending", "accepted", "ready", "in-transit"]
-  const customerOrders = orders.filter((o) => o.customerId === customerId)
-  
-  const filteredOrders = customerOrders
-    .filter((order) => {
-      // Date filtering: compare created time using either Convex _creationTime or legacy createdAt
-      // For "From" date, start from beginning of day (00:00:00.000) to include the entire selected day
-      const fromTs = fromDate ? new Date(fromDate).setHours(0, 0, 0, 0) : null
-      // For "To" date, extend to end of day (23:59:59.999) to include the entire selected day
-      const toTs = toDate ? new Date(toDate).setHours(23, 59, 59, 999) : null
-      
-      const createdTs = (order._creationTime ?? order.createdAt) || 0
-      
-      // Inclusive filtering: >= fromTs and <= toTs
-      if (fromTs !== null && createdTs < fromTs) return false
-      if (toTs !== null && createdTs > toTs) return false
-      
-      // Status filtering
-      if (statusFilter === "all") {
+  // Use unified filtering utility - standard: most recent first
+  const filteredOrders = filterAndSortOrders(orders, {
+    customerId,
+    fromDate,
+    toDate,
+    statusFilter,
+    orderType: "all",
+    // Custom status matcher for order history view-specific logic
+    customStatusMatcher: (order, filter) => {
+      // Status filtering with view-specific logic
+      if (filter === "all") {
         // Exclude realtime orders from "all" view since they're handled by floating component
         if (order.orderType === "pre-order") {
           return order.status === "pending" || order.status === "completed" || order.status === "delivered" || order.status === "cancelled" || order.status === "denied"
@@ -93,11 +85,11 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
         return order.status === "completed" || order.status === "delivered" || order.status === "cancelled" || order.status === "denied"
       }
       // Pre-orders tab shows only pending pre-orders; accepted/in-transit pre-orders are handled by floating component
-      if (statusFilter === "pre-orders") return order.orderType === "pre-order" && order.status === "pending"
-      if (statusFilter === "completed") return order.status === "completed" || order.status === "delivered"
-      return order.status === statusFilter
-    })
-    .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
+      if (filter === "pre-orders") return order.orderType === "pre-order" && order.status === "pending"
+      if (filter === "completed") return order.status === "completed" || order.status === "delivered"
+      return order.status === filter
+    },
+  })
 
   // Restore pending proofs from localStorage for each order
   // Key format: remaining_payment_proof_<orderId>
@@ -307,42 +299,7 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
 
   return (
     <div className="space-y-8 xs:space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBackToMenu} className="touch-target">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-fluid-2xl font-bold">Order History</h1>
-            <p className="text-fluid-sm text-muted-foreground">
-              {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Tabs - Always visible in header */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
-        {statusFilterOptions.map((tab) => {
-          const Icon = tab.icon
-          const isActive = statusFilter === tab.id
-          return (
-            <Button
-              key={tab.id}
-              variant={isActive ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter(tab.id as any)}
-              className={`flex-shrink-0 gap-2 touch-target ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
-            >
-              <Icon className="h-4 w-4" />
-              <span className="text-fluid-sm">{tab.label}</span>
-            </Button>
-          )
-        })}
-      </div>
-
-      {/* Filter Component */}
+      {/* Filter Component - Now includes sticky filter section with status tabs */}
       <OrderFilter
         fromDate={fromDate}
         toDate={toDate}
@@ -438,7 +395,7 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
 
                   {/* Order Items */}
                   <div className="space-y-1 lg:space-y-2 max-h-32 overflow-y-auto pr-1">
-                    {order.items.map((item, idx) => (
+                    {order.items.map((item: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-xs">
                         <div className="flex-1 min-w-0">
                           <div className="truncate">{item.quantity}x {item.name}</div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { CustomerSidebar } from "./customer-sidebar"
+import { CustomerTopNav } from "./customer-top-nav"
 import { MenuBrowser } from "./menu-browser"
 import { Cart } from "./cart"
 import { OrderHistory } from "./order-history"
@@ -15,8 +16,7 @@ import { useData } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { X, ShoppingCart } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { X } from "lucide-react"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
@@ -25,6 +25,7 @@ export type CustomerView = "menu" | "orders" | "profile" | "preorders" | "inbox"
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   // State to track orderId to auto-open chat when navigating to inbox
   const [orderIdToOpen, setOrderIdToOpen] = useState<string | null>(null)
   const { getCustomerActiveOrder, orders, currentUser } = useData()
@@ -91,36 +92,33 @@ export function CustomerInterface() {
     }
   }).length
 
+  const cartItemCount = activeOrder ? 0 : getCartItemCount()
+
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Mobile cart toggle button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden fixed top-4 right-4 z-50 cursor-pointer hover:bg-yellow-100 bg-white rounded-lg shadow-md"
-        onClick={() => setIsCartOpen(true)}
-      >
-        <ShoppingCart className="h-6 w-6" />
-        {getCartItemCount() > 0 && (
-          <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs bg-destructive text-destructive-foreground">
-            {getCartItemCount()}
-          </Badge>
-        )}
-      </Button>
+      {/* Top Navigation Bar - Mobile Only */}
+      <CustomerTopNav
+        currentView={currentView}
+        cartItemCount={cartItemCount}
+        onToggleSidebar={() => setIsMobileMenuOpen(true)}
+        onToggleCart={() => setIsCartOpen(true)}
+      />
 
       {/* Left Sidebar */}
       <CustomerSidebar 
         currentView={currentView} 
         onViewChange={setCurrentView} 
-        cartItemCount={activeOrder ? 0 : getCartItemCount()}
+        cartItemCount={cartItemCount}
         preOrdersCount={preOrdersCount}
         activeOrdersCount={activeOrdersCount}
         unreadMessageCount={unreadMessageCount}
         onToggleCart={() => setIsCartOpen(!isCartOpen)}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 lg:pt-0 pt-14">
         {currentView === "menu" ? (
           <div className="flex h-full">
             {/* Menu Content */}

@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useData } from "@/lib/data-context"
 import { Button } from "@/components/ui/button"
@@ -32,6 +31,8 @@ interface CustomerSidebarProps {
   activeOrdersCount?: number
   unreadMessageCount?: number
   onToggleCart?: () => void
+  isMobileMenuOpen: boolean
+  setIsMobileMenuOpen: (open: boolean) => void
 }
 
 export function CustomerSidebar({ 
@@ -41,11 +42,12 @@ export function CustomerSidebar({
   preOrdersCount,
   activeOrdersCount = 0,
   unreadMessageCount = 0,
-  onToggleCart 
+  onToggleCart,
+  isMobileMenuOpen,
+  setIsMobileMenuOpen
 }: CustomerSidebarProps) {
   const { user } = useUser()
   const { restaurant, currentUser } = useData()
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   if (!user) return null
 
@@ -120,29 +122,19 @@ export function CustomerSidebar({
 
   return (
     <>
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="lg:hidden fixed top-4 left-4 z-50 cursor-pointer hover:bg-yellow-100 bg-white rounded-lg shadow-md"
-        onClick={() => setIsMobileMenuOpen(true)}
-      >
-        <Menu className="h-6 w-6" />
-      </Button>
-
       {/* Mobile overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          className="lg:hidden fixed inset-0 bg-black/50 z-[45]"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div className={`
-        fixed left-0 top-0 h-full w-72 xs:w-80 bg-background border-r z-40
+        fixed left-0 top-0 h-full w-72 xs:w-80 bg-background border-r
         transform transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${isMobileMenuOpen ? 'translate-x-0 z-[50]' : '-translate-x-full z-40'}
         lg:translate-x-0 lg:sticky lg:top-0 lg:z-auto lg:h-screen
       `}>
         <div className="flex flex-col h-full">

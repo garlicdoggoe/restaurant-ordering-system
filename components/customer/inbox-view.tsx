@@ -10,6 +10,7 @@ import { ChatDialog } from "./chat-dialog"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
+import { filterAndSortOrders, getOrderTimestamp } from "@/lib/order-filter-utils"
 
 interface InboxViewProps {
   // Optional orderId to auto-open chat when component mounts or orderId changes
@@ -51,12 +52,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
 
   const activeStatuses = new Set(["pre-order-pending", "pending", "accepted", "ready", "in-transit"])
 
-  const withinDateRange = (t: number) => {
-    if (!fromDate && !toDate) return true
-    const start = fromDate ? new Date(fromDate + "T00:00:00").getTime() : -Infinity
-    const end = toDate ? new Date(toDate + "T23:59:59.999").getTime() : Infinity
-    return t >= start && t <= end
-  }
+  // Note: Date range filtering is now handled by filterAndSortOrders utility
 
 
 
@@ -83,20 +79,30 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     return status === statusFilter
   }
 
-  // Apply filters for customer and sort ascending
-  const ordersWithChat = allCustomerOrders
-    .filter((o) => matchesStatus(o._id as string, o.status))
-    .filter((o) => withinDateRange((o as any)._creationTime ?? (o as any).createdAt ?? 0))
-    .sort((a, b) => {
+  // Use unified filtering utility with custom sorting for inbox view
+  // Standard: most recent first (by last message timestamp for "recent", by creation time otherwise)
+  const ordersWithChat = filterAndSortOrders(allCustomerOrders, {
+    customerId,
+    fromDate,
+    toDate,
+    statusFilter,
+    orderType: "all",
+    // Custom status matcher for inbox view
+    customStatusMatcher: (order, filter) => matchesStatus(order._id as string, order.status),
+    // Custom sort: most recent first (by last message for "recent", by creation time otherwise)
+    customSort: (a, b) => {
       if (statusFilter === "recent") {
+        // Sort by last message timestamp (most recent first - descending)
         const la = statsMap.get(a._id as string)?.lastMessage?.timestamp ?? 0
         const lb = statsMap.get(b._id as string)?.lastMessage?.timestamp ?? 0
-        return la - lb
+        return lb - la // Descending: most recent first
       }
-      const ta = (a as any)._creationTime ?? (a as any).createdAt ?? 0
-      const tb = (b as any)._creationTime ?? (b as any).createdAt ?? 0
-      return ta - tb
-    })
+      // Sort by creation time (most recent first - descending)
+      const ta = getOrderTimestamp(a)
+      const tb = getOrderTimestamp(b)
+      return tb - ta // Descending: most recent first
+    },
+  })
 
   // statsMap already computed above for all customer orders
 
@@ -131,11 +137,6 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-fluid-2xl font-bold">Inbox</h1>
-        <p className="text-muted-foreground">Chat with restaurant about your orders</p>
-      </div>
-
       {/* Filters */}
       <OrderFilter
         fromDate={fromDateDraft}
@@ -192,7 +193,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
                         {new Date(order._creationTime ?? order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <Badge variant="outline" className={statusColors[order.status]}>
+                    <Badge variant="outline" className={statusColors[order.status as keyof typeof statusColors]}>
                       {order.status}
                     </Badge>
                   </div>

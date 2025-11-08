@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Clock, CheckCircle, XCircle, MessageSquare, Ban, Truck, Activity, ArrowLeft, ChevronDown, ChevronUp, FileText } from "lucide-react"
 import { useData } from "@/lib/data-context"
+import { filterAndSortOrders } from "@/lib/order-filter-utils"
 import { OrderTracking } from "./order-tracking"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -37,13 +38,15 @@ export function ActiveOrdersView({ onBackToMenu, onNavigateToInbox }: ActiveOrde
   // State for expanded/collapsed order cards
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
 
+  // Use unified filtering utility - standard: most recent first
   // Filter active orders based on order type
   // Regular orders: pending, accepted, ready, in-transit, denied
   // Pre-orders: accepted, ready, in-transit, denied (exclude pending)
-  const activeOrders = orders
-    .filter((order) => {
-      if (order.customerId !== customerId) return false
-      
+  const activeOrders = filterAndSortOrders(orders, {
+    customerId,
+    orderType: "all",
+    statusFilter: "all", // We'll filter by active statuses in customFilter
+    customFilter: (order) => {
       // Active statuses for regular orders
       const regularActiveStatuses = ["pending", "accepted", "ready", "in-transit", "denied"]
       // Active statuses for pre-orders (exclude pending)
@@ -54,8 +57,8 @@ export function ActiveOrdersView({ onBackToMenu, onNavigateToInbox }: ActiveOrde
       } else {
         return regularActiveStatuses.includes(order.status)
       }
-    })
-    .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
+    },
+  })
 
   const handleCancelOrder = (orderId: string) => {
     updateOrder(orderId, { status: "cancelled" })
@@ -114,21 +117,6 @@ export function ActiveOrdersView({ onBackToMenu, onNavigateToInbox }: ActiveOrde
 
   return (
     <div className="space-y-8 xs:space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBackToMenu} className="touch-target">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-fluid-2xl font-bold">Active Orders</h1>
-            <p className="text-fluid-sm text-muted-foreground">
-              {activeOrders.length} active order{activeOrders.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Active Orders List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {activeOrders.length === 0 ? (
@@ -221,7 +209,7 @@ export function ActiveOrdersView({ onBackToMenu, onNavigateToInbox }: ActiveOrde
 
                   {/* Order Items */}
                   <div className="space-y-1 lg:space-y-2 max-h-32 overflow-y-auto pr-1">
-                    {order.items.map((item, idx) => (
+                    {order.items.map((item: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-xs">
                         <div className="flex-1 min-w-0">
                           <div className="truncate">{item.quantity}x {item.name}</div>

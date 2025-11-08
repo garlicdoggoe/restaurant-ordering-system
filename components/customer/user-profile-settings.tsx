@@ -112,16 +112,6 @@ function UserProfileSettingsContent() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 xs:space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-fluid-2xl font-bold">Profile Settings</h1>
-          <p className="text-fluid-sm text-muted-foreground">
-            Manage your account information and preferences
-          </p>
-        </div>
-      </div>
-
       {/* Section Navigation */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {[

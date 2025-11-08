@@ -23,6 +23,7 @@ import {
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
+import { filterAndSortOrders } from "@/lib/order-filter-utils"
 
 interface PreOrdersViewProps {
   onBackToMenu: () => void
@@ -59,32 +60,15 @@ export function PreOrdersView({ onBackToMenu, onNavigateToInbox }: PreOrdersView
     { id: "delivered", label: "Delivered", icon: Package },
   ]
 
+  // Use unified filtering utility - standard: most recent first
   // Filter for ALL pre-orders - ensure only pre-order type orders are shown
-  // Apply date and status filtering - show all statuses now
-  const activePreOrders = orders
-    .filter((order) => {
-      // Always ensure only pre-order type orders are shown
-      if (order.customerId !== customerId || order.orderType !== "pre-order") {
-        return false
-      }
-
-      // Date filtering: compare created time using either Convex _creationTime or legacy createdAt
-      // For "From" date, start from beginning of day (00:00:00.000) to include the entire selected day
-      const fromTs = fromDate ? new Date(fromDate).setHours(0, 0, 0, 0) : null
-      // For "To" date, extend to end of day (23:59:59.999) to include the entire selected day
-      const toTs = toDate ? new Date(toDate).setHours(23, 59, 59, 999) : null
-      
-      const createdTs = (order._creationTime ?? order.createdAt) || 0
-      
-      // Inclusive filtering: >= fromTs and <= toTs
-      if (fromTs !== null && createdTs < fromTs) return false
-      if (toTs !== null && createdTs > toTs) return false
-
-      // Apply status filter - now includes all statuses (no active-only restriction)
-      if (statusFilter === "all") return true
-      return order.status === statusFilter
-    })
-    .sort((a, b) => (b._creationTime ?? 0) - (a._creationTime ?? 0))
+  const activePreOrders = filterAndSortOrders(orders, {
+    customerId,
+    fromDate,
+    toDate,
+    statusFilter,
+    orderType: "pre-order", // Only show pre-orders
+  })
 
   const handleCancelOrder = (orderId: string) => {
     updateOrder(orderId, { status: "cancelled" })
@@ -165,21 +149,6 @@ export function PreOrdersView({ onBackToMenu, onNavigateToInbox }: PreOrdersView
 
   return (
     <div className="space-y-8 xs:space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBackToMenu} className="touch-target">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-fluid-2xl font-bold">Pre-Orders</h1>
-            <p className="text-fluid-sm text-muted-foreground">
-              {activePreOrders.length} pre-order{activePreOrders.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Filter Component */}
       <OrderFilter
         fromDate={fromDate}
@@ -308,7 +277,7 @@ export function PreOrdersView({ onBackToMenu, onNavigateToInbox }: PreOrdersView
 
                   {/* Order Items */}
                   <div className="space-y-1 lg:space-y-2 max-h-32 overflow-y-auto pr-1">
-                    {order.items.map((item, idx) => (
+                    {order.items.map((item: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-xs">
                         <div className="flex-1 min-w-0">
                           <div className="truncate">{item.quantity}x {item.name}</div>
