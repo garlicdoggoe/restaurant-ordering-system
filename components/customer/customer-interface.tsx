@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { CustomerSidebar } from "./customer-sidebar"
 import { CustomerTopNav } from "./customer-top-nav"
 import { MenuBrowser } from "./menu-browser"
@@ -35,6 +35,38 @@ export function CustomerInterface() {
 
   // Query unread message count
   const unreadMessageCount = useQuery(api.chat.getUnreadCount) ?? 0
+
+  // Get all customer orders to find the most recent unread message
+  const allCustomerOrders = useMemo(() => 
+    orders.filter((o) => o.customerId === customerId), 
+    [orders, customerId]
+  )
+  const allOrderIds = useMemo(() => 
+    allCustomerOrders.map((o) => o._id as string), 
+    [allCustomerOrders]
+  )
+  
+  // Get per-order unread stats to find the order with most recent unread message
+  const perOrderStats = useQuery(
+    api.chat.getPerOrderUnreadAndLast, 
+    allOrderIds.length ? { orderIds: allOrderIds } : "skip"
+  ) ?? []
+  
+  // Find the order with the most recent unread message
+  // Filter orders with unread messages and find the one with the latest lastMessage timestamp
+  const mostRecentUnreadOrderId = useMemo(() => {
+    const unreadOrders = perOrderStats.filter((stat) => stat.unreadCount > 0)
+    if (unreadOrders.length === 0) return null
+    
+    // Sort by last message timestamp (most recent first)
+    const sorted = unreadOrders.sort((a, b) => {
+      const timestampA = a.lastMessage?.timestamp ?? 0
+      const timestampB = b.lastMessage?.timestamp ?? 0
+      return timestampB - timestampA
+    })
+    
+    return sorted[0]?.orderId ?? null
+  }, [perOrderStats])
 
   // Function to navigate to inbox and open chat for a specific order
   const navigateToInboxWithOrder = (orderId: string) => {
@@ -94,14 +126,22 @@ export function CustomerInterface() {
 
   const cartItemCount = activeOrder ? 0 : getCartItemCount()
 
+  // State to track notification visibility for dynamic padding adjustment
+  const [isNotificationVisible, setIsNotificationVisible] = useState(false)
+
   return (
     <div className="min-h-screen bg-background flex">
       {/* Top Navigation Bar - Mobile Only */}
       <CustomerTopNav
         currentView={currentView}
         cartItemCount={cartItemCount}
+        unreadMessageCount={unreadMessageCount}
+        mostRecentUnreadOrderId={mostRecentUnreadOrderId}
         onToggleSidebar={() => setIsMobileMenuOpen(true)}
         onToggleCart={() => setIsCartOpen(true)}
+        onNavigateToInbox={navigateToInboxWithOrder}
+        onNavigateToInboxTab={() => setCurrentView("inbox")}
+        onNotificationVisibilityChange={setIsNotificationVisible}
       />
 
       {/* Left Sidebar */}
@@ -118,7 +158,19 @@ export function CustomerInterface() {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 lg:pt-0 pt-14">
+      {/* 
+        Dynamic padding calculation:
+        - Mobile: pt-14 (56px) for nav bar base padding
+        - When notification is visible: pt-[104px] (56px nav + 48px notification = h-12)
+        - Desktop: no padding (lg:pt-0)
+        Notification banner is h-12 (48px) for consistent single-line display
+        Padding automatically adjusts based on notification visibility state
+      */}
+      <div 
+        className={`flex-1 min-w-0 lg:pt-0 transition-[padding-top] duration-200 ease-in-out ${
+          isNotificationVisible ? 'pt-[104px]' : 'pt-14'
+        }`}
+      >
         {currentView === "menu" ? (
           <div className="flex h-full">
             {/* Menu Content */}

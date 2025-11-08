@@ -85,10 +85,59 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
     }
   }, [messages])
 
+  // Helper function to check if we're on a different calendar day than the order creation day
+  // Returns true if current date is on a succeeding day (next day or later) compared to order creation date
+  const isOnSucceedingDay = (): boolean => {
+    if (!order) return false
+
+    // Get the order's creation date
+    const orderDate = new Date(order.createdAt)
+    
+    // Get current date
+    const now = new Date()
+    
+    // Compare dates (year, month, day) ignoring time
+    // Create date objects for comparison with time set to midnight
+    const orderDay = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate())
+    const currentDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    // Return true if current day is after the order creation day
+    return currentDay > orderDay
+  }
+
+  // Check if messaging should be disabled
+  // Disable messaging if:
+  // 1. Order is in a final status (completed, delivered, or cancelled)
+  // 2. AND we're on a succeeding day (next day or later) compared to the order creation day
+  // This allows customers to message on the same day the order was created, even if store is closed
+  const isMessagingDisabled = (): boolean => {
+    if (!order) return false
+    
+    const finalStatuses: Array<"completed" | "delivered" | "cancelled"> = ["completed", "delivered", "cancelled"]
+    const isFinalStatus = finalStatuses.includes(order.status as any)
+    
+    if (!isFinalStatus) {
+      // Order is not in a final status, allow messaging regardless of day
+      return false
+    }
+    
+    // Order is in final status, check if we're on a succeeding day
+    // If we're on the same day as order creation, allow messaging
+    // If we're on a succeeding day, disable messaging
+    return isOnSucceedingDay()
+  }
+
+  // Compute whether messaging is disabled
+  const messagingDisabled = isMessagingDisabled()
+
   const handleSend = () => {
     if (!message.trim()) return
 
     if (!customerId) return
+    
+    // Prevent sending if messaging is disabled
+    if (messagingDisabled) return
+    
     sendMessage(orderId, customerId, customerName, "customer", message)
     setMessage("")
   }
@@ -118,6 +167,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   // Handle image upload (only if allowed)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!allowCustomerImages) return
+    if (messagingDisabled) return // Prevent upload if messaging is disabled
     const file = e.target.files?.[0]
     if (!file || !customerId) return
 
@@ -346,7 +396,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
                 variant="outline"
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
+                disabled={isUploading || messagingDisabled}
               >
                 <ImageIcon className="w-4 h-4" />
               </Button>
@@ -356,18 +406,19 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
                 accept="image/*"
                 onChange={handleImageUpload}
                 className="hidden"
+                disabled={messagingDisabled}
               />
             </>
           )}
           <Input
-            placeholder="Type your message..."
+            placeholder={messagingDisabled ? "Messaging is disabled for this order" : "Type your message..."}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             className="text-xs md:text-fluid-sm"
-            disabled={isUploading}
+            disabled={isUploading || messagingDisabled}
           />
-          <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim()}>
+          <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim() || messagingDisabled}>
             <Send className="w-4 h-4" />
           </Button>
         </div>
