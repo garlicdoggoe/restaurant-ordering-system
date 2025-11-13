@@ -25,44 +25,44 @@ export function AuthButtons({ userType }: AuthButtonsProps) {
   if (userType === 'owner') {
     return (
       <div className="space-y-3">
+        <OwnerSignupDialog>
+          <Button className="w-full" size="lg">
+            Sign up
+          </Button>
+        </OwnerSignupDialog>
         <SignInButton 
           mode="modal"
           forceRedirectUrl="/owner"
           fallbackRedirectUrl="/owner"
         >
-          <Button className="w-full" size="lg">
+          <Button className="w-full" size="lg" variant="outline">
             Login
           </Button>
         </SignInButton>
-        <OwnerSignupDialog>
-          <Button className="w-full" size="lg" variant="outline">
-            Sign up
-          </Button>
-        </OwnerSignupDialog>
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <SignInButton 
-        mode="modal"
-        forceRedirectUrl="/customer"
-        fallbackRedirectUrl="/customer"
-      >
-        <Button className="w-full" size="lg">
-          Login
-        </Button>
-      </SignInButton>
       <SignUpButton 
         mode="modal"
         forceRedirectUrl="/customer"
         fallbackRedirectUrl="/customer"
       >
-        <Button className="w-full" size="lg" variant="outline">
+        <Button className="w-full" size="lg">
           Sign up
         </Button>
       </SignUpButton>
+      <SignInButton 
+        mode="modal"
+        forceRedirectUrl="/customer"
+        fallbackRedirectUrl="/customer"
+      >
+        <Button className="w-full" size="lg" variant="outline">
+          Login
+        </Button>
+      </SignInButton>
     </div>
   )
 }

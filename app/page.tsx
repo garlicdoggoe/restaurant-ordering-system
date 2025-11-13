@@ -1,52 +1,45 @@
-"use client"
-
-import { SignIn } from '@clerk/nextjs'
-import { useAuth } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Store, User } from "lucide-react"
+import { AuthButtons } from "@/components/auth-buttons"
 
 export default function HomePage() {
-  const { isSignedIn } = useAuth()
-  const router = useRouter()
-
-  // Redirect authenticated users to customer portal by default
-  useEffect(() => {
-    if (isSignedIn) {
-      router.push('/customer')
-    }
-  }, [isSignedIn, router])
-
-  // Show loading state while checking authentication
-  if (isSignedIn) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold">Redirecting...</h1>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
-      <div className="max-w-md w-full space-y-8">
+      <div className="space-y-8">
         <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight">Blackpepper Camp's Pizza</h1>
-          <p className="text-lg text-muted-foreground">Please sign in to continue</p>
+          <h1 className="text-2xl font-bold tracking-tight">Blackpepper Camp's Pizza</h1>
+          <p className="text-md text-muted-foreground">Sign in / Sign up to continue</p>
         </div>
-        
-        <div className="flex justify-center">
-          <SignIn 
-            appearance={{
-              elements: {
-                formButtonPrimary: 'bg-primary hover:bg-primary/90',
-                card: 'shadow-lg',
-              }
-            }}
-            redirectUrl="/customer"
-            fallbackRedirectUrl="/customer"
-          />
-        </div>
+        {/* <div className="grid md:grid-cols-2 gap-6"> */}
+          {/* <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="text-center pb-4">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <Store className="w-8 h-8 text-primary" />
+
+
+              </div>
+              <CardTitle className="text-xl">Restaurant Owner</CardTitle>
+              <CardDescription className="text-md">Manage your restaurant, menu, orders, and more</CardDescription>
+
+
+            </CardHeader>
+            <CardContent>
+
+              <AuthButtons userType="owner" />
+            </CardContent>
+          </Card> */}
+
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="text-center pb-4">
+              <div className="text-4xl mt-5">👋</div>
+              <CardTitle className="text-xl">Hello, there!</CardTitle>
+              <CardDescription className="text-md mb-[-20px]">Hungry? Ordering your favorite meals has never been easier. Discover, order, and track in just a few taps.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AuthButtons userType="customer" />
+            </CardContent>
+          </Card>
+        {/* </div> */}
       </div>
     </div>
   )
