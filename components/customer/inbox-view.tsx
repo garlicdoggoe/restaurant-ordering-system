@@ -135,6 +135,36 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     }
   }, [orderIdToOpen, orders, customerId, onOrderOpened])
 
+  // Handler for status filter changes - applies immediately (especially for mobile)
+  const handleStatusFilterChange = (newStatus: string) => {
+    const today = new Date()
+    const todayStr = today.toISOString().split("T")[0] // Format as YYYY-MM-DD
+    
+    setStatusFilterDraft(newStatus)
+    // Apply immediately - no need to click "Apply Filters" for status filters
+    setStatusFilter(newStatus)
+    
+    // When "Recent (Today)" is selected, automatically set date filters to today
+    if (newStatus === "recent") {
+      // Set both draft and applied date filters to today
+      setFromDateDraft(todayStr)
+      setToDateDraft(todayStr)
+      setFromDate(todayStr)
+      setToDate(todayStr)
+    } else {
+      // When switching to any other filter, clear auto-set dates (if dates are set to today)
+      // but preserve manually set date ranges
+      // If both dates are set to today (auto-set by "Recent"), clear them
+      if (fromDate === todayStr && toDate === todayStr) {
+        setFromDateDraft("")
+        setToDateDraft("")
+        setFromDate("")
+        setToDate("")
+      }
+      // Otherwise, keep the existing date filters as they were manually set
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -143,8 +173,10 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
         toDate={toDateDraft}
         onFromDateChange={setFromDateDraft}
         onToDateChange={setToDateDraft}
-        statusFilter={statusFilterDraft}
-        onStatusFilterChange={setStatusFilterDraft}
+        appliedFromDate={fromDate}
+        appliedToDate={toDate}
+        statusFilter={statusFilter}
+        onStatusFilterChange={handleStatusFilterChange}
         statusFilterOptions={statusFilterOptions}
         onClearAll={() => {
           // Reset both draft and applied to defaults
@@ -156,9 +188,9 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
           setStatusFilter("recent")
         }}
         onApply={() => {
+          // Only apply date filters - status filters are already applied immediately
           setFromDate(fromDateDraft)
           setToDate(toDateDraft)
-          setStatusFilter(statusFilterDraft)
         }}
         drawerTitle="Filter Inbox"
       />

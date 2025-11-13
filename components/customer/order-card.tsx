@@ -1,12 +1,13 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, ChevronDown, ChevronUp, FileText, Truck, Package, CircleCheck } from "lucide-react"
+import { Clock, CheckCircle, XCircle, MessageSquare, Ban, ChevronDown, ChevronUp, FileText, Truck, Package, CircleCheck, Upload } from "lucide-react"
 import { type Order, type DeliveryFee } from "@/lib/data-context"
+import { PaymentProofUploadDialog } from "@/components/ui/payment-proof-upload-dialog"
 
 // Helper function to get delivery fee from address
 // Tries to match barangay names from deliveryFees array against the address string
@@ -52,6 +53,9 @@ export function OrderCard({
   showCancelButton = false,
   cancellationNotice,
 }: OrderCardProps) {
+  // State for payment proof upload dialog
+  const [isPaymentProofDialogOpen, setIsPaymentProofDialogOpen] = useState(false)
+  
   // Calculate total item count by quantity
   const totalItemCount = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
   
@@ -68,6 +72,13 @@ export function OrderCard({
   
   // Calculate full order total (subtotal + platformFee + deliveryFee - discount)
   const fullOrderTotal = order.subtotal + (order.platformFee || 0) + deliveryFee - (order.discount || 0)
+
+  // Check if payment proof upload button should be shown
+  // Only show when: paymentPlan is "downpayment", remainingPaymentMethod is "online", and proof hasn't been uploaded yet
+  const shouldShowPaymentProofButton = 
+    order.paymentPlan === "downpayment" && 
+    order.remainingPaymentMethod === "online" && 
+    !order.remainingPaymentProofUrl
 
   // Status icons for all possible order statuses - all yellow
   const statusIcons = {
@@ -345,38 +356,70 @@ export function OrderCard({
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onDetailsClick}
-            className="flex-1 touch-target text-xs"
-          >
-            <FileText className="w-3 h-3 mr-1" />
-            <span>Details</span>
-          </Button>
-          {onNavigateToInbox && (
+        <div className="space-y-2 pt-2">
+          {/* First row: Details and Message buttons */}
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onNavigateToInbox(order._id)}
+              onClick={onDetailsClick}
               className="flex-1 touch-target text-xs"
             >
-              <MessageSquare className="w-3 h-3 mr-1" />
-              <span>Message</span>
+              <FileText className="w-3 h-3 mr-1" />
+              <span>Details</span>
+            </Button>
+            {onNavigateToInbox && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onNavigateToInbox(order._id)}
+                className="flex-1 touch-target text-xs"
+              >
+                <MessageSquare className="w-3 h-3 mr-1" />
+                <span>Message</span>
+              </Button>
+            )}
+          </div>
+          
+          {/* Second row: Payment proof upload button (full width on mobile, conditional) */}
+          {shouldShowPaymentProofButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPaymentProofDialogOpen(true)}
+              className="w-full touch-target text-xs"
+            >
+              <Upload className="w-3 h-3 mr-1" />
+              <span>Upload Remaining Payment Proof</span>
             </Button>
           )}
+          
+          {/* Third row: Cancel button (full width on mobile, conditional) */}
           {showCancelButton && canCancel && onCancelClick && (
             <Button
               size="sm"
               onClick={onCancelClick}
-              className="touch-target text-xs !bg-red-600 hover:!bg-red-700 !text-white border-red-600"
+              className="w-full touch-target text-xs !bg-red-600 hover:!bg-red-700 !text-white border-red-600"
             >
-              <Ban className="w-4 h-4" />
+              <Ban className="w-4 h-4 mr-1" />
+              <span>Cancel Order</span>
             </Button>
           )}
         </div>
       </CardContent>
+      
+      {/* Payment Proof Upload Dialog */}
+      {shouldShowPaymentProofButton && (
+        <PaymentProofUploadDialog
+          open={isPaymentProofDialogOpen}
+          onOpenChange={setIsPaymentProofDialogOpen}
+          orderId={order._id}
+          onSuccess={() => {
+            // Dialog will close automatically after successful upload
+            // The order will be refreshed automatically by the data context
+          }}
+        />
+      )}
     </Card>
   )
 }

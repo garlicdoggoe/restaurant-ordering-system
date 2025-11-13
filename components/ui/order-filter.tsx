@@ -13,11 +13,15 @@ export interface StatusFilterOption {
 }
 
 interface OrderFilterProps {
-  // Date filter state
+  // Date filter state (draft values - what user is currently selecting)
   fromDate: string
   toDate: string
   onFromDateChange: (date: string) => void
   onToDateChange: (date: string) => void
+  
+  // Applied date filter values (to compare with draft and show Apply button when different)
+  appliedFromDate?: string
+  appliedToDate?: string
   
   // Status filter state
   statusFilter: string
@@ -50,6 +54,8 @@ export function OrderFilter({
   toDate,
   onFromDateChange,
   onToDateChange,
+  appliedFromDate = "",
+  appliedToDate = "",
   statusFilter,
   onStatusFilterChange,
   statusFilterOptions,
@@ -86,18 +92,56 @@ export function OrderFilter({
               })}
             </div>
             
-            {/* Expand button for date filters */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsFilterDrawerOpen(true)}
-              className="w-full touch-target flex items-center justify-center gap-2"
-            >
+            {/* Date filters section - button to open drawer and apply button when filters are set */}
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFilterDrawerOpen(true)}
+                className="w-full touch-target flex items-center justify-center gap-2"
+              >
               <Filter className="h-4 w-4" />
               <span className="text-xs">
-                {fromDate || toDate ? "Date Filters Applied" : "Date Filters"}
+                {(() => {
+                  // Don't show dates when "Recent (Today)" filter is active
+                  if (statusFilter === "recent") {
+                    return "Date Filters"
+                  }
+                  // Show actual dates when filters are active
+                  if (appliedFromDate || appliedToDate) {
+                    const formatDate = (dateStr: string) => {
+                      if (!dateStr) return ""
+                      const date = new Date(dateStr)
+                      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                    }
+                    const from = formatDate(appliedFromDate)
+                    const to = formatDate(appliedToDate)
+                    if (from && to) {
+                      return `${from} - ${to}`
+                    } else if (from) {
+                      return `From ${from}`
+                    } else if (to) {
+                      return `Until ${to}`
+                    }
+                  }
+                  return "Date Filters"
+                })()}
               </span>
-            </Button>
+              </Button>
+              
+              {/* Show Apply Filters button when date filters are set (draft state differs from applied) */}
+              {onApply && (fromDate !== appliedFromDate || toDate !== appliedToDate) && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onApply()
+                  }}
+                  className="w-full touch-target"
+                >
+                  Apply Filters
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Desktop: Full filter controls */}
