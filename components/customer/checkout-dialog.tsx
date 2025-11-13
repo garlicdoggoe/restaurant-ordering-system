@@ -55,8 +55,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
   // Pre-order fields
   const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery">("pickup")
-  const [preOrderDate, setPreOrderDate] = useState<string>("") // ISO date
-  const [preOrderTime, setPreOrderTime] = useState<string>("") // HH:MM
+  // Initialize with default valid values for mobile compatibility (first available date and time)
+  const [preOrderDate, setPreOrderDate] = useState<string>("2025-12-21") // ISO date - default to first available date
+  const [preOrderTime, setPreOrderTime] = useState<string>("13:00") // HH:MM - default to first available time
   const [pickupDate, setPickupDate] = useState<string>("") // ISO date
   const [pickupTime, setPickupTime] = useState<string>("") // HH:MM
   const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment">("full")
@@ -168,6 +169,30 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
     return ""
   }
 
+  // Clamp date to valid range (enforces min/max even if browser allows invalid selection)
+  const clampPreOrderDate = (date: string): string => {
+    if (!date) return "2025-12-21" // Default to first available date
+    
+    const selectedDate = new Date(date)
+    const minDate = new Date("2025-12-21")
+    minDate.setHours(0, 0, 0, 0)
+    const maxDate = new Date("2025-12-27")
+    maxDate.setHours(23, 59, 59, 999)
+    
+    selectedDate.setHours(0, 0, 0, 0)
+    
+    // Clamp to valid range
+    if (selectedDate < minDate) {
+      return "2025-12-21"
+    }
+    if (selectedDate > maxDate) {
+      return "2025-12-27"
+    }
+    
+    // Return date in YYYY-MM-DD format
+    return date
+  }
+
   // Helper function to convert 24-hour format to 12-hour format with AM/PM
   const formatTime12Hour = (time24: string): string => {
     const [hours, minutes] = time24.split(":").map(Number)
@@ -192,6 +217,29 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
     }
     
     return ""
+  }
+
+  // Clamp time to valid range (enforces min/max even if browser allows invalid selection)
+  const clampPreOrderTime = (time: string): string => {
+    if (!time) return "13:00" // Default to first available time
+    
+    const [selectedHour, selectedMinute] = time.split(":").map(Number)
+    const selectedMinutes = selectedHour * 60 + selectedMinute
+    
+    // Pre-order hours: 1:00 PM (13:00) to 7:00 PM (19:00)
+    const minMinutes = 13 * 60 // 1:00 PM
+    const maxMinutes = 19 * 60 // 7:00 PM
+    
+    // Clamp to valid range
+    if (selectedMinutes < minMinutes) {
+      return "13:00"
+    }
+    if (selectedMinutes > maxMinutes) {
+      return "19:00"
+    }
+    
+    // Return time in HH:MM format
+    return time
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -505,11 +553,13 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       type="date"
                       value={preOrderDate}
                       onChange={(e) => {
-                        const date = e.target.value
-                        setPreOrderDate(date)
-                        setDateError(validatePreOrderDate(date))
+                        const rawDate = e.target.value
+                        // Clamp date to valid range (prevents invalid dates on mobile browsers)
+                        const clampedDate = clampPreOrderDate(rawDate)
+                        setPreOrderDate(clampedDate)
+                        setDateError(validatePreOrderDate(clampedDate))
                         if (preOrderTime) {
-                          setTimeError(validatePreOrderTime(preOrderTime, date))
+                          setTimeError(validatePreOrderTime(preOrderTime, clampedDate))
                         }
                       }}
                       required
@@ -518,9 +568,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       className="w-full text-xs relative z-[100]"
                       placeholder="mm/dd/yyyy"
                     />
-                    {dateError && (
-                      <p className="text-sm text-red-500 mt-1">{dateError}</p>
-                    )}
                   </div>
                   <div>
                     <Input
@@ -528,9 +575,11 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                       type="time"
                       value={preOrderTime}
                       onChange={(e) => {
-                        const time = e.target.value
-                        setPreOrderTime(time)
-                        setTimeError(validatePreOrderTime(time, preOrderDate))
+                        const rawTime = e.target.value
+                        // Clamp time to valid range (prevents invalid times on mobile browsers)
+                        const clampedTime = clampPreOrderTime(rawTime)
+                        setPreOrderTime(clampedTime)
+                        setTimeError(validatePreOrderTime(clampedTime, preOrderDate))
                       }}
                       required
                       min="13:00"
@@ -540,6 +589,10 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     />
                   </div>
                 </div>
+                {/* Error messages displayed below the grid to take full width */}
+                {dateError && (
+                  <p className="text-sm text-red-500 mt-1">{dateError}</p>
+                )}
                 {timeError ? (
                   <p className="text-[12px] text-red-500 mt-1">{timeError}</p>
                 ) : (
