@@ -101,7 +101,7 @@ export function OrderFilter({
                 className="w-full touch-target flex items-center justify-center gap-2"
               >
               <Filter className="h-4 w-4" />
-              <span className="text-xs">
+              <span className="text-xs mt-1">
                 {(() => {
                   // Don't show dates when "Recent (Today)" filter is active
                   if (statusFilter === "recent") {
