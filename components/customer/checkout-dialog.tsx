@@ -548,6 +548,10 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 <Label className="text-xs md:text-sm text-gray-500">Pickup/Delivery Date & Time</Label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
+                    {/* Provide field-specific label so customers immediately know this input collects the date */}
+                    <Label htmlFor="preorder-date" className="block text-[11px] text-gray-500 mb-1">
+                      Date
+                    </Label>
                     <Input
                       id="preorder-date"
                       type="date"
@@ -570,6 +574,10 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     />
                   </div>
                   <div>
+                    {/* Provide field-specific label so customers immediately know this input collects the time */}
+                    <Label htmlFor="preorder-time" className="block text-[11px] text-gray-500 mb-1">
+                      Time
+                    </Label>
                     <Input
                       id="preorder-time"
                       type="time"
@@ -596,10 +604,14 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 {timeError ? (
                   <p className="text-[12px] text-red-500 mt-1">{timeError}</p>
                 ) : (
-                  <p className="text-[12px] text-yellow-600 text-muted-foreground">
-                    Pre-order hours: 1:00 PM - 7:00 PM
+                  <p className="text-[12px] font-medium text-yellow-600 text-muted-foreground">
+                    Available dates: December 21 - December 27, 2025
                   </p>
                 )}
+                {/* Surface the allowed pre-order date window so customers can plan ahead without guessing */}
+                  <p className="text-[12px] font-medium text-yellow-600 text-muted-foreground mt-[-10px]">
+                    Pre-order hours: 1:00 PM - 7:00 PM
+                  </p>
               </div>
             )}
 
@@ -790,6 +802,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
               className="w-full mt-4 md:mt-6 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 md:py-4 rounded-lg text-sm md:text-base"
               disabled={
                 isSubmitting || 
+                !previewUrl || // Require payment proof image
                 (orderType === "pre-order" && (
                   !preOrderDate || 
                   !preOrderTime || 
