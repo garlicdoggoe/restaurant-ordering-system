@@ -480,12 +480,14 @@ export const update = mutation({
         .first();
       
       if (ownerUser) {
+        // Include the GCash number from the order instance in the refund message
+        const gcashNumber = existing.gcashNumber ? `${existing.gcashNumber}` : "";
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
           senderId: ownerUser._id as unknown as string,
           senderName: restaurant?.name || `${ownerUser.firstName} ${ownerUser.lastName}`,
           senderRole: "owner",
-          message: "Your refund is on the way! It will be processed within 1–3 business days. We'll send it to the GCash number you provided and share a screenshot once completed 😊",
+          message: `Your refund is on the way! It will be processed within 1–3 business days. We'll send it to the GCash number you provided (+63) ${gcashNumber} and share a screenshot once completed 😊`,
           timestamp: Date.now(),
         });
       }

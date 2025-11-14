@@ -368,7 +368,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       window.localStorage.setItem(key, JSON.stringify(payload))
     } catch (err) {
       console.error("Failed to compress or prepare image preview", err)
-      toast.error("Failed to process image. Please try again.", { id: "compressing" })
     }
   }
 
