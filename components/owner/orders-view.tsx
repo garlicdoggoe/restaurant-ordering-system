@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useData, type Order } from "@/lib/data-context"
+import { useData } from "@/lib/data-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { OrderCard } from "./order-card"
-import { OrderDetails } from "./order-details"
 import { DenyOrderDialog } from "./deny-order-dialog"
 import { AcceptOrderDialog } from "./accept-order-dialog"
 
@@ -16,11 +15,12 @@ type OrderStatus = "pending" | "preparing" | "ready" | "completed" | "cancelled"
 
 export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?: string, initialStatus?: OrderStatus }) {
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus>(initialStatus || "pending")
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [denyOrderId, setDenyOrderId] = useState<string | null>(null)
   const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null)
+  // Track expanded state for each order (for mobile collapse/expand)
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
 
-  const { ordersByStatus } = useData()
+  const { ordersByStatus, deliveryFees } = useData()
 
   // NEW: Use status-specific queries instead of client-side filtering for better cache performance
   const statusCounts = {
@@ -50,55 +50,32 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
   }
 
   const filteredOrders = getFilteredOrders()
-  // Open provided orderId on mount
+  // Auto-expand the provided orderId on mount so users see it immediately
   useEffect(() => {
     if (initialOrderId) {
-      setSelectedOrderId(initialOrderId)
+      setExpandedOrders(prev => {
+        const next = new Set(prev)
+        next.add(initialOrderId)
+        return next
+      })
     }
   }, [initialOrderId])
 
   const nonPreOrders = filteredOrders.filter((o) => o.orderType !== "pre-order")
   const preOrders = filteredOrders.filter((o) => o.orderType === "pre-order")
 
-  const toCard = (order: Order) => ({
-    id: order._id,
-    customerName: order.customerName,
-    customerPhone: order.customerPhone,
-    customerAddress: order.customerAddress,
-    gcashNumber: order.gcashNumber,
-    type: (order.orderType as "dine-in" | "takeaway" | "delivery" | "pre-order"),
-    time: new Date(order._creationTime ?? order.createdAt).toLocaleString(),
-    items: order.items.map(item => ({
-      name: item.name,
-      quantity: item.quantity,
-      price: item.price,
-      variantName: item.variantName,
-      size: item.size,
-    })),
-    subtotal: order.subtotal,
-    platformFee: order.platformFee,
-    total: order.total,
-    paymentScreenshot: order.paymentScreenshot,
-    specialInstructions: order.specialInstructions,
-    // Include fields needed to compute payment status
-    paymentPlan: order.paymentPlan,
-    remainingPaymentMethod: order.remainingPaymentMethod,
-    remainingPaymentProofUrl: order.remainingPaymentProofUrl,
-    // Include pre-order specific fields
-    preOrderFulfillment: order.preOrderFulfillment,
-    preOrderScheduledAt: order.preOrderScheduledAt,
-    // Compute payment status for pre-orders with downpayment and online remaining payment
-    paymentStatus: (() => {
-      const isEligible = order.orderType === "pre-order" && order.paymentPlan === "downpayment" && order.remainingPaymentMethod === "online"
-      if (!isEligible) return undefined
-      const hasInitial = Boolean(order.paymentScreenshot)
-      const hasRemaining = Boolean(order.remainingPaymentProofUrl)
-      if (hasInitial && hasRemaining) return "Fully paid"
-      if (hasInitial) return "Initially paid"
-      return undefined
-    })(),
-    status: order.status,
-  })
+  // Toggle expanded state for an order
+  const toggleOrderExpanded = (orderId: string) => {
+    setExpandedOrders(prev => {
+      const next = new Set(prev)
+      if (next.has(orderId)) {
+        next.delete(orderId)
+      } else {
+        next.add(orderId)
+      }
+      return next
+    })
+  }
 
   const statusOptions = [
     { value: "pending", label: "Pending", count: statusCounts.pending, color: "bg-yellow-100 text-yellow-800" },
@@ -211,23 +188,17 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-        {nonPreOrders.map((order) => toCard(order)).map((order) => (
+        {nonPreOrders.map((order) => (
           <OrderCard
-            key={order.id}
-            order={{
-              ...order,
-              paymentStatus:
-                order.paymentStatus === "Fully paid" || order.paymentStatus === "Initially paid"
-                  ? order.paymentStatus
-                  : undefined,
-            }}
-            onClick={() => setSelectedOrderId(order.id)}
+            key={order._id}
+            order={order}
+            isExpanded={expandedOrders.has(order._id)}
+            onToggleExpand={() => toggleOrderExpanded(order._id)}
             onStatusChange={() => {
-              // Force re-render when order status changes
-              setSelectedOrderId(null)
             }}
             onDenyClick={(orderId) => setDenyOrderId(orderId)}
             onAcceptClick={(orderId) => setAcceptOrderId(orderId)}
+            deliveryFees={deliveryFees}
           />
         ))}
       </div>
@@ -238,37 +209,29 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
             <h2 className="text-fluid-xl font-semibold">Pre-orders</h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-            {preOrders.map((order) => toCard(order)).map((order) => (
+            {preOrders.map((order) => (
               <OrderCard 
-                key={order.id} 
-                order={{
-                  ...order,
-                  paymentStatus:
-                    order.paymentStatus === "Fully paid" || order.paymentStatus === "Initially paid"
-                      ? order.paymentStatus
-                      : undefined,
-                }}
-                onClick={() => setSelectedOrderId(order.id)}
+                key={order._id} 
+                order={order}
+                isExpanded={expandedOrders.has(order._id)}
+                onToggleExpand={() => toggleOrderExpanded(order._id)}
                 onStatusChange={() => {
-                  setSelectedOrderId(null)
                 }}
                 onDenyClick={(orderId) => setDenyOrderId(orderId)}
                 onAcceptClick={(orderId) => setAcceptOrderId(orderId)}
+                deliveryFees={deliveryFees}
               />
             ))}
           </div>
         </>
       )}
 
-      {selectedOrderId && <OrderDetails orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />}
-      
       {denyOrderId && (
         <DenyOrderDialog
           orderId={denyOrderId}
           onClose={() => setDenyOrderId(null)}
           onSuccess={() => {
             setDenyOrderId(null)
-            setSelectedOrderId(null)
           }}
         />
       )}
@@ -279,7 +242,6 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
           onClose={() => setAcceptOrderId(null)}
           onSuccess={() => {
             setAcceptOrderId(null)
-            setSelectedOrderId(null)
           }}
         />
       )}

@@ -131,6 +131,10 @@ export interface Order {
   customerName: string
   customerPhone: string
   customerAddress?: string
+  customerCoordinates?: {
+    lng: number
+    lat: number
+  } // Coordinates at time of order creation (isolated per order)
   gcashNumber?: string // GCash number used for payment
   items: OrderItem[]
   subtotal: number
@@ -493,6 +497,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     customerName: o.customerName,
     customerPhone: o.customerPhone,
     customerAddress: o.customerAddress,
+    customerCoordinates: o.customerCoordinates,
     gcashNumber: o.gcashNumber,
     items: o.items,
     subtotal: o.subtotal,
@@ -527,6 +532,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     customerName: o.customerName,
     customerPhone: o.customerPhone,
     customerAddress: o.customerAddress,
+    customerCoordinates: o.customerCoordinates,
     gcashNumber: o.gcashNumber,
     items: o.items,
     subtotal: o.subtotal,
@@ -671,6 +677,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       customerAddress: order.customerAddress,
+      customerCoordinates: order.customerCoordinates
+        ? {
+            lng: order.customerCoordinates.lng,
+            lat: order.customerCoordinates.lat,
+          }
+        : undefined,
       gcashNumber: order.gcashNumber,
       items: order.items,
       subtotal: order.subtotal,

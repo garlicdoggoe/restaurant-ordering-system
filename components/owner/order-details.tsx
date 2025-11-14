@@ -14,6 +14,7 @@ import Image from "next/image"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
 import { PaymentModal } from "@/components/ui/payment-modal"
 import { ChangeStatusDialog } from "./change-status-dialog"
+import { DeliveryMap } from "@/components/ui/delivery-map"
 
 interface OrderDetailsProps {
   orderId: string
@@ -37,6 +38,15 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
   const { getOrderById, updateOrderItems, getOrderModifications } = useData()
   const order = getOrderById(orderId)
   const modifications = getOrderModifications(orderId)
+
+  // Determine if order is a delivery order
+  const isDeliveryOrder = order && (order.orderType === "delivery" || (order.orderType === "pre-order" && order.preOrderFulfillment === "delivery"))
+  
+  // Determine coordinates to use: order's stored coordinates (at time of order creation)
+  // Use order's customerCoordinates instead of fetching current user coordinates
+  const deliveryCoordinates: [number, number] | null = order?.customerCoordinates 
+    ? [order.customerCoordinates.lng, order.customerCoordinates.lat] as [number, number]
+    : null
 
   // Initialize edited items when entering edit mode
   const handleEditMode = () => {
@@ -357,9 +367,25 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                     <span className="font-medium text-blue-600">(+63) {order.gcashNumber}</span>
                   </div>
                 )}
-                {order.customerAddress && (
+                {order.customerAddress && isDeliveryOrder && (
+                  <div className="flex flex-col">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-muted-foreground">Delivery Address</span>
+                      <span className="text-right">{order.customerAddress}</span>
+                    </div>
+                    {/* Delivery Map */}
+                    <div className="mt-2">
+                      <DeliveryMap
+                        address={order.customerAddress}
+                        coordinates={deliveryCoordinates}
+                        mapHeightPx={250}
+                      />
+                    </div>
+                  </div>
+                )}
+                {order.customerAddress && !isDeliveryOrder && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Delivery Address</span>
+                    <span className="text-muted-foreground">Address</span>
                     <span className="text-right">{order.customerAddress}</span>
                   </div>
                 )}

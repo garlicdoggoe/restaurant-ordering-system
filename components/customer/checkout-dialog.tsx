@@ -435,6 +435,15 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
         ? customerAddress
         : undefined
 
+      // Coordinates logic - store coordinates at time of order creation (isolated per order)
+      const effectiveCoordinates = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
+        ? (deliveryCoordinates 
+            ? { lng: deliveryCoordinates[0], lat: deliveryCoordinates[1] }
+            : (currentUser?.coordinates 
+                ? { lng: currentUser.coordinates.lng, lat: currentUser.coordinates.lat }
+                : undefined))
+        : undefined
+
       // Combine date + time into a single timestamp in local time
       let preOrderScheduledAt: number | undefined = undefined
       if (orderType === "pre-order" && preOrderDate) {
@@ -458,6 +467,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
         customerName,
         customerPhone: normalizedPhone,
         customerAddress: effectiveAddress,
+        customerCoordinates: effectiveCoordinates, // Store coordinates at time of order creation
         gcashNumber: currentUser.gcashNumber, // Include GCash number used for payment
         items: orderItems,
         subtotal,

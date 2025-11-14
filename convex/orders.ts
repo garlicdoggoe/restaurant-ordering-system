@@ -119,6 +119,12 @@ export const create = mutation({
     customerName: v.string(),
     customerPhone: v.string(),
     customerAddress: v.optional(v.string()),
+    customerCoordinates: v.optional(
+      v.object({
+        lng: v.number(),
+        lat: v.number(),
+      })
+    ), // Coordinates at time of order creation (isolated per order)
     gcashNumber: v.optional(v.string()),
     items: v.array(
       v.object({ 

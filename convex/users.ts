@@ -136,6 +136,16 @@ export const getUserById = query({
   },
 });
 
+// Get user by ID as string (for fetching customer coordinates from orders)
+export const getUserByIdString = query({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    // Convert string ID to Convex ID type
+    const user = await ctx.db.get(userId as any);
+    return user;
+  },
+});
+
 // Validate owner signup code
 export const validateOwnerCode = mutation({
   args: {
