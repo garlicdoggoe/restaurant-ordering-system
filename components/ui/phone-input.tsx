@@ -63,10 +63,10 @@ export function PhoneInput({
     <div className="space-y-2">
       <Label htmlFor={id}>
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-red-500">*</span>}
       </Label>
-      <div className="relative">
-        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-mono text-sm pointer-events-none">
+      <div className="relative flex items-center">
+        <div className="absolute left-3 text-gray-500 font-mono text-sm pointer-events-none leading-none">
           +63
         </div>
         <Input
@@ -147,11 +147,11 @@ export function GcashInput({
     <div className="space-y-2">
       <Label htmlFor={id}>
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-red-500">*</span>}
       </Label>
       <div className="flex gap-2">
-        <div className="relative flex-1">
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-mono text-sm pointer-events-none">
+        <div className="relative flex-1 flex items-center">
+          <div className="absolute mt-1 left-3 text-gray-500 font-mono text-sm pointer-events-none leading-none">
             +63
           </div>
           <Input

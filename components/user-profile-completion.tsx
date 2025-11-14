@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -21,15 +21,30 @@ interface ProfileCompletionProps {
 
 export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
   const { user } = useUser()
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
   const [gcashNumber, setGcashNumber] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
+  const [isLocationValid, setIsLocationValid] = useState<boolean>(false)
 
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
   const updateProfile = useMutation(api.users.updateUserProfile)
+
+  // Initialize form with existing user data or Clerk user data
+  useEffect(() => {
+    if (currentUser) {
+      setFirstName(currentUser.firstName || "")
+      setLastName(currentUser.lastName || "")
+    } else if (user) {
+      // Fallback to Clerk user data if Convex user doesn't exist yet
+      setFirstName(user.firstName || "")
+      setLastName(user.lastName || "")
+    }
+  }, [currentUser, user])
 
   // If user profile is already complete, don't show this component
   if (currentUser?.profileComplete) {
@@ -56,6 +71,18 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
       }
 
       // Validate required fields and phone numbers before submission
+      if (!firstName.trim()) {
+        toast.error("First name is required")
+        setIsSubmitting(false)
+        return
+      }
+
+      if (!lastName.trim()) {
+        toast.error("Last name is required")
+        setIsSubmitting(false)
+        return
+      }
+
       if (!address.trim()) {
         toast.error("Address is required")
         setIsSubmitting(false)
@@ -64,6 +91,13 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
 
       if (!selectedLngLat) {
         toast.error("Please select your location on the map")
+        setIsSubmitting(false)
+        return
+      }
+
+      // Validate that location is within Libmanan
+      if (!isLocationValid) {
+        toast.error("Address must be within Libmanan, Camarines Sur")
         setIsSubmitting(false)
         return
       }
@@ -87,6 +121,8 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
 
       // Update existing user profile
       await updateProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         phone: normalizedPhone,
         address: address.trim(),
         gcashNumber: normalizedGcash,
@@ -106,26 +142,43 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Complete Your Profile</CardTitle>
-          <CardDescription>
-            Please provide your contact information to continue using the service.
+          <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
+          <CardDescription className="text-xs">
+            Please provide the correct information so we can ensure a seamless ordering experience.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Enter your first name"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Enter your last name"
+                  required
+                />
+              </div>
+            </div>
+
             <PhoneInput
               id="phone"
               label="Phone Number"
               value={phone}
               onChange={setPhone}
               required
-            />
-            
-            <AddressMapPicker
-              address={address}
-              onAddressChange={setAddress}
-              coordinates={selectedLngLat}
-              onCoordinatesChange={setSelectedLngLat}
             />
             
             <GcashInput
@@ -137,9 +190,30 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
               onUsePhoneNumber={() => setGcashNumber(phone)}
               phoneNumber={phone}
             />
-
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            
+            <AddressMapPicker
+              address={address}
+              onAddressChange={setAddress}
+              coordinates={selectedLngLat}
+              onCoordinatesChange={setSelectedLngLat}
+              onLocationValid={setIsLocationValid}
+            />
+            
+            {/* Disable button if required fields are empty or location is invalid */}
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={
+                isSubmitting || 
+                !firstName.trim() || 
+                !lastName.trim() || 
+                !phone.trim() || 
+                !gcashNumber.trim() || 
+                !address.trim() || 
+                !selectedLngLat || 
+                !isLocationValid
+              }
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

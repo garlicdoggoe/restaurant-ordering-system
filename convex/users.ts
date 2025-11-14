@@ -86,6 +86,8 @@ export const upsertUser = mutation({
 // Update user profile (for customers to complete their profile)
 export const updateUserProfile = mutation({
   args: {
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
     coordinates: v.optional(

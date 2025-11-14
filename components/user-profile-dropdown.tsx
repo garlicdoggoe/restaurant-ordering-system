@@ -27,14 +27,20 @@ export function UserProfileDropdown() {
 
   if (!user) return null
 
-  const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
+  // Use Convex database names, fallback to Clerk user data if not available
+  const displayFirstName = currentUser?.firstName || user.firstName || ""
+  const displayLastName = currentUser?.lastName || user.lastName || ""
+  const displayFullName = currentUser?.firstName && currentUser?.lastName
+    ? `${currentUser.firstName} ${currentUser.lastName}`
+    : user.fullName || "User"
+  const initials = `${displayFirstName?.[0] || ''}${displayLastName?.[0] || ''}`.toUpperCase()
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
+            <AvatarImage src={user.imageUrl} alt={displayFullName} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </Button>
@@ -45,12 +51,12 @@ export function UserProfileDropdown() {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
+                <AvatarImage src={user.imageUrl} alt={displayFullName} />
                 <AvatarFallback className="text-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-lg truncate">
-                  {user.fullName || "User"}
+                  {displayFullName}
                 </CardTitle>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant={currentUser?.role === "owner" ? "default" : "secondary"}>

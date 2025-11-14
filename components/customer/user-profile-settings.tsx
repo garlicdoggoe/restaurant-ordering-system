@@ -36,6 +36,8 @@ function UserProfileSettingsContent() {
   const [activeSection, setActiveSection] = useState<"profile" | "security" | "notifications" | "preferences">("profile")
 
   // Form state
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [phone, setPhone] = useState("")
   const [address, setAddress] = useState("")
   const [gcashNumber, setGcashNumber] = useState("")
@@ -50,6 +52,8 @@ function UserProfileSettingsContent() {
   // Initialize and keep form data in sync with server state
   useEffect(() => {
     if (currentUser) {
+      setFirstName(currentUser.firstName || "")
+      setLastName(currentUser.lastName || "")
       setPhone(currentUser.phone || "")
       setAddress(currentUser.address || "")
       setGcashNumber(currentUser.gcashNumber || "")
@@ -94,6 +98,8 @@ function UserProfileSettingsContent() {
       const normalizedGcash = gcashNumber.trim() || ""
 
       await updateProfile({
+        firstName: firstName.trim() || undefined,
+        lastName: lastName.trim() || undefined,
         phone: normalizedPhone,
         address: address.trim(),
         coordinates: selectedLngLat ? { lng: selectedLngLat[0], lat: selectedLngLat[1] } : undefined,
@@ -108,7 +114,13 @@ function UserProfileSettingsContent() {
     }
   }
 
-  const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
+  // Use Convex database names, fallback to Clerk user data if not available
+  const displayFirstName = currentUser?.firstName || user.firstName || ""
+  const displayLastName = currentUser?.lastName || user.lastName || ""
+  const displayFullName = currentUser?.firstName && currentUser?.lastName
+    ? `${currentUser.firstName} ${currentUser.lastName}`
+    : user.fullName || "User"
+  const initials = `${displayFirstName?.[0] || ''}${displayLastName?.[0] || ''}`.toUpperCase()
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 xs:space-y-6">
@@ -148,10 +160,10 @@ function UserProfileSettingsContent() {
             <CardContent className="p-4 xs:p-6 space-y-4">
               <div className="flex flex-col items-center text-center">
                 <Avatar className="h-16 w-16 mb-3">
-                  <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
+                  <AvatarImage src={user.imageUrl} alt={displayFullName} />
                   <AvatarFallback className="text-lg">{initials}</AvatarFallback>
                 </Avatar>
-                <h3 className="font-semibold text-fluid-lg">{user.fullName || "User"}</h3>
+                <h3 className="font-semibold text-fluid-lg">{displayFullName}</h3>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant={currentUser?.role === "owner" ? "default" : "secondary"} className="text-xs">
                     {currentUser?.role === "owner" ? "Owner" : "Customer"}
@@ -217,26 +229,20 @@ function UserProfileSettingsContent() {
                       <Label htmlFor="firstName">First Name</Label>
                       <Input
                         id="firstName"
-                        value={user.firstName || ""}
-                        disabled
-                        className="bg-gray-50"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Enter your first name"
                       />
-                      <p className="text-xs text-gray-500">
-                        Managed by your account provider
-                      </p>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name</Label>
                       <Input
                         id="lastName"
-                        value={user.lastName || ""}
-                        disabled
-                        className="bg-gray-50"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Enter your last name"
                       />
-                      <p className="text-xs text-gray-500">
-                        Managed by your account provider
-                      </p>
                     </div>
                   </div>
 
@@ -269,13 +275,6 @@ function UserProfileSettingsContent() {
                     onChange={setPhone}
                   />
 
-                  <AddressMapPicker
-                    address={address}
-                    onAddressChange={setAddress}
-                    coordinates={selectedLngLat}
-                    onCoordinatesChange={setSelectedLngLat}
-                  />
-
                   <GcashInput
                     id="gcashNumber"
                     label="GCash Number"
@@ -284,6 +283,14 @@ function UserProfileSettingsContent() {
                     onUsePhoneNumber={() => setGcashNumber(phone)}
                     phoneNumber={phone}
                   />
+                  
+                  <AddressMapPicker
+                    address={address}
+                    onAddressChange={setAddress}
+                    coordinates={selectedLngLat}
+                    onCoordinatesChange={setSelectedLngLat}
+                  />
+
                 </div>
 
                 <Separator />

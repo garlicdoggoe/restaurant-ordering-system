@@ -51,7 +51,13 @@ export function CustomerSidebar({
 
   if (!user) return null
 
-  const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
+  // Use Convex database names, fallback to Clerk user data if not available
+  const displayFirstName = currentUser?.firstName || user.firstName || ""
+  const displayLastName = currentUser?.lastName || user.lastName || ""
+  const displayFullName = currentUser?.firstName && currentUser?.lastName
+    ? `${currentUser.firstName} ${currentUser.lastName}`
+    : user.fullName || "User"
+  const initials = `${displayFirstName?.[0] || ''}${displayLastName?.[0] || ''}`.toUpperCase()
 
   const navigationItems = [
     {
@@ -189,12 +195,12 @@ export function CustomerSidebar({
           <div className="px-4 xs:px-6 py-4 space-y-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-8 w-8 xs:h-10 xs:w-10">
-                <AvatarImage src={user.imageUrl} alt={user.fullName || "User"} />
+                <AvatarImage src={user.imageUrl} alt={displayFullName} />
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-fluid-lg truncate">
-                  Hello, {user.firstName || "User"}!
+                  Hello, {displayFirstName || "User"}!
                 </p>
                 {currentUser?.address && (
                   <p className="text-xs text-muted-foreground flex items-start gap-1">
