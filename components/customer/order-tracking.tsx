@@ -9,12 +9,10 @@ import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { 
   Clock, 
-  CheckCircle, 
+  CheckCircle,
   XCircle, 
   MessageSquare, 
   Ban, 
-  Truck, 
-  Package, 
   Upload, 
   X
 } from "lucide-react"
@@ -31,17 +29,27 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { PaymentModal } from "@/components/ui/payment-modal"
+import { DeliveryMap } from "@/components/ui/delivery-map"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
-import { CookingAnimation } from "@/components/ui/cooking-animation"
+import {
+  getStatusIconsForTracking,
+  ORDER_STATUS_COLORS_FOR_TRACKING,
+  getStatusDescription,
+  getOrderBorderClass,
+  isDeliveryOrder,
+  getDeliveryFeeFromAddress,
+  calculateFullOrderTotal,
+  getOrderTypePrefix,
+} from "@/lib/order-utils"
 
 interface OrderTrackingProps {
   orderId: string
 }
 
 export function OrderTracking({ orderId }: OrderTrackingProps) {
-  const { getOrderById, updateOrder, currentUser } = useData()
+  const { getOrderById, updateOrder, currentUser, deliveryFees } = useData()
   const order = getOrderById(orderId)
   const [chatOpen, setChatOpen] = useState(false)
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)
@@ -179,81 +187,44 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
     })
   }
 
-  const statusIcons = {
-    completed: <CheckCircle className="w-4 h-4 text-green-600" />,
-    accepted: <CheckCircle className="w-4 h-4 text-green-600" />,
-    ready: <CheckCircle className="w-4 h-4 text-indigo-600" />,
-    pending: <Clock className="w-4 h-4 text-yellow-600" />,
-    denied: <XCircle className="w-4 h-4 text-red-600" />,
-    cancelled: <Ban className="w-4 h-4 text-gray-600" />,
-    "in-transit": <Truck className="w-4 h-4 text-yellow-600" />,
-    delivered: <Package className="w-4 h-4 text-emerald-600" />,
-  }
-
-  const statusColors = {
-    completed: "bg-green-100 text-green-800 border-green-200",
-    accepted: "bg-green-100 text-green-800 border-green-200",
-    ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    denied: "bg-red-100 text-red-800 border-red-200",
-    cancelled: "bg-gray-100 text-gray-800 border-gray-200",
-    "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  }
-
-  const statusDescriptions = {
-    pending: "Waiting for restaurant confirmation",
-    accepted: "Order confirmed - being prepared",
-    ready: "Order is ready for pickup",
-    "in-transit": "Order is on the way",
-    denied: "Order was denied by restaurant",
-    completed: "Order completed",
-    cancelled: "Waiting for the restaurant to refund payment",
-    delivered: "Order delivered",
-  }
-
-  const getOrderBorderClass = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "border-yellow-500 border-2"
-      case "ready":
-        return "border-indigo-500 border-2"
-      case "completed":
-      case "accepted":
-        return "border-green-500 border-2"
-      case "denied":
-        return "border-red-500 border-2"
-      case "cancelled":
-        return "border-gray-500 border-2"
-      case "in-transit":
-        return "border-yellow-500 border-2"
-      case "delivered":
-        return "border-emerald-500 border-2"
-      default:
-        return "border-2"
-    }
-  }
+  // Calculate delivery fee and totals using utilities
+  const isDelivery = isDeliveryOrder(order)
+  const deliveryFee = isDelivery ? getDeliveryFeeFromAddress(order.customerAddress, deliveryFees) : 0
+  const fullOrderTotal = calculateFullOrderTotal(
+    order.subtotal,
+    order.platformFee,
+    deliveryFee,
+    order.discount
+  )
+  
+  // Get order type prefix
+  const orderTypePrefix = getOrderTypePrefix(order.orderType)
+  
+  // Determine coordinates for delivery map
+  const deliveryCoordinates: [number, number] | null = order?.customerCoordinates 
+    ? [order.customerCoordinates.lng, order.customerCoordinates.lat] as [number, number]
+    : null
 
   const createdTs = (order._creationTime ?? order.createdAt) || 0
 
   return (
     <>
-      <Card className={`h-fit ${getOrderBorderClass(order.status)}`}>
+      <Card className={`h-fit ${getOrderBorderClass(order.status as OrderStatus)}`}>
         <CardHeader className="p-4 xs:p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-fluid-lg">Order #{order._id.slice(-6).toUpperCase()}</CardTitle>
+                <CardTitle className="text-fluid-lg">{orderTypePrefix} #{order._id.slice(-6).toUpperCase()}</CardTitle>
                 {/* Status Badge */}
-                <Badge className={`${statusColors[order.status as keyof typeof statusColors]} flex items-center gap-1`}>
-                  {statusIcons[order.status as keyof typeof statusIcons]}
+                <Badge className={`${ORDER_STATUS_COLORS_FOR_TRACKING[order.status]} flex items-center gap-1`}>
+                  {getStatusIconsForTracking(order.status)}
                   <span className="capitalize text-xs">{order.status === 'accepted' ? 'Pending' : order.status.replace('-', ' ')}</span>
                 </Badge>
               </div>
               <p className="text-fluid-sm text-muted-foreground">Placed at {new Date(createdTs).toLocaleString()}</p>
               {/* Status Description */}
               <p className="text-xs text-yellow-600 mt-1">
-                {statusDescriptions[order.status as keyof typeof statusDescriptions]}
+                {getStatusDescription(order.status)}
               </p>
               {/* Estimated Time Display - Desktop Only */}
               {order.estimatedPrepTime && order.status === "accepted" && order.orderType !== "pre-order" && (
@@ -306,39 +277,188 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
             ))}
           </div>
 
-          {/* Special Instructions */}
-          {order.specialInstructions && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-fluid-sm font-medium text-yellow-800 mb-1">📝 Landmark/Special Instructions:</p>
-              <p className="text-fluid-sm text-yellow-700">{order.specialInstructions}</p>
-            </div>
-          )}
-
           <Separator />
 
-          <div className="space-y-2 text-fluid-sm">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>₱{order.subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Platform fee</span>
-              <span>₱{(order.platformFee || 0).toFixed(2)}</span>
-            </div>
-            {order.discount > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Discount</span>
-                <span>-₱{order.discount.toFixed(2)}</span>
+          {/* Payment Breakdown Section */}
+          <div>
+            <h4 className="font-semibold text-sm mb-2">Payment Breakdown</h4>
+            <div className="space-y-2 text-fluid-sm">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>₱{order.subtotal.toFixed(2)}</span>
               </div>
+              <div className="flex justify-between">
+                <span>Platform fee</span>
+                <span>₱{(order.platformFee || 0).toFixed(2)}</span>
+              </div>
+              {deliveryFee > 0 && (
+                <div className="flex justify-between">
+                  <span>Delivery fee</span>
+                  <span>₱{deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
+              {order.discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount{order.voucherCode ? ` (${order.voucherCode})` : ""}</span>
+                  <span>-₱{order.discount.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+            <Separator className="my-2" />
+            <div className="flex justify-between font-semibold text-fluid-lg mb-2">
+              <span>Total</span>
+              <span>₱{fullOrderTotal.toFixed(2)}</span>
+            </div>
+            {/* Partial payment breakdown */}
+            {order.paymentPlan === "downpayment" && order.downpaymentAmount && (
+              <>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span>50% Downpayment</span>
+                    <span className="text-green-600">-₱{order.downpaymentAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+                <Separator className="my-2" />
+                <div className="flex justify-between font-semibold text-sm">
+                  <span>Remaining balance</span>
+                  <span>₱{(fullOrderTotal - order.downpaymentAmount).toFixed(2)}</span>
+                </div>
+              </>
             )}
           </div>
 
           <Separator />
 
-          <div className="flex justify-between font-semibold text-fluid-lg">
-            <span>Total</span>
-            <span>₱{order.total.toFixed(2)}</span>
+          {/* Order Details Section */}
+          <div>
+            <h4 className="font-semibold text-sm mb-2">Order Details</h4>
+            <Separator className="mb-2" />
+            <div className="space-y-2 text-xs">
+              {/* Pre-order scheduled date */}
+              {order.preOrderScheduledAt && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Scheduled for</span>
+                  <span>{new Date(order.preOrderScheduledAt).toLocaleString()}</span>
+                </div>
+              )}
+              {/* Pre-order fulfillment method */}
+              {order.orderType === "pre-order" && order.preOrderFulfillment && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fulfillment method</span>
+                  <Badge variant="outline" className={`text-xs ${
+                    order.preOrderFulfillment === "pickup" 
+                      ? "border-blue-200 bg-blue-50 text-blue-800" 
+                      : "border-purple-200 bg-purple-50 text-purple-800"
+                  }`}>
+                    {order.preOrderFulfillment === "pickup" ? "Pickup" : "Delivery"}
+                  </Badge>
+                </div>
+              )}
+              {/* Delivery address */}
+              {order.customerAddress && isDelivery && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Address</span>
+                  <span className="text-right max-w-[60%]">{order.customerAddress}</span>
+                </div>
+              )}
+              {/* Payment plan */}
+              {order.paymentPlan && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment terms</span>
+                  <span>{order.paymentPlan === "full" ? "Full payment" : "Partial payment"}</span>
+                </div>
+              )}
+              {/* Remaining payment method */}
+              {order.paymentPlan === "downpayment" && order.remainingPaymentMethod && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Remaining balance payment method</span>
+                  <span className="capitalize">{order.remainingPaymentMethod}</span>
+                </div>
+              )}
+              {/* GCash number */}
+              {order.gcashNumber && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">GCash number</span>
+                  <span>(+63) {order.gcashNumber}</span>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Delivery Map for delivery orders */}
+          {isDelivery && order.customerAddress && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Delivery Location</h4>
+                <DeliveryMap
+                  address={order.customerAddress}
+                  coordinates={deliveryCoordinates}
+                  mapHeightPx={200}
+                />
+              </div>
+            </>
+          )}
+
+          <Separator />
+
+          {/* Payment Proofs Section */}
+          {(order.paymentScreenshot || order.downpaymentProofUrl || order.remainingPaymentProofUrl) && (
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Payment Proofs</h4>
+              <div className="grid gap-3">
+                {/* Primary payment proof (paymentScreenshot or downpaymentProofUrl) */}
+                {(order.paymentScreenshot || order.downpaymentProofUrl) && (
+                  <div 
+                    className="relative aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      setPaymentUrl(order.paymentScreenshot || order.downpaymentProofUrl || null)
+                      setPaymentOpen(true)
+                    }}
+                  >
+                    <Image
+                      src={order.paymentScreenshot || order.downpaymentProofUrl || "/menu-sample.jpg"}
+                      alt="Payment proof"
+                      fill
+                      className="object-contain bg-muted"
+                    />
+                    {order.paymentScreenshot && order.downpaymentProofUrl && (
+                      <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                        2 Proofs
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Remaining payment proof */}
+                {order.remainingPaymentProofUrl && (
+                  <div 
+                    className="relative aspect-video rounded-lg overflow-hidden border cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      setPaymentUrl(order.remainingPaymentProofUrl || null)
+                      setPaymentOpen(true)
+                    }}
+                  >
+                    <Image
+                      src={order.remainingPaymentProofUrl || "/menu-sample.jpg"}
+                      alt="Remaining payment proof"
+                      fill
+                      className="object-contain bg-muted"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Special Instructions */}
+          {order.specialInstructions && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-fluid-sm font-medium text-yellow-800 mb-1">Landmark/Special Instructions:</p>
+              <p className="text-fluid-sm text-yellow-700">{order.specialInstructions}</p>
+            </div>
+          )}
 
           {/* Remaining Payment Proof Upload for Pre-orders */}
           {order.paymentPlan === "downpayment" && order.remainingPaymentMethod === "online" && (
@@ -421,11 +541,6 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
             </div>
           )}
 
-          {order.paymentScreenshot && (
-            <div className="text-xs text-muted-foreground">
-              Payment screenshot provided
-            </div>
-          )}
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100">
@@ -441,12 +556,12 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
               Chat
             </Button>
 
-            {order.paymentScreenshot && (
+            {(order.paymentScreenshot || order.downpaymentProofUrl) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setPaymentUrl(order.paymentScreenshot || null)
+                  setPaymentUrl(order.paymentScreenshot || order.downpaymentProofUrl || null)
                   setPaymentOpen(true)
                 }}
                 className="flex-1"
@@ -536,8 +651,8 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
         open={paymentOpen} 
         onOpenChange={setPaymentOpen} 
         paymentUrl={paymentUrl} 
-        downpaymentUrl={null} // Note: Order tracking component handles paymentScreenshot and remainingPaymentProofUrl separately
-        title="Payment Proof" 
+        downpaymentUrl={order?.paymentScreenshot && order?.downpaymentProofUrl ? order.downpaymentProofUrl : null}
+        title={order?.paymentScreenshot && order?.downpaymentProofUrl ? "Payment Proofs" : "Payment Proof"} 
       />
     </>
   )

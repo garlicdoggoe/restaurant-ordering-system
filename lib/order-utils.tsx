@@ -144,3 +144,100 @@ export function getStatusLabel(status: OrderStatus): string {
   return ORDER_STATUS_LABELS[status] || formatStatusForDisplay(status)
 }
 
+/**
+ * Status icons configuration for tracking view - with appropriate colors (different from card view)
+ * Returns the appropriate icon with color for a given order status in tracking/status views
+ */
+export function getStatusIconsForTracking(status: OrderStatus): React.ReactNode {
+  switch (status) {
+    case "completed":
+      return <CheckCircle className="w-4 h-4 text-green-600" />
+    case "accepted":
+      return <CheckCircle className="w-4 h-4 text-green-600" />
+    case "ready":
+      return <CheckCircle className="w-4 h-4 text-indigo-600" />
+    case "pending":
+      return <Clock className="w-4 h-4 text-yellow-600" />
+    case "pre-order-pending":
+      return <Clock className="w-4 h-4 text-yellow-600" />
+    case "denied":
+      return <XCircle className="w-4 h-4 text-red-600" />
+    case "cancelled":
+      return <Ban className="w-4 h-4 text-gray-600" />
+    case "in-transit":
+      return <Truck className="w-4 h-4 text-yellow-600" />
+    case "delivered":
+      return <Package className="w-4 h-4 text-emerald-600" />
+    default:
+      return <Clock className="w-4 h-4 text-yellow-600" />
+  }
+}
+
+/**
+ * Status colors configuration for tracking view - with appropriate background and text colors
+ * Returns badge color classes for status badges in tracking/status views
+ */
+export const ORDER_STATUS_COLORS_FOR_TRACKING: Record<OrderStatus, string> = {
+  completed: "bg-green-100 text-green-800 border-green-200",
+  accepted: "bg-green-100 text-green-800 border-green-200",
+  ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  "pre-order-pending": "bg-yellow-100 text-yellow-800 border-yellow-200",
+  denied: "bg-red-100 text-red-800 border-red-200",
+  cancelled: "bg-gray-100 text-gray-800 border-gray-200",
+  "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
+  delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+}
+
+/**
+ * Human-readable status descriptions for tracking view
+ * Returns user-friendly descriptions of what each status means
+ */
+export function getStatusDescriptions(): Record<OrderStatus, string> {
+  return {
+    pending: "Waiting for restaurant confirmation",
+    "pre-order-pending": "Waiting for restaurant confirmation",
+    accepted: "Order confirmed - being prepared",
+    ready: "Order is ready for pickup",
+    "in-transit": "Order is on the way",
+    denied: "Order was denied by restaurant",
+    completed: "Order completed",
+    cancelled: "Waiting for the restaurant to refund payment",
+    delivered: "Order delivered",
+  }
+}
+
+/**
+ * Get status description for a specific status
+ */
+export function getStatusDescription(status: OrderStatus): string {
+  return getStatusDescriptions()[status] || "Unknown status"
+}
+
+/**
+ * Get border class for order card based on status
+ * Returns Tailwind CSS classes for border styling based on order status
+ */
+export function getOrderBorderClass(status: OrderStatus | string): string {
+  switch (status) {
+    case "pending":
+    case "pre-order-pending":
+      return "border-yellow-500 border-2"
+    case "ready":
+      return "border-indigo-500 border-2"
+    case "completed":
+    case "accepted":
+      return "border-green-500 border-2"
+    case "denied":
+      return "border-red-500 border-2"
+    case "cancelled":
+      return "border-gray-500 border-2"
+    case "in-transit":
+      return "border-yellow-500 border-2"
+    case "delivered":
+      return "border-emerald-500 border-2"
+    default:
+      return "border-2"
+  }
+}
+
