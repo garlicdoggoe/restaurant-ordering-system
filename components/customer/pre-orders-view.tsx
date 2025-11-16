@@ -25,12 +25,11 @@ import { Id } from "@/convex/_generated/dataModel"
 import { OrderCard } from "./order-card"
 
 interface PreOrdersViewProps {
-  onBackToMenu: () => void
   // Optional callback to navigate to inbox with a specific orderId
   onNavigateToInbox?: (orderId: string) => void
 }
 
-export function PreOrdersView({ onBackToMenu, onNavigateToInbox }: PreOrdersViewProps) {
+export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
   const { orders, currentUser, deliveryFees } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)

@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, X, CheckCircle } from "lucide-react"
+import { Check, X, CheckCircle, Edit } from "lucide-react"
 import { toast } from "sonner"
 import { useData, type Order, type DeliveryFee } from "@/lib/data-context"
 import { ChangeStatusDialog } from "./change-status-dialog"
 import { OrderCardBase } from "@/components/shared/order-card-base"
+import { isDeliveryOrder as isDeliveryOrderUtil, canEditOrderStatus } from "@/lib/order-utils"
 
 interface OrderCardProps {
   order: Order
@@ -37,7 +38,7 @@ export function OrderCard({
   const [showChangeStatusDialog, setShowChangeStatusDialog] = useState(false)
 
   // Determine if order is delivery
-  const isDeliveryOrder = order.orderType === "delivery" || (order.orderType === "pre-order" && order.preOrderFulfillment === "delivery")
+  const isDeliveryOrder = isDeliveryOrderUtil(order)
   
   // Determine coordinates to use: provided coordinates > order's stored coordinates > null
   // Use order's customerCoordinates (stored at order creation) instead of fetching current user coordinates
@@ -253,6 +254,9 @@ export function OrderCard({
     return null
   }
 
+  // Check if order status can be edited - cannot edit cancelled, completed, or delivered orders
+  const canEditStatus = canEditOrderStatus(order.status)
+
   return (
     <>
       <OrderCardBase
@@ -263,12 +267,29 @@ export function OrderCard({
         deliveryCoordinates={mapCoordinates}
         showDeliveryMap={isDeliveryOrder}
         actionButtons={renderActionButtons()}
+        statusActionButton={
+          canEditStatus ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowChangeStatusDialog(true)
+              }}
+              className="w-full touch-target text-xs"
+            >
+              <Edit className="w-3 h-3 mr-1" />
+              <span>Edit Status</span>
+            </Button>
+          ) : undefined
+        }
       />
 
-      {/* Change Status Dialog for denied orders */}
+      {/* Change Status Dialog - allows owner to edit status (except cancelled, completed, or delivered orders) */}
       {showChangeStatusDialog && (
         <ChangeStatusDialog
           orderId={order._id}
+          currentStatus={order.status}
           onClose={() => setShowChangeStatusDialog(false)}
           onSuccess={() => {
             setShowChangeStatusDialog(false)

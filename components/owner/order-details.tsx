@@ -15,6 +15,7 @@ import { formatPhoneForDisplay } from "@/lib/phone-validation"
 import { PaymentModal } from "@/components/ui/payment-modal"
 import { ChangeStatusDialog } from "./change-status-dialog"
 import { DeliveryMap } from "@/components/ui/delivery-map"
+import { isDeliveryOrder as isDeliveryOrderUtil } from "@/lib/order-utils"
 
 interface OrderDetailsProps {
   orderId: string
@@ -40,7 +41,7 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
   const modifications = getOrderModifications(orderId)
 
   // Determine if order is a delivery order
-  const isDeliveryOrder = order && (order.orderType === "delivery" || (order.orderType === "pre-order" && order.preOrderFulfillment === "delivery"))
+  const isDeliveryOrder = isDeliveryOrderUtil(order)
   
   // Determine coordinates to use: order's stored coordinates (at time of order creation)
   // Use order's customerCoordinates instead of fetching current user coordinates
@@ -440,6 +441,7 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm font-medium text-red-800">Order Denied</p>
                 <p className="text-xs text-red-700 mt-1">{order.denialReason}</p>
+                {/* Denied orders can have their status changed (they are not in a final state) */}
                 <Button
                   size="lg"
                   className="mt-2 w-full bg-yellow-400 hover:bg-yellow-600"

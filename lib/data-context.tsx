@@ -209,7 +209,7 @@ export interface OrderModification {
   orderId: string
   modifiedBy: string
   modifiedByName: string
-  modificationType: "item_added" | "item_removed" | "item_quantity_changed" | "item_price_changed" | "order_edited"
+  modificationType: "item_added" | "item_removed" | "item_quantity_changed" | "item_price_changed" | "order_edited" | "status_changed"
   previousValue: string
   newValue: string
   itemDetails?: string

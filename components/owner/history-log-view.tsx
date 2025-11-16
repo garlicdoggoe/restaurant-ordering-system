@@ -133,6 +133,7 @@ export function HistoryLogView() {
             <option value="item_quantity_changed">Quantity Changed</option>
             <option value="item_price_changed">Price Changed</option>
             <option value="order_edited">Order Edited</option>
+            <option value="status_changed">Status Changed</option>
           </select>
         </div>
       </div>
@@ -217,7 +218,7 @@ export function HistoryLogView() {
                   </div>
                   
                   {/* Show before/after values for detailed modifications */}
-                  {(mod.modificationType === "order_edited" || mod.modificationType === "item_quantity_changed") && (
+                  {((mod.modificationType === "order_edited" || mod.modificationType === "item_quantity_changed" || mod.modificationType === "status_changed") as boolean) && (
                     <div className="mt-4 pt-4 border-t">
                       <h4 className="font-medium text-sm text-muted-foreground mb-2">Changes</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">

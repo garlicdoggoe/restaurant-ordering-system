@@ -63,7 +63,8 @@ export const create = mutation({
       v.literal("item_removed"),
       v.literal("item_quantity_changed"),
       v.literal("item_price_changed"),
-      v.literal("order_edited")
+      v.literal("order_edited"),
+      v.literal("status_changed")
     ),
     previousValue: v.string(),
     newValue: v.string(),

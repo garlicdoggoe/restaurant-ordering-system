@@ -103,8 +103,8 @@ export function filterAndSortOrders(
   
   return orders
     .filter((order) => {
-      // Filter by customer
-      if (order.customerId !== customerId) return false
+      // Filter by customer (skip if customerId is empty, which indicates show all orders for owners)
+      if (customerId && order.customerId !== customerId) return false
       
       // Filter by order type
       if (orderType === "pre-order" && order.orderType !== "pre-order") return false

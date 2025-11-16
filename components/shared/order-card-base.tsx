@@ -15,25 +15,15 @@ import { DeliveryMap } from "@/components/ui/delivery-map"
 import { DeliveryMapModal } from "@/components/ui/delivery-map-modal"
 import { PaymentModal } from "@/components/ui/payment-modal"
 import { AddOrderItemDialog } from "@/components/owner/add-order-item-dialog"
-
-// Helper function to get delivery fee from address
-// Tries to match barangay names from deliveryFees array against the address string
-function getDeliveryFeeFromAddress(address: string | undefined, deliveryFees: DeliveryFee[]): number {
-  if (!address) return 0
-  
-  const addressLower = address.toLowerCase()
-  
-  // Try to find matching barangay in address
-  for (const df of deliveryFees) {
-    const barangayLower = df.barangay.toLowerCase()
-    // Check if barangay name appears in address (handles "Puro-Batia" vs "Puro Batia" variations)
-    if (addressLower.includes(barangayLower) || addressLower.includes(barangayLower.replace(/-/g, " ")) || addressLower.includes(barangayLower.replace(/ /g, "-"))) {
-      return df.fee
-    }
-  }
-  
-  return 0
-}
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import {
+  getDeliveryFeeFromAddress,
+  isDeliveryOrder as isDeliveryOrderUtil,
+  getOrderTypePrefix,
+  calculateFullOrderTotal,
+  getStatusIcon,
+  ORDER_STATUS_COLORS,
+} from "@/lib/order-utils"
 
 interface OrderCardBaseProps {
   order: Order
@@ -48,6 +38,8 @@ interface OrderCardBaseProps {
   actionButtons?: React.ReactNode
   // Whether to show delivery map (default: true for delivery orders)
   showDeliveryMap?: boolean
+  // Optional button to show below status indicator (for owner edit status button)
+  statusActionButton?: React.ReactNode
 }
 
 export function OrderCardBase({
@@ -59,45 +51,25 @@ export function OrderCardBase({
   deliveryCoordinates,
   actionButtons,
   showDeliveryMap = true,
+  statusActionButton,
 }: OrderCardBaseProps) {
   // Calculate total item count by quantity so we can surface it up front
   const totalItemCount = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
   
   // Determine order type prefix
-  const orderTypePrefix = order.orderType === "pre-order" ? "Pre-order" : "Order"
+  const orderTypePrefix = getOrderTypePrefix(order.orderType)
   
   // Calculate delivery fee for delivery orders
-  const isDeliveryOrder = order.orderType === "delivery" || (order.orderType === "pre-order" && order.preOrderFulfillment === "delivery")
+  const isDeliveryOrder = isDeliveryOrderUtil(order)
   const deliveryFee = isDeliveryOrder ? getDeliveryFeeFromAddress(order.customerAddress, deliveryFees) : 0
   
   // Calculate full order total (subtotal + platformFee + deliveryFee - discount)
-  const fullOrderTotal = order.subtotal + (order.platformFee || 0) + deliveryFee - (order.discount || 0)
-
-  // Status icons for all possible order statuses - all yellow
-  const statusIcons = {
-    accepted: <CheckCircle className="w-4 h-4 text-yellow-600" />,
-    pending: <Clock className="w-4 h-4 text-yellow-600" />,
-    "pre-order-pending": <Clock className="w-4 h-4 text-yellow-600" />,
-    ready: <CheckCircle className="w-4 h-4 text-yellow-600" />,
-    denied: <XCircle className="w-4 h-4 text-yellow-600" />,
-    completed: <CircleCheck className="w-4 h-4 text-yellow-600" />,
-    cancelled: <Ban className="w-4 h-4 text-yellow-600" />,
-    "in-transit": <Truck className="w-4 h-4 text-yellow-600" />,
-    delivered: <Package className="w-4 h-4 text-yellow-600" />,
-  }
-
-  // Status colors - no background or border, just yellow text
-  const statusColors = {
-    accepted: "text-yellow-600",
-    pending: "text-yellow-600",
-    "pre-order-pending": "text-yellow-600",
-    ready: "text-yellow-600",
-    denied: "text-yellow-600",
-    completed: "text-yellow-600",
-    cancelled: "text-yellow-600",
-    "in-transit": "text-yellow-600",
-    delivered: "text-yellow-600",
-  }
+  const fullOrderTotal = calculateFullOrderTotal(
+    order.subtotal,
+    order.platformFee,
+    deliveryFee,
+    order.discount
+  )
 
   // Determine coordinates for map: use provided coordinates > order's stored coordinates > null
   // Order's customerCoordinates are stored at order creation time (isolated per order)
@@ -130,6 +102,10 @@ export function OrderCardBase({
   // Scheduled date edit state
   const [isEditingScheduledDate, setIsEditingScheduledDate] = useState(false)
   const [editedScheduledDate, setEditedScheduledDate] = useState<string>("")
+  
+  // Confirmation dialog states
+  const [showConfirmItemsDialog, setShowConfirmItemsDialog] = useState(false)
+  const [showConfirmScheduleDialog, setShowConfirmScheduleDialog] = useState(false)
 
   // Get updateOrderItems, updateOrder, and other functions from data context
   const { updateOrderItems, updateOrder, currentUser, restaurant, sendMessage } = useData()
@@ -207,6 +183,22 @@ export function OrderCardBase({
     setEditedScheduledDate("")
   }
 
+  // Show confirmation dialog before saving scheduled date
+  const handleSaveScheduledDateClick = () => {
+    const newScheduledTimestamp = datetimeLocalToTimestamp(editedScheduledDate)
+    const oldScheduledTimestamp = order.preOrderScheduledAt || null
+    
+    // Only proceed if the date actually changed
+    if (newScheduledTimestamp === oldScheduledTimestamp) {
+      setIsEditingScheduledDate(false)
+      setEditedScheduledDate("")
+      return
+    }
+    
+    setShowConfirmScheduleDialog(true)
+  }
+
+  // Actually save the scheduled date after confirmation
   const handleSaveScheduledDate = async () => {
     const newScheduledTimestamp = datetimeLocalToTimestamp(editedScheduledDate)
     const oldScheduledTimestamp = order.preOrderScheduledAt || null
@@ -295,6 +287,13 @@ export function OrderCardBase({
     setEditedItems([])
   }
 
+  // Show confirmation dialog before saving items
+  const handleSaveChangesClick = () => {
+    if (editedItems.length === 0) return
+    setShowConfirmItemsDialog(true)
+  }
+
+  // Actually save the changes after confirmation
   const handleSaveChanges = async () => {
     if (editedItems.length === 0) return
 
@@ -365,8 +364,8 @@ export function OrderCardBase({
             </div>
             {/* Right: Status with icon and chevron */}
             <div className="flex items-center gap-2">
-              <Badge className={`${statusColors[order.status as keyof typeof statusColors] || "text-yellow-600"} flex items-center gap-1 text-xs !bg-transparent !border-0 !p-0 hover:!bg-transparent`} variant="outline">
-                {statusIcons[order.status as keyof typeof statusIcons] || <Clock className="w-4 h-4 text-yellow-600" />}
+              <Badge className={`${ORDER_STATUS_COLORS[order.status] || "text-yellow-600"} flex items-center gap-1 text-xs !bg-transparent !border-0 !p-0 hover:!bg-transparent`} variant="outline">
+                {getStatusIcon(order.status)}
                 <span className="capitalize">{order.status.replace(/-/g, " ")}</span>
               </Badge>
               {isExpanded ? (
@@ -376,6 +375,13 @@ export function OrderCardBase({
               )}
             </div>
           </div>
+
+          {/* Status Action Button - shown below status indicator (e.g., Edit Status for owners) */}
+          {statusActionButton && (
+            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+              {statusActionButton}
+            </div>
+          )}
         </div>
       </CardHeader>
 
@@ -481,7 +487,7 @@ export function OrderCardBase({
                 <Button 
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleSaveChanges()
+                    handleSaveChangesClick()
                   }}
                   disabled={editedItems.length === 0}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-xs h-8"
@@ -592,7 +598,7 @@ export function OrderCardBase({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleSaveScheduledDate()
+                          handleSaveScheduledDateClick()
                         }}
                         className="flex-1 bg-green-600 hover:bg-green-700 h-6 text-[10px] px-1"
                       >
@@ -810,7 +816,7 @@ export function OrderCardBase({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleSaveScheduledDate()
+                            handleSaveScheduledDateClick()
                           }}
                           className="flex-1 bg-green-600 hover:bg-green-700 h-7 text-xs"
                         >
@@ -907,6 +913,30 @@ export function OrderCardBase({
           onAddItem={handleAddItem}
         />
       )}
+
+      {/* Confirmation Dialog for Order Items Edit */}
+      <ConfirmDialog
+        open={showConfirmItemsDialog}
+        onOpenChange={setShowConfirmItemsDialog}
+        title="Confirm Order Items Changes"
+        description={`Are you sure you want to save the changes to ${editedItems.length} order item(s)? This action will notify the customer and create a modification log entry.`}
+        confirmText="confirm"
+        onConfirm={handleSaveChanges}
+        confirmButtonLabel="Confirm Changes"
+        confirmButtonClassName="bg-green-600 hover:bg-green-700"
+      />
+
+      {/* Confirmation Dialog for Scheduled Date Edit */}
+      <ConfirmDialog
+        open={showConfirmScheduleDialog}
+        onOpenChange={setShowConfirmScheduleDialog}
+        title="Confirm Scheduled Date Change"
+        description={`Are you sure you want to update the scheduled date? This action will notify the customer and create a modification log entry.`}
+        confirmText="confirm"
+        onConfirm={handleSaveScheduledDate}
+        confirmButtonLabel="Confirm Change"
+        confirmButtonClassName="bg-green-600 hover:bg-green-700"
+      />
     </Card>
   )
 }

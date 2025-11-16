@@ -5,28 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Clock, CheckCircle, XCircle, MessageSquare, Ban, ChevronDown, ChevronUp, FileText, Truck, Package, CircleCheck, Upload } from "lucide-react"
+import { MessageSquare, Ban, ChevronDown, ChevronUp, FileText, Upload} from "lucide-react"
 import { type Order, type DeliveryFee } from "@/lib/data-context"
 import { PaymentProofUploadDialog } from "@/components/ui/payment-proof-upload-dialog"
-
-// Helper function to get delivery fee from address
-// Tries to match barangay names from deliveryFees array against the address string
-function getDeliveryFeeFromAddress(address: string | undefined, deliveryFees: DeliveryFee[]): number {
-  if (!address) return 0
-  
-  const addressLower = address.toLowerCase()
-  
-  // Try to find matching barangay in address
-  for (const df of deliveryFees) {
-    const barangayLower = df.barangay.toLowerCase()
-    // Check if barangay name appears in address (handles "Puro-Batia" vs "Puro Batia" variations)
-    if (addressLower.includes(barangayLower) || addressLower.includes(barangayLower.replace(/-/g, " ")) || addressLower.includes(barangayLower.replace(/ /g, "-"))) {
-      return df.fee
-    }
-  }
-  
-  return 0
-}
+import {
+  getDeliveryFeeFromAddress,
+  isDeliveryOrder as isDeliveryOrderUtil,
+  getOrderTypePrefix,
+  calculateFullOrderTotal,
+  getStatusIcon,
+  ORDER_STATUS_COLORS,
+} from "@/lib/order-utils"
 
 interface OrderCardProps {
   order: Order
@@ -64,14 +53,19 @@ export function OrderCard({
   const hasMoreItems = order.items.length > 2
   
   // Determine order type prefix
-  const orderTypePrefix = order.orderType === "pre-order" ? "Pre-order" : "Order"
+  const orderTypePrefix = getOrderTypePrefix(order.orderType)
   
   // Calculate delivery fee for delivery orders
-  const isDeliveryOrder = order.orderType === "delivery" || (order.orderType === "pre-order" && order.preOrderFulfillment === "delivery")
+  const isDeliveryOrder = isDeliveryOrderUtil(order)
   const deliveryFee = isDeliveryOrder ? getDeliveryFeeFromAddress(order.customerAddress, deliveryFees) : 0
   
   // Calculate full order total (subtotal + platformFee + deliveryFee - discount)
-  const fullOrderTotal = order.subtotal + (order.platformFee || 0) + deliveryFee - (order.discount || 0)
+  const fullOrderTotal = calculateFullOrderTotal(
+    order.subtotal,
+    order.platformFee,
+    deliveryFee,
+    order.discount
+  )
 
   // Check if payment proof upload button should be shown
   // Only show when: paymentPlan is "downpayment", remainingPaymentMethod is "online", and proof hasn't been uploaded yet
@@ -79,32 +73,6 @@ export function OrderCard({
     order.paymentPlan === "downpayment" && 
     order.remainingPaymentMethod === "online" && 
     !order.remainingPaymentProofUrl
-
-  // Status icons for all possible order statuses - all yellow
-  const statusIcons = {
-    accepted: <CheckCircle className="w-4 h-4 text-yellow-600" />,
-    pending: <Clock className="w-4 h-4 text-yellow-600" />,
-    "pre-order-pending": <Clock className="w-4 h-4 text-yellow-600" />,
-    ready: <CheckCircle className="w-4 h-4 text-yellow-600" />,
-    denied: <XCircle className="w-4 h-4 text-yellow-600" />,
-    completed: <CircleCheck className="w-4 h-4 text-yellow-600" />,
-    cancelled: <Ban className="w-4 h-4 text-yellow-600" />,
-    "in-transit": <Truck className="w-4 h-4 text-yellow-600" />,
-    delivered: <Package className="w-4 h-4 text-yellow-600" />,
-  }
-
-  // Status colors - no background or border, just yellow text
-  const statusColors = {
-    accepted: "text-yellow-600",
-    pending: "text-yellow-600",
-    "pre-order-pending": "text-yellow-600",
-    ready: "text-yellow-600",
-    denied: "text-yellow-600",
-    completed: "text-yellow-600",
-    cancelled: "text-yellow-600",
-    "in-transit": "text-yellow-600",
-    delivered: "text-yellow-600",
-  }
 
   return (
     <Card className="h-fit mb-[-10px] lg:mb-0">
@@ -128,8 +96,8 @@ export function OrderCard({
             </div>
             {/* Right: Status with icon and chevron */}
             <div className="flex items-center gap-2">
-              <Badge className={`${statusColors[order.status as keyof typeof statusColors] || "text-yellow-600"} flex items-center gap-1 text-xs !bg-transparent !border-0 !p-0 hover:!bg-transparent`} variant="outline">
-                {statusIcons[order.status as keyof typeof statusIcons] || <Clock className="w-4 h-4 text-yellow-600" />}
+              <Badge className={`${ORDER_STATUS_COLORS[order.status] || "text-yellow-600"} flex items-center gap-1 text-xs !bg-transparent !border-0 !p-0 hover:!bg-transparent`} variant="outline">
+                {getStatusIcon(order.status)}
                 <span className="capitalize">{order.status.replace(/-/g, " ")}</span>
               </Badge>
               {/* Expand/Collapse Icon - Only show on mobile */}

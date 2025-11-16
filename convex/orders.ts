@@ -307,9 +307,25 @@ export const update = mutation({
 
     // Owners can update any order status; customers can only cancel their own pending orders
     if (currentUser.role === "owner") {
+      // Prevent status changes from cancelled, completed, or delivered orders
+      // These are final states and should not be modified
+      if (data.status !== undefined && data.status !== existing.status) {
+        const finalStates = ["cancelled", "completed", "delivered"];
+        if (finalStates.includes(existing.status)) {
+          throw new Error(`Cannot change status of an order that is already ${existing.status}. Final states cannot be modified.`);
+        }
+      }
+
+      // Check if status is being changed
+      const statusChanged = data.status !== undefined && data.status !== existing.status;
+      const previousStatus = existing.status;
+      
       // Check if order is transitioning to accepted status
       const wasAccepted = existing.status === "accepted";
       await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
+
+      // Track if a chat message was already sent by specific handlers
+      let chatMessageSent = false;
 
       // Auto-chat when owner acknowledges a pre-order
       // Trigger condition: status transitions from "pre-order-pending" to "pending"
@@ -325,6 +341,7 @@ export const update = mutation({
           message: `Pre-order acknowledged. We'll notify you when it's being prepared. View details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
+        chatMessageSent = true;
       }
 
       // Seed chat message on first transition to accepted status
@@ -340,6 +357,7 @@ export const update = mutation({
           message: `Order now being prepared.`,
           timestamp: Date.now(),
         });
+        chatMessageSent = true;
       }
 
       // Auto-chat when order is marked as ready
@@ -355,6 +373,7 @@ export const update = mutation({
           message: `Your order is ready for pickup! View details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
+        chatMessageSent = true;
       }
 
       // Auto-chat when order is marked as in-transit
@@ -370,6 +389,7 @@ export const update = mutation({
           message: `Your order is on the way! View details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
+        chatMessageSent = true;
       }
 
       // Auto-chat when order is marked as delivered
@@ -385,6 +405,7 @@ export const update = mutation({
           message: `Your order has been delivered! Thank you for your order. View details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
+        chatMessageSent = true;
       }
 
       // Auto-chat when order is marked as completed
@@ -400,6 +421,7 @@ export const update = mutation({
           message: `Your order has been completed! Thank you for your order. View details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
+        chatMessageSent = true;
       }
 
       // Auto-chat on denial with reason
@@ -414,7 +436,59 @@ export const update = mutation({
           message: `Order denied. Reason: ${reason}`,
           timestamp: Date.now(),
         });
+        chatMessageSent = true;
       }
+
+      // Handle status change: send chat message and create modification log
+      // This runs for ALL status changes, including ones not handled above
+      if (statusChanged && data.status !== undefined) {
+        const restaurant = await ctx.db.query("restaurant").first();
+        const newStatus = data.status;
+        
+        // Human-readable status labels
+        const statusLabels: Record<string, string> = {
+          "pre-order-pending": "Awaiting Restaurant Confirmation",
+          "pending": "Pending",
+          "accepted": "Preparing",
+          "ready": "Ready",
+          "denied": "Denied",
+          "completed": "Completed",
+          "cancelled": "Cancelled",
+          "in-transit": "In Transit",
+          "delivered": "Delivered",
+        };
+        
+        // Send generic chat message if not already sent by specific handlers
+        if (!chatMessageSent) {
+          const statusLabel = statusLabels[newStatus] || newStatus;
+          await ctx.db.insert("chat_messages", {
+            orderId: id as unknown as string,
+            senderId: currentUser._id as unknown as string,
+            senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
+            senderRole: "owner",
+            message: `Order status updated to: ${statusLabel}. View details: /customer?orderId=${id}`,
+            timestamp: Date.now(),
+          });
+        }
+        
+        // Create modification log entry for status change
+        const previousValue = JSON.stringify({ status: previousStatus });
+        const newValue = JSON.stringify({ status: newStatus });
+        const oldStatusLabel = statusLabels[previousStatus] || previousStatus;
+        const newStatusLabel = statusLabels[newStatus] || newStatus;
+        
+        await ctx.db.insert("order_modifications", {
+          orderId: id,
+          modifiedBy: currentUser._id as unknown as string,
+          modifiedByName: `${currentUser.firstName} ${currentUser.lastName}`,
+          modificationType: "status_changed",
+          previousValue,
+          newValue,
+          itemDetails: `Status changed from "${oldStatusLabel}" to "${newStatusLabel}"`,
+          timestamp: Date.now(),
+        });
+      }
+      
       return id;
     }
 
