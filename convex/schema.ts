@@ -35,6 +35,7 @@ export default defineSchema({
     averagePrepTime: v.number(),
     averageDeliveryTime: v.number(),
     platformFee: v.optional(v.number()), // Platform service fee
+    platformFeeEnabled: v.optional(v.boolean()), // Whether platform fee is enabled
     coordinates: v.optional(
       v.object({
         lng: v.number(),

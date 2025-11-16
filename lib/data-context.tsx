@@ -50,6 +50,7 @@ export interface Restaurant {
   averagePrepTime: number
   averageDeliveryTime: number
   platformFee?: number // Platform service fee
+  platformFeeEnabled?: boolean // Whether platform fee is enabled
   coordinates?: {
     lng: number
     lat: number
@@ -466,6 +467,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         averagePrepTime: restaurantDoc.averagePrepTime,
         averageDeliveryTime: restaurantDoc.averageDeliveryTime,
         platformFee: restaurantDoc.platformFee,
+        platformFeeEnabled: restaurantDoc.platformFeeEnabled,
         coordinates: restaurantDoc.coordinates,
       } as Restaurant)
     : ({
@@ -588,6 +590,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       closingTime: data.closingTime ?? restaurant.closingTime,
       averagePrepTime: data.averagePrepTime ?? restaurant.averagePrepTime,
       averageDeliveryTime: data.averageDeliveryTime ?? restaurant.averageDeliveryTime,
+      platformFee: data.platformFee !== undefined ? data.platformFee : restaurant.platformFee,
+      platformFeeEnabled: data.platformFeeEnabled !== undefined ? data.platformFeeEnabled : restaurant.platformFeeEnabled,
     }
     void upsertRestaurant(body)
   }, [restaurant, upsertRestaurant])

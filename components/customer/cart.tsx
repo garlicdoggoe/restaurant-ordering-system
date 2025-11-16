@@ -34,7 +34,8 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings, onN
   const hasActiveOrder = !!activeOrder
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const platformFee = restaurant.platformFee || 10
+  // Only apply platform fee if it's enabled
+  const platformFee = restaurant.platformFeeEnabled !== false ? (restaurant.platformFee || 10) : 0
   const total = subtotal + platformFee
 
   if (items.length === 0) {

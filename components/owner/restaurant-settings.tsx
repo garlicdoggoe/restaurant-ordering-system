@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import { useData } from "@/lib/data-context"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
@@ -106,6 +107,7 @@ export function RestaurantSettings() {
     preparationTime: restaurant.averagePrepTime.toString(),
     deliveryTime: restaurant.averageDeliveryTime.toString(),
     platformFee: restaurant.platformFee?.toString() || "10",
+    platformFeeEnabled: restaurant.platformFeeEnabled ?? true, // Default to enabled
     logo: restaurant.logo || "",
     openingTime: restaurant.openingTime || "10:00",
     closingTime: restaurant.closingTime || "18:30",
@@ -125,6 +127,7 @@ export function RestaurantSettings() {
       preparationTime: restaurant.averagePrepTime?.toString() || "0",
       deliveryTime: restaurant.averageDeliveryTime?.toString() || "0",
       platformFee: restaurant.platformFee?.toString() || "10",
+      platformFeeEnabled: restaurant.platformFeeEnabled ?? true, // Default to enabled if not set
       logo: restaurant.logo || "",
       openingTime: restaurant.openingTime || "10:00",
       closingTime: restaurant.closingTime || "18:30",
@@ -242,6 +245,7 @@ export function RestaurantSettings() {
       averagePrepTime: Number.parseInt(formData.preparationTime),
       averageDeliveryTime: Number.parseInt(formData.deliveryTime),
       platformFee: Number.parseFloat(formData.platformFee),
+      platformFeeEnabled: formData.platformFeeEnabled,
     })
 
     alert("Restaurant profile updated successfully!")
@@ -493,7 +497,26 @@ export function RestaurantSettings() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="platform-fee">Platform Fee (₱)</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="platform-fee">Platform Fee (₱)</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="platform-fee-enabled" className="text-sm font-normal cursor-pointer">
+                      {formData.platformFeeEnabled ? "Enabled" : "Disabled"}
+                    </Label>
+                    <Switch
+                      id="platform-fee-enabled"
+                      checked={formData.platformFeeEnabled}
+                      onCheckedChange={(checked) => {
+                        setFormData({ ...formData, platformFeeEnabled: checked })
+                        // Auto-save the toggle state immediately
+                        updateRestaurant({
+                          platformFeeEnabled: checked,
+                          platformFee: Number.parseFloat(formData.platformFee),
+                        })
+                      }}
+                    />
+                  </div>
+                </div>
                 <Input
                   id="platform-fee"
                   type="number"
@@ -501,6 +524,7 @@ export function RestaurantSettings() {
                   min="0"
                   value={formData.platformFee}
                   onChange={(e) => setFormData({ ...formData, platformFee: e.target.value })}
+                  disabled={!formData.platformFeeEnabled}
                 />
               </div>
             </div>
