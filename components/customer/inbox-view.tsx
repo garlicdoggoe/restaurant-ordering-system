@@ -11,6 +11,7 @@ import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
 import { filterAndSortOrders, getOrderTimestamp } from "@/lib/order-filter-utils"
+import { StatusBadge } from "@/lib/status-badge"
 
 interface InboxViewProps {
   // Optional orderId to auto-open chat when component mounts or orderId changes
@@ -41,7 +42,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     { id: "active", label: "Active", icon: ListFilter },
     { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
-    { id: "accepted", label: "Accepted", icon: CheckCircle },
+    { id: "accepted", label: "Preparing", icon: CheckCircle },
     { id: "ready", label: "Ready", icon: Timer },
     { id: "in-transit", label: "In Transit", icon: Truck },
     { id: "delivered", label: "Delivered", icon: PackageCheck },
@@ -105,18 +106,6 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   })
 
   // statsMap already computed above for all customer orders
-
-  const statusColors = {
-    pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    accepted: "bg-green-100 text-green-800 border-green-200",
-    ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    completed: "bg-green-100 text-green-800 border-green-200",
-    denied: "bg-red-100 text-red-800 border-red-200",
-    cancelled: "bg-gray-100 text-gray-800 border-gray-200",
-    "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
-  }
 
   // Auto-open chat when orderIdToOpen is provided
   // This allows opening chat for any order, not just accepted ones
@@ -225,9 +214,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
                         {new Date(order._creationTime ?? order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <Badge variant="outline" className={statusColors[order.status as keyof typeof statusColors]}>
-                      {order.status}
-                    </Badge>
+                    <StatusBadge status={order.status} />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">

@@ -23,6 +23,7 @@ import {
   calculateFullOrderTotal,
   getStatusIcon,
   ORDER_STATUS_COLORS,
+  getStatusLabel,
 } from "@/lib/order-utils"
 
 interface OrderCardBaseProps {
@@ -366,7 +367,7 @@ export function OrderCardBase({
             <div className="flex items-center gap-2">
               <Badge className={`${ORDER_STATUS_COLORS[order.status] || "text-yellow-600"} flex items-center gap-1 text-xs !bg-transparent !border-0 !p-0 hover:!bg-transparent`} variant="outline">
                 {getStatusIcon(order.status)}
-                <span className="capitalize">{order.status.replace(/-/g, " ")}</span>
+                <span className="capitalize">{getStatusLabel(order.status)}</span>
               </Badge>
               {isExpanded ? (
                 <ChevronUp className="w-4 h-4 text-muted-foreground" />

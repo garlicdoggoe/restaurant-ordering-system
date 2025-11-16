@@ -9,6 +9,7 @@ import { OrderDetails } from "./order-details"
 import { Button } from "@/components/ui/button"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
 import { PaymentModal } from "@/components/ui/payment-modal"
+import { StatusBadge } from "@/lib/status-badge"
 
 // Historical orders list for owners.
 // Displays orders in a row-based layout with filters for order type and time range.
@@ -40,7 +41,7 @@ export function HistoricalOrdersView() {
   // Order statuses for filtering
   const orderStatuses = [
     { value: "pending", label: "Pending" },
-    { value: "accepted", label: "Accepted" },
+    { value: "accepted", label: "Preparing" },
     { value: "ready", label: "Ready" },
     { value: "in-transit", label: "In Transit" },
     { value: "delivered", label: "Delivered" },
@@ -95,19 +96,6 @@ export function HistoricalOrdersView() {
       return dateSortOrder === "asc" ? aTs - bTs : bTs - aTs
     })
   }, [historicalBase, fromDate, toDate, selectedOrderType, selectedStatus, search, dateSortOrder])
-
-  // Status badge colors aligned across the app
-  const statusColors: Record<string, string> = {
-    completed: "bg-green-100 text-green-800 border-green-200",
-    accepted: "bg-green-100 text-green-800 border-green-200",
-    ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    denied: "bg-red-100 text-red-800 border-red-200",
-    cancelled: "bg-red-100 text-red-800 border-red-200",
-    "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
-  }
 
   return (
     <div className="space-y-6">
@@ -258,12 +246,7 @@ export function HistoricalOrdersView() {
                 <button className="text-left font-mono text-sm hover:text-primary">
                   #{idShort}
                 </button>
-                <Badge
-                  variant="outline"
-                  className={statusColors[order.status] ?? ""}
-                >
-                  {order.status}
-                </Badge>
+                <StatusBadge status={order.status} />
               </div>
               <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
               <div className="space-y-1">
@@ -354,12 +337,7 @@ export function HistoricalOrdersView() {
                 </div>
                 <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
                 <div>
-                  <Badge
-                    variant="outline"
-                    className={statusColors[order.status] ?? ""}
-                  >
-                    {order.status}
-                  </Badge>
+                  <StatusBadge status={order.status} />
                 </div>
                 <div className="text-sm">
                   <Badge variant="outline" className="text-xs">

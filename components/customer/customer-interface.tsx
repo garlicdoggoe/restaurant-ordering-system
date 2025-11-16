@@ -208,7 +208,6 @@ export function CustomerInterface() {
         ) : currentView === "preorders" ? (
           <div className="p-3 xs:p-6">
             <PreOrdersView 
-              onBackToMenu={() => setCurrentView("menu")} 
               onNavigateToInbox={navigateToInboxWithOrder}
             />
           </div>

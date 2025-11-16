@@ -52,7 +52,7 @@ export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
     { id: "all", label: "All", icon: Calendar },
     { id: "pre-order-pending", label: "Pending Acknowledgment", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
-    { id: "accepted", label: "Accepted", icon: CheckCircle },
+    { id: "accepted", label: "Preparing", icon: CheckCircle },
     { id: "ready", label: "Ready", icon: CheckCircle },
     { id: "denied", label: "Denied", icon: XCircle },
     { id: "completed", label: "Completed", icon: CircleCheck },

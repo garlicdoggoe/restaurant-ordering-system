@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Clock, CheckCircle, XCircle, Truck, Timer, PackageCheck, Ban, ListFilter } from "lucide-react"
 import { useData } from "@/lib/data-context"
@@ -10,6 +9,7 @@ import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { OwnerChatDialog } from "./owner-chat-dialog"
 import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
+import { StatusBadge } from "@/lib/status-badge"
 
 export function ChatView() {
   const { orders } = useData()
@@ -42,7 +42,7 @@ export function ChatView() {
     { id: "active", label: "Active", icon: ListFilter },
     { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
-    { id: "accepted", label: "Accepted", icon: CheckCircle },
+    { id: "accepted", label: "Preparing", icon: CheckCircle },
     { id: "ready", label: "Ready", icon: Timer },
     { id: "in-transit", label: "In Transit", icon: Truck },
     { id: "delivered", label: "Delivered", icon: PackageCheck },
@@ -91,18 +91,6 @@ export function ChatView() {
   // Helpers for message count and last message
   const getMessageCount = (orderId: string) => statsMap.get(orderId)?.unreadCount ?? 0
   const getLastMessage = (orderId: string) => statsMap.get(orderId)?.lastMessage
-
-  const statusColors = {
-    pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    accepted: "bg-green-100 text-green-800 border-green-200",
-    ready: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    completed: "bg-green-100 text-green-800 border-green-200",
-    denied: "bg-red-100 text-red-800 border-red-200",
-    cancelled: "bg-gray-100 text-gray-800 border-gray-200",
-    "in-transit": "bg-yellow-100 text-yellow-800 border-yellow-200",
-    delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    "pre-order-pending": "bg-blue-100 text-blue-800 border-blue-200",
-  }
 
   return (
     <div className="space-y-6">
@@ -169,9 +157,7 @@ export function ChatView() {
                       </div>
                       <p className="text-sm text-muted-foreground">Order #{order._id.slice(-6).toUpperCase()}</p>
                     </div>
-                    <Badge variant="outline" className={statusColors[order.status]}>
-                      {order.status}
-                    </Badge>
+                    <StatusBadge status={order.status} />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
