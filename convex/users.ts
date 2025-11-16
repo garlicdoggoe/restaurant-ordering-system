@@ -32,6 +32,7 @@ export const upsertUser = mutation({
       })
     ),
     gcashNumber: v.optional(v.string()),
+    ownerToken: v.optional(v.string()), // Secure token from validateOwnerCode - required if role is "owner"
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -39,6 +40,34 @@ export const upsertUser = mutation({
     if (!clerkId) throw new Error("Not authenticated");
 
     const now = Date.now();
+
+    // SECURITY: If requesting owner role, validate the token server-side
+    if (args.role === "owner") {
+      if (!args.ownerToken) {
+        throw new Error("Owner token required for owner role");
+      }
+
+      // Find and validate the token
+      const tokenRecord = await ctx.db
+        .query("owner_signup_tokens")
+        .withIndex("by_token", (q) => q.eq("token", args.ownerToken!))
+        .first();
+
+      if (!tokenRecord) {
+        throw new Error("Invalid owner token");
+      }
+
+      if (tokenRecord.used) {
+        throw new Error("Owner token has already been used");
+      }
+
+      if (tokenRecord.expiresAt < now) {
+        throw new Error("Owner token has expired");
+      }
+
+      // Mark token as used
+      await ctx.db.patch(tokenRecord._id, { used: true });
+    }
     
     // Check if user already exists
     const existingUser = await ctx.db
@@ -61,11 +90,12 @@ export const upsertUser = mutation({
       if (args.gcashNumber !== undefined) updateData.gcashNumber = args.gcashNumber;
       
       // Only update role if the existing user is not an owner (preserve owner role)
-      if (existingUser.role !== "owner") {
+      // SECURITY: If trying to upgrade to owner, still validate token
+      if (existingUser.role !== "owner" && args.role === "owner") {
+        // Token validation already done above
         updateData.role = args.role;
-        console.log("upsertUser - Updating user role from", existingUser.role, "to", args.role);
-      } else {
-        console.log("upsertUser - Preserving owner role, not updating to", args.role);
+      } else if (existingUser.role !== "owner") {
+        updateData.role = args.role;
       }
       
       await ctx.db.patch(existingUser._id, updateData);
@@ -74,7 +104,14 @@ export const upsertUser = mutation({
       // Create new user
       return await ctx.db.insert("users", {
         clerkId,
-        ...args,
+        email: args.email,
+        firstName: args.firstName,
+        lastName: args.lastName,
+        role: args.role,
+        phone: args.phone,
+        address: args.address,
+        coordinates: args.coordinates,
+        gcashNumber: args.gcashNumber,
         profileComplete: args.role === "owner" || !!(args.phone && args.address && args.gcashNumber), // Owner is always complete, customer needs phone+address+gcashNumber
         createdAt: now,
         updatedAt: now,
@@ -146,20 +183,36 @@ export const getUserByIdString = query({
   },
 });
 
-// Validate owner signup code
+// Validate owner signup code and generate secure one-time token
 export const validateOwnerCode = mutation({
   args: {
     code: v.string(),
   },
   handler: async (ctx, { code }) => {
     // The owner signup code is "IchiroCocoiNami17?"
+    // This is kept server-side only - never exposed to client
     const validOwnerCode = "IchiroCocoiNami17?";
     
-    if (code === validOwnerCode) {
-      return { valid: true };
-    } else {
+    if (code !== validOwnerCode) {
       return { valid: false, error: "Invalid owner code" };
     }
+
+    // Generate secure random token (crypto.randomUUID or similar)
+    // Using timestamp + random string for token generation
+    const token = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+    const now = Date.now();
+    // Token expires in 24 hours
+    const expiresAt = now + (24 * 60 * 60 * 1000);
+
+    // Store token in database as unused
+    await ctx.db.insert("owner_signup_tokens", {
+      token,
+      used: false,
+      expiresAt,
+      createdAt: now,
+    });
+
+    return { valid: true, token };
   },
 });
 

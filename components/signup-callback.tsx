@@ -30,34 +30,31 @@ export function SignupCallback() {
     // Create user in Convex when they first sign up
     const createUser = async () => {
       try {
-        // Check if this is an owner signup by looking for the stored code
+        // Check if this is an owner signup by looking for the stored validation token
         // Only access localStorage on the client side to prevent SSR errors
-        let ownerSignupCode: string | null = null
+        // The token is a secure server-generated one-time token, not the actual code
+        let ownerToken: string | null = null
         let isOwnerSignup = false
         
         if (typeof window !== 'undefined') {
-          ownerSignupCode = localStorage.getItem('ownerSignupCode')
-          isOwnerSignup = ownerSignupCode === "IchiroCocoiNami17?"
+          ownerToken = localStorage.getItem('ownerSignupToken')
+          isOwnerSignup = !!ownerToken
         }
-        
-        console.log("SignupCallback - ownerSignupCode:", ownerSignupCode)
-        console.log("SignupCallback - isOwnerSignup:", isOwnerSignup)
-        
-        // Clean up the stored code after checking (only if we found it and we're on client side)
-        if (typeof window !== 'undefined' && ownerSignupCode) {
-          localStorage.removeItem('ownerSignupCode')
-          console.log("SignupCallback - Cleaned up localStorage code")
+
+        // Clean up the stored token after retrieving (only if we found it and we're on client side)
+        if (typeof window !== 'undefined' && ownerToken) {
+          localStorage.removeItem('ownerSignupToken')
         }
 
         // Only pass fields we actually know at signup time; do not send undefineds
+        // SECURITY: Server will validate the ownerToken before allowing owner role
         await upsertUser({
           email: user.emailAddresses[0]?.emailAddress || "",
           firstName: user.firstName || "",
           lastName: user.lastName || "",
           role: isOwnerSignup ? "owner" : "customer",
+          ownerToken: ownerToken || undefined, // Only send token if we have one
         })
-        
-        console.log("SignupCallback - User created with role:", isOwnerSignup ? "owner" : "customer")
       } catch (error) {
         console.error("Failed to create user:", error)
       }

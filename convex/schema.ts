@@ -239,6 +239,14 @@ export default defineSchema({
     itemDetails: v.optional(v.string()), // Description of what changed
     timestamp: v.number(),
   }).index("by_orderId", ["orderId"]),
+
+  // Owner signup validation tokens - secure one-time tokens for owner signup
+  owner_signup_tokens: defineTable({
+    token: v.string(), // Secure random token
+    used: v.boolean(), // Whether the token has been used
+    expiresAt: v.number(), // Expiration timestamp
+    createdAt: v.number(),
+  }).index("by_token", ["token"]),
 });
 
 

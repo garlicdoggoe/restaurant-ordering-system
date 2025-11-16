@@ -43,10 +43,14 @@ export function OwnerSignupDialog({ children }: OwnerSignupDialogProps) {
         return
       }
 
-      // If code is valid, store it in localStorage for the signup callback to use
-      localStorage.setItem('ownerSignupCode', ownerCode)
-      console.log("OwnerSignupDialog - Code validated and stored:", ownerCode)
-      setCodeValidated(true)
+      // If code is valid, store the secure token in localStorage for the signup callback to use
+      // The actual code is never stored - only the server-generated token
+      if (validation.token) {
+        localStorage.setItem('ownerSignupToken', validation.token)
+        setCodeValidated(true)
+      } else {
+        setError("Token generation failed. Please try again.")
+      }
       
     } catch (err: any) {
       console.error("Owner code validation error:", err)
@@ -58,11 +62,11 @@ export function OwnerSignupDialog({ children }: OwnerSignupDialogProps) {
 
   const handleDialogClose = (open: boolean) => {
     if (!open && !codeValidated) {
-      // Only reset state and remove code if dialog closes without successful validation
+      // Only reset state and remove token if dialog closes without successful validation
       setOwnerCode("")
       setError("")
       setCodeValidated(false)
-      localStorage.removeItem('ownerSignupCode')
+      localStorage.removeItem('ownerSignupToken')
     }
     setIsOpen(open)
   }
