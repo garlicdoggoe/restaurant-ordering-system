@@ -50,6 +50,8 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
+  // Detect iOS devices to apply additional padding for Safari address bar
+  const [isIOS, setIsIOS] = useState(false)
 
   const order = getOrderById(orderId)
   const messages: ChatMessage[] = useQuery(api.chat.listByOrder, { orderId }) ?? []
@@ -61,6 +63,14 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
   // Mutation to mark messages as read
   const markAsRead = useMutation(api.chat.markAsRead)
+
+  // Detect iOS devices on component mount
+  useEffect(() => {
+    // Check user agent for iOS devices (iPhone, iPad, iPod)
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
+    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream
+    setIsIOS(isIOSDevice)
+  }, [])
 
   // Mark messages as read when dialog opens
   useEffect(() => {
@@ -388,7 +398,20 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
           </div>
         </ScrollArea>
 
-        <div className="flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0">
+        <div 
+          className={cn(
+            "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0",
+            // Add extra bottom padding on iOS mobile devices to prevent Safari address bar from covering input
+            isIOS && "pb-10 md:pb-4"
+          )}
+          style={{
+            // Use CSS safe area inset for iOS devices to handle notched devices and Safari UI
+            // Combine 40px (2.5rem) padding with safe area inset for proper spacing above Safari address bar
+            paddingBottom: typeof window !== 'undefined' && isIOS 
+              ? `calc(2.5rem + env(safe-area-inset-bottom))`
+              : undefined
+          }}
+        >
           {/* Image upload button (visible only if allowed) */}
           {allowCustomerImages && (
             <>
