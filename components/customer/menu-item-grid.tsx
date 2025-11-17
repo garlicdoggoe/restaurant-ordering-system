@@ -46,14 +46,14 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
     <>
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-5">
       {items.map((item) => {
-        const isFavorite = favorites.has(item.id)
+        // const isFavorite = favorites.has(item.id)
         return (
-          <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow group relative">
-            <div className="relative aspect-square">
+          <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow group relative pt-0 pb-5">
+            <div className="relative aspect-square mb-[-12px]">
               <MenuItemImage src={item.image} alt={item.name} fill className="object-cover" />
               
               {/* Heart button in top-right corner */}
-              <Button
+              {/* <Button
                 size="icon"
                 variant="ghost"
                 className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity touch-target"
@@ -62,10 +62,10 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
                 <Heart 
                   className={`w-4 h-4 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} 
                 />
-              </Button>
+              </Button> */}
             </div>
             
-            <CardContent className="p-1.5 lg:px-3 lg:py-2">
+            <CardContent className="py-0 px-2 lg:px-3 lg:py-2">
               <div className="flex items-start justify-between gap-1.5 px-2 lg:px-0">
                 <div className="flex-1 min-w-0">
                     <h3 className="font-semibold mb-0.5 truncate text-xs sm:text-[clamp(0.875rem,1.2vw,1rem)]">{item.name}</h3>
