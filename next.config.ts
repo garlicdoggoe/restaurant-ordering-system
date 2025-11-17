@@ -18,8 +18,26 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: new URL(process.env.NEXT_PUBLIC_CONVEX_URL as string).hostname,
+        hostname: "*.convex.cloud",
+        pathname: "/api/storage/**",
       },
+      // Also allow the specific hostname if env var is available (with error handling)
+      ...(process.env.NEXT_PUBLIC_CONVEX_URL
+        ? (() => {
+            try {
+              const url = new URL(process.env.NEXT_PUBLIC_CONVEX_URL);
+              return [
+                {
+                  protocol: "https" as const,
+                  hostname: url.hostname,
+                  pathname: "/api/storage/**",
+                },
+              ];
+            } catch {
+              return [];
+            }
+          })()
+        : []),
     ],
   },
 };
