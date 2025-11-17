@@ -124,15 +124,15 @@ export function PromotionBanner() {
     const single = promotionsToShow[0]
     return (
       <Card className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 min-h-[180px] lg:min-h-0">
-        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4 min-h-[180px] lg:min-h-0">
-          <div className="flex-1">
-            <Badge className="mb-2 gap-1">
-              <Sparkles className="w-3 h-3" />
-              <div className="mt-1">{single.title}</div>
+        <div className="p-3 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4 min-h-[180px] lg:min-h-0">
+          <div className="flex-1 min-w-0 w-full max-w-full overflow-hidden">
+            <Badge className="mb-1.5 lg:mb-2 gap-1 whitespace-normal shrink lg:whitespace-nowrap lg:shrink-0 text-[10px] lg:text-xs max-w-full">
+              <Sparkles className="w-2.5 h-2.5 lg:w-3 lg:h-3 shrink-0" />
+              <div className="mt-0.5 lg:mt-1 break-words">{single.title}</div>
             </Badge>
-            <h2 className="text-md lg:text-fluid-2xl font-medium mb-1">{single.description}</h2>
+            <h2 className="text-xs lg:text-fluid-2xl font-medium mb-1 break-words leading-tight lg:leading-normal">{single.description}</h2>
             {single.endDate && (
-              <p className="text-xs lg:text-fluid-sm text-muted-foreground">
+              <p className="text-[10px] lg:text-fluid-sm text-muted-foreground break-words leading-tight">
                 Valid until {new Date(single.endDate).toLocaleDateString()}
               </p>
             )}
@@ -202,17 +202,17 @@ export function PromotionBanner() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4 min-h-[180px] lg:min-h-0">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge className="gap-1">
-              <Sparkles className="w-3 h-3" />
-              <div className="mt-1">{current.title}</div>
+      <div className="p-3 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4 min-h-[180px] lg:min-h-0">
+        <div className="flex-1 min-w-0 w-full max-w-full overflow-hidden">
+          <div className="flex items-center gap-1.5 mb-1.5 lg:mb-2 flex-wrap">
+            <Badge className="gap-1 whitespace-normal shrink lg:whitespace-nowrap lg:shrink-0 text-[10px] lg:text-xs max-w-full">
+              <Sparkles className="w-2.5 h-2.5 lg:w-3 lg:h-3 shrink-0" />
+              <div className="mt-0.5 lg:mt-1 break-words">{current.title}</div>
             </Badge>
           </div>
-          <h2 className="text-md lg:text-fluid-2xl font-medium mb-1">{current.description}</h2>
+          <h2 className="text-xs lg:text-fluid-2xl font-medium mb-1 break-words leading-tight lg:leading-normal">{current.description}</h2>
           {current.endDate && (
-            <p className="text-xs lg:text-fluid-sm text-muted-foreground">
+            <p className="text-[10px] lg:text-fluid-sm text-muted-foreground break-words leading-tight">
               Valid until {new Date(current.endDate).toLocaleDateString()}
             </p>
           )}
