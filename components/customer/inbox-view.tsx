@@ -38,7 +38,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   // Status filter options
   const statusFilterOptions: StatusFilterOption[] = [
     { id: "all", label: "All", icon: Clock },
-    { id: "recent", label: "Recent (Today)", icon: Clock },
+    { id: "recent", label: "Recent", icon: Clock },
     { id: "active", label: "Active", icon: ListFilter },
     { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
@@ -133,7 +133,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     // Apply immediately - no need to click "Apply Filters" for status filters
     setStatusFilter(newStatus)
     
-    // When "Recent (Today)" is selected, automatically set date filters to today
+    // When "Recent" is selected, automatically set date filters to today
     if (newStatus === "recent") {
       // Set both draft and applied date filters to today
       setFromDateDraft(todayStr)
@@ -181,7 +181,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
           setFromDate(fromDateDraft)
           setToDate(toDateDraft)
         }}
-        drawerTitle="Filter Inbox"
+        drawerTitle="Date Range"
       />
 
       {ordersWithChat.length === 0 ? (

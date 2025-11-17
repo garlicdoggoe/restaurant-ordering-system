@@ -262,7 +262,7 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
         onStatusFilterChange={(filter) => setStatusFilter(filter as any)}
         statusFilterOptions={statusFilterOptions}
         onClearAll={clearAllFilters}
-        drawerTitle="Filter Orders"
+        drawerTitle="Date Range"
       />
 
       {/* Orders List */}

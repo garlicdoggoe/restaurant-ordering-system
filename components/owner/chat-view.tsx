@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Clock, CheckCircle, XCircle, Truck, Timer, PackageCheck, Ban, ListFilter } from "lucide-react"
+import { MessageSquare } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { OwnerChatDialog } from "./owner-chat-dialog"
-import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
+import { OrderFilter } from "@/components/ui/order-filter"
 import { StatusBadge } from "@/lib/status-badge"
+import { chatStatusFilterOptions } from "@/lib/status-filter-options"
 
 export function ChatView() {
   const { orders } = useData()
@@ -35,21 +36,8 @@ export function ChatView() {
     return m
   }, [perOrderStats])
 
-  // Status filter options (includes an "Active" aggregate option)
-  const statusFilterOptions: StatusFilterOption[] = [
-    { id: "all", label: "All", icon: Clock },
-    { id: "recent", label: "Recent (Today)", icon: Clock },
-    { id: "active", label: "Active", icon: ListFilter },
-    { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
-    { id: "pending", label: "Pending", icon: Clock },
-    { id: "accepted", label: "Preparing", icon: CheckCircle },
-    { id: "ready", label: "Ready", icon: Timer },
-    { id: "in-transit", label: "In Transit", icon: Truck },
-    { id: "delivered", label: "Delivered", icon: PackageCheck },
-    { id: "denied", label: "Denied", icon: XCircle },
-    { id: "completed", label: "Completed", icon: CheckCircle },
-    { id: "cancelled", label: "Cancelled", icon: Ban },
-  ]
+  // Status filter options imported from lib for modularity
+  const statusFilterOptions = chatStatusFilterOptions
 
   const activeStatuses = new Set(["pre-order-pending", "pending", "accepted", "ready", "in-transit"])
 

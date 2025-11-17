@@ -4,7 +4,8 @@ import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Filter, X, LucideIcon } from "lucide-react"
+import { Calendar, X, LucideIcon } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export interface StatusFilterOption {
   id: string
@@ -70,78 +71,89 @@ export function OrderFilter({
       {/* Sticky Filter Section - Full width, locks below top nav on mobile */}
       <div className="sticky top-14 lg:top-0 z-40 bg-background border-b shadow-sm -mx-3 xs:-mx-6 px-3 xs:px-6 py-3 xs:py-4">
         <div className="space-y-3">
-          {/* Mobile: Compact filter bar with status tabs and expand button */}
-          <div className="lg:hidden">
-            {/* Status filter tabs - horizontal scroll */}
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-              {statusFilterOptions.map((option) => {
-                const Icon = option.icon
-                const isActive = statusFilter === option.id
-                return (
-                  <Button
-                    key={option.id}
-                    variant={isActive ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => onStatusFilterChange(option.id)}
-                    className={`flex-shrink-0 gap-2 touch-target text-xs ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="text-fluid-sm">{option.label}</span>
-                  </Button>
-                )
-              })}
-            </div>
-            
-            {/* Date filters section - button to open drawer and apply button when filters are set */}
-            <div className="space-y-2">
+          {/* Mobile: Compact filter bar with status dropdown and date filter side by side */}
+          <div className="lg:hidden space-y-2">
+            {/* Status filter and date filter side by side */}
+            <div className="flex gap-2">
+              {/* Status filter dropdown */}
+              <div className="flex-1">
+                <Select value={statusFilter} onValueChange={onStatusFilterChange}>
+                  <SelectTrigger className="w-full touch-target">
+                    {(() => {
+                      const selectedOption = statusFilterOptions.find(opt => opt.id === statusFilter)
+                      const Icon = selectedOption?.icon
+                      return (
+                        <>
+                          <SelectValue placeholder="Select status" />
+                        </>
+                      )
+                    })()}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusFilterOptions.map((option) => {
+                      const Icon = option.icon
+                      return (
+                        <SelectItem key={option.id} value={option.id}>
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            <span>{option.label}</span>
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Date filter button */}
               <Button
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={() => setIsFilterDrawerOpen(true)}
-                className="w-full touch-target flex items-center justify-center gap-2"
+                className="flex-shrink-0 touch-target flex items-center justify-center gap-2 px-3"
               >
-              <Filter className="h-4 w-4" />
-              <span className="text-xs mt-1">
-                {(() => {
-                  // Don't show dates when "Recent (Today)" filter is active
-                  if (statusFilter === "recent") {
-                    return "Date Filters"
-                  }
-                  // Show actual dates when filters are active
-                  if (appliedFromDate || appliedToDate) {
-                    const formatDate = (dateStr: string) => {
-                      if (!dateStr) return ""
-                      const date = new Date(dateStr)
-                      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                <Calendar className="h-4 w-4" />
+                <span className="text-xs hidden xs:inline">
+                  {(() => {
+                    // Don't show dates when "Recent" filter is active
+                    if (statusFilter === "recent") {
+                      return "Dates"
                     }
-                    const from = formatDate(appliedFromDate)
-                    const to = formatDate(appliedToDate)
-                    if (from && to) {
-                      return `${from} - ${to}`
-                    } else if (from) {
-                      return `From ${from}`
-                    } else if (to) {
-                      return `Until ${to}`
+                    // Show actual dates when filters are active
+                    if (appliedFromDate || appliedToDate) {
+                      const formatDate = (dateStr: string) => {
+                        if (!dateStr) return ""
+                        const date = new Date(dateStr)
+                        return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                      }
+                      const from = formatDate(appliedFromDate)
+                      const to = formatDate(appliedToDate)
+                      if (from && to) {
+                        return `${from} - ${to}`
+                      } else if (from) {
+                        return `From ${from}`
+                      } else if (to) {
+                        return `Until ${to}`
+                      }
                     }
-                  }
-                  return "Date Filters"
-                })()}
-              </span>
+                    return "Dates"
+                  })()}
+                </span>
               </Button>
-              
-              {/* Show Apply Filters button when date filters are set (draft state differs from applied) */}
-              {onApply && (fromDate !== appliedFromDate || toDate !== appliedToDate) && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    onApply()
-                  }}
-                  className="w-full touch-target"
-                >
-                  Apply Filters
-                </Button>
-              )}
             </div>
+            
+            {/* Show Apply Filters button when date filters are set (draft state differs from applied) */}
+            {onApply && (fromDate !== appliedFromDate || toDate !== appliedToDate) && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  onApply()
+                }}
+                className="w-full touch-target"
+              >
+                Apply Filters
+              </Button>
+            )}
           </div>
 
           {/* Desktop: Full filter controls */}
@@ -245,7 +257,7 @@ export function OrderFilter({
 
           {/* Date Filters */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Date Range</Label>
+            {/* <Label className="text-sm font-medium">Date Range</Label> */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="from-date" className="text-xs text-muted-foreground">From Date</Label>
