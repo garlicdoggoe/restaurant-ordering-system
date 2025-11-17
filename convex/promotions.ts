@@ -13,8 +13,8 @@ export const add = mutation({
     image: v.optional(v.string()),
     discountType: v.union(v.literal("percentage"), v.literal("fixed")),
     discountValue: v.number(),
-    startDate: v.number(),
-    endDate: v.number(),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
     active: v.boolean(),
   },
   handler: async (ctx, args) => {

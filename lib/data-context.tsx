@@ -183,8 +183,8 @@ export interface Promotion {
   image?: string
   discountType: DiscountType
   discountValue: number
-  startDate: number
-  endDate: number
+  startDate?: number
+  endDate?: number
   active: boolean
 }
 

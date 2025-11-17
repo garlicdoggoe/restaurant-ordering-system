@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Plus, Trash2, Edit, Upload } from "lucide-react"
+import { compressImage } from "@/lib/image-compression"
 
 interface MenuItemDialogProps {
   item?: MenuItem
@@ -107,21 +108,28 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
   // Handle image file selection
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return
-    const file = e.target.files[0]
-    setUploadedImage(file)
+    const originalFile = e.target.files[0]
+    
     try {
+      // Compress the image before storing and uploading
+      // This reduces file size while maintaining acceptable quality
+      const compressedFile = await compressImage(originalFile, 100) // Target 100KB
+      
+      // Store the compressed file for upload
+      setUploadedImage(compressedFile)
+      
       // Create immediate preview and persist temporarily in localStorage
-      const dataUrl = await fileToDataUrl(file)
+      const dataUrl = await fileToDataUrl(compressedFile)
       setPreviewUrl((prev) => {
         if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev)
         return dataUrl
       })
       const key = `menu_item_image_${item?._id || 'new'}`
-      const payload = { name: file.name, type: file.type, dataUrl }
+      const payload = { name: compressedFile.name, type: compressedFile.type, dataUrl }
       window.localStorage.setItem(key, JSON.stringify(payload))
     } catch (err) {
-      console.error("Failed to prepare image preview", err)
-      toast.error("Failed to prepare image preview")
+      console.error("Failed to compress or prepare image preview", err)
+      toast.error("Failed to process image. Please try again.")
     }
   }
 

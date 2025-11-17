@@ -7,6 +7,34 @@ import { Button } from "@/components/ui/button"
 import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
 import Image from "next/image"
 import { useData } from "@/lib/data-context"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+
+// Component to resolve storageId to URL and display promotion image
+function PromotionBannerImage({ image, alt }: { image?: string; alt: string }) {
+  // Resolve storageId to URL if needed
+  const isStorageId = image && 
+    !image.startsWith('http') && 
+    !image.startsWith('/') && 
+    !image.includes('.') && 
+    image.length > 20
+
+  const imageUrl = useQuery(
+    api.files.getUrl,
+    isStorageId ? { storageId: image as any } : "skip"
+  )
+
+  // Final image source: resolved URL, original URL, or undefined (no image)
+  const finalImageSrc = imageUrl || (image?.startsWith('http') || image?.startsWith('/') ? image : undefined)
+
+  if (!finalImageSrc) return null
+
+  return (
+    <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden self-center lg:self-auto mx-auto lg:mx-0">
+      <Image src={finalImageSrc} alt={alt} fill className="object-cover" />
+    </div>
+  )
+}
 
 export function PromotionBanner() {
   const { promotions } = useData()
@@ -17,36 +45,44 @@ export function PromotionBanner() {
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
 
-  // Debug logging
-  console.log("PromotionBanner - All promotions:", promotions)
-  console.log("PromotionBanner - Current time:", new Date())
 
   const now = Date.now()
   
   // First try strict date filtering
+  // If dates are provided, check them; otherwise, only check if promotion is active
   const activePromotions = promotions.filter((p) => {
-    const isActive = p.active && p.startDate <= now && p.endDate >= now
-    console.log(`Promotion "${p.title}": active=${p.active}, startDate=${new Date(p.startDate)}, endDate=${new Date(p.endDate)}, isActive=${isActive}`)
+    if (!p.active) return false
+    
+    // If no dates provided, promotion is active if it's marked as active
+    if (p.startDate === undefined && p.endDate === undefined) {
+      return true
+    }
+    
+    // Check start date if provided
+    const startValid = p.startDate === undefined || p.startDate <= now
+    // Check end date if provided
+    const endValid = p.endDate === undefined || p.endDate >= now
+    
+    const isActive = startValid && endValid
     return isActive
   })
-
-  console.log("PromotionBanner - Active promotions:", activePromotions)
 
   // If no active promotions found, try showing all active promotions regardless of date
   let promotionsToShow = activePromotions
   if (activePromotions.length === 0) {
     const allActivePromotions = promotions.filter((p) => p.active)
-    console.log("PromotionBanner - No date-filtered promotions, showing all active:", allActivePromotions)
     promotionsToShow = allActivePromotions
   }
 
   // Hooks must run unconditionally. Effects guard on conditions internally.
-  // Auto-rotate effect
+  // Auto-rotate effect - cycles through promotions automatically
   useEffect(() => {
     if (!isAutoPlaying || promotionsToShow.length <= 1) return
+    
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % promotionsToShow.length)
-    }, 5000)
+    }, 15000) // 15 seconds between each promotion
+    
     return () => clearInterval(interval)
   }, [isAutoPlaying, promotionsToShow.length])
 
@@ -57,30 +93,26 @@ export function PromotionBanner() {
 
   // After hooks: render branches
   if (promotionsToShow.length === 0) {
-    console.log("PromotionBanner - No promotions found at all, returning null")
     // Temporary: Show first promotion regardless of status for debugging
     if (promotions.length > 0) {
-      console.log("PromotionBanner - DEBUG: Showing first promotion regardless of status")
       const debugPromotion = promotions[0]
       return (
-      <Card className="overflow-hidden bg-gradient-to-r from-red-100 to-orange-100 border-red-200">
-        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4">
+      <Card className="overflow-hidden bg-gradient-to-r from-red-100 to-orange-100 border-red-200 min-h-[180px] lg:min-h-0">
+        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4 min-h-[180px] lg:min-h-0">
           <div className="flex-1">
             <Badge className="mb-2 gap-1 bg-red-500">
               <Sparkles className="w-3 h-3" />
               DEBUG: {debugPromotion.title}
             </Badge>
-            <h2 className="text-lg lg:text-fluid-2xl font-bold mb-1">{debugPromotion.description}</h2>
+            <h2 className="text-lg lg:text-fluid-2xl font-medium mb-1">{debugPromotion.description}</h2>
             <p className="text-xs lg:text-fluid-sm text-muted-foreground">
               Status: {debugPromotion.active ? "Active" : "Inactive"} | 
-              Start: {new Date(debugPromotion.startDate).toLocaleDateString()} | 
-              End: {new Date(debugPromotion.endDate).toLocaleDateString()}
+              Start: {debugPromotion.startDate ? new Date(debugPromotion.startDate).toLocaleDateString() : "No start date"} | 
+              End: {debugPromotion.endDate ? new Date(debugPromotion.endDate).toLocaleDateString() : "No end date"}
             </p>
           </div>
           {/* Center image on mobile; revert to left on desktop to align with row layout */}
-          <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden self-center lg:self-auto mx-auto lg:mx-0">
-            <Image src={debugPromotion.image || "/menu-sample.jpg"} alt={debugPromotion.title} fill className="object-cover" />
-          </div>
+          <PromotionBannerImage image={debugPromotion.image} alt={debugPromotion.title} />
         </div>
       </Card>
       )
@@ -91,26 +123,37 @@ export function PromotionBanner() {
   if (promotionsToShow.length === 1) {
     const single = promotionsToShow[0]
     return (
-      <Card className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
-        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4">
+      <Card className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 min-h-[180px] lg:min-h-0">
+        <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4 min-h-[180px] lg:min-h-0">
           <div className="flex-1">
             <Badge className="mb-2 gap-1">
               <Sparkles className="w-3 h-3" />
-              {single.title}
+              <div className="mt-1">{single.title}</div>
             </Badge>
-            <h2 className="text-lg lg:text-fluid-2xl font-bold mb-1">{single.description}</h2>
-            <p className="text-xs lg:text-fluid-sm text-muted-foreground">
-              Valid until {new Date(single.endDate).toLocaleDateString()}
-            </p>
+            <h2 className="text-md lg:text-fluid-2xl font-medium mb-1">{single.description}</h2>
+            {single.endDate && (
+              <p className="text-xs lg:text-fluid-sm text-muted-foreground">
+                Valid until {new Date(single.endDate).toLocaleDateString()}
+              </p>
+            )}
           </div>
           {/* Center image on mobile; revert to left on desktop to align with row layout */}
-          <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden self-center lg:self-auto mx-auto lg:mx-0">
-            <Image src={single.image || "/menu-sample.jpg"} alt={single.title} fill className="object-cover" />
-          </div>
+          <PromotionBannerImage image={single.image} alt={single.title} />
         </div>
       </Card>
     )
   }
+
+  // Restart auto-play after user interaction stops
+  useEffect(() => {
+    if (!isAutoPlaying && promotionsToShow.length > 1) {
+      // Restart auto-play after 8 seconds of no interaction
+      const timeout = setTimeout(() => {
+        setIsAutoPlaying(true)
+      }, 10000)
+      return () => clearTimeout(timeout)
+    }
+  }, [isAutoPlaying, promotionsToShow.length])
 
   const goPrev = () => {
     setCurrentIndex((prev) => (prev - 1 + promotionsToShow.length) % promotionsToShow.length)
@@ -154,28 +197,28 @@ export function PromotionBanner() {
 
   return (
     <Card 
-      className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 relative"
+      className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 relative min-h-[180px] lg:min-h-0"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4">
+      <div className="p-4 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-4 min-h-[180px] lg:min-h-0">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <Badge className="gap-1">
               <Sparkles className="w-3 h-3" />
-              {current.title}
+              <div className="mt-1">{current.title}</div>
             </Badge>
           </div>
-          <h2 className="text-lg lg:text-fluid-2xl font-bold mb-1">{current.description}</h2>
-          <p className="text-xs lg:text-fluid-sm text-muted-foreground">
-            Valid until {new Date(current.endDate).toLocaleDateString()}
-          </p>
+          <h2 className="text-md lg:text-fluid-2xl font-medium mb-1">{current.description}</h2>
+          {current.endDate && (
+            <p className="text-xs lg:text-fluid-sm text-muted-foreground">
+              Valid until {new Date(current.endDate).toLocaleDateString()}
+            </p>
+          )}
         </div>
         {/* Center image on mobile; revert to left on desktop to align with row layout */}
-        <div className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden self-center lg:self-auto mx-auto lg:mx-0">
-          <Image src={current.image || "/menu-sample.jpg"} alt={current.title} fill className="object-cover" />
-        </div>
+        <PromotionBannerImage image={current.image} alt={current.title} />
       </div>
 
       {/* Controls - Hidden on mobile, visible on desktop */}

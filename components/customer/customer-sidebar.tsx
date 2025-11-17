@@ -14,18 +14,17 @@ import {
   Inbox, 
   Settings, 
   LogOut,
-  User,
   MapPin,
   X,
   Calendar,
-  Activity
+  Activity,
+  Mail
 } from "lucide-react"
 import { SignOutButton } from "@clerk/nextjs"
-import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
 interface CustomerSidebarProps {
-  currentView: "menu" | "orders" | "profile" | "preorders" | "inbox" | "activeorders"
-  onViewChange: (view: "menu" | "orders" | "profile" | "preorders" | "inbox" | "activeorders") => void
+  currentView: "menu" | "orders" | "profile" | "preorders" | "inbox" | "activeorders" | "inquiry"
+  onViewChange: (view: "menu" | "orders" | "profile" | "preorders" | "inbox" | "activeorders" | "inquiry") => void
   cartItemCount: number
   preOrdersCount: number
   activeOrdersCount?: number
@@ -112,12 +111,18 @@ export function CustomerSidebar({
       label: "Settings",
       icon: Settings,
       active: currentView === "profile"
+    },
+    {
+      id: "inquiry",
+      label: "Inquiry",
+      icon: Mail,
+      active: currentView === "inquiry"
     }
   ]
 
   const handleNavigation = (item: typeof navigationItems[0]) => {
-    if (item.id === "menu" || item.id === "orders" || item.id === "preorders" || item.id === "inbox" || item.id === "activeorders") {
-      onViewChange(item.id as "menu" | "orders" | "preorders" | "inbox" | "activeorders")
+    if (item.id === "menu" || item.id === "orders" || item.id === "preorders" || item.id === "inbox" || item.id === "activeorders" || item.id === "inquiry") {
+      onViewChange(item.id as "menu" | "orders" | "preorders" | "inbox" | "activeorders" | "inquiry")
     } else if (item.id === "settings") {
       onViewChange("profile")
     } else if (item.onClick) {

@@ -20,6 +20,7 @@ import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
 import { PaymentModal } from "@/components/ui/payment-modal"
+import { compressImage } from "@/lib/image-compression"
 
 interface CartItem {
   id: string
@@ -145,110 +146,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as string)
       reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  }
-
-  /**
-   * Compresses an image file to approximately 100KB or less
-   * Uses Canvas API to resize and compress the image
-   * @param file - The original image file
-   * @param targetSizeKB - Target file size in KB (default: 100)
-   * @returns Promise that resolves to a compressed File object
-   */
-  const compressImage = async (file: File, targetSizeKB: number = 100): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      // If file is already small enough, return as-is
-      if (file.size <= targetSizeKB * 1024) {
-        resolve(file)
-        return
-      }
-
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const img = new Image()
-        img.onload = () => {
-          // Calculate new dimensions (max width/height of 1200px to maintain quality while reducing size)
-          const maxDimension = 1200
-          let width = img.width
-          let height = img.height
-
-          // Resize if image is larger than max dimension
-          if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-              height = (height / width) * maxDimension
-              width = maxDimension
-            } else {
-              width = (width / height) * maxDimension
-              height = maxDimension
-            }
-          }
-
-          // Create canvas and draw resized image
-          const canvas = document.createElement("canvas")
-          canvas.width = width
-          canvas.height = height
-          const ctx = canvas.getContext("2d")
-          if (!ctx) {
-            reject(new Error("Failed to get canvas context"))
-            return
-          }
-
-          // Draw image on canvas
-          ctx.drawImage(img, 0, 0, width, height)
-
-          // Binary search for optimal quality to reach target size
-          let quality = 0.9 // Start with 90% quality
-          let minQuality = 0.1
-          let maxQuality = 1.0
-
-          const compress = (): void => {
-            canvas.toBlob(
-              (blob) => {
-                if (!blob) {
-                  reject(new Error("Failed to compress image"))
-                  return
-                }
-
-                const sizeKB = blob.size / 1024
-
-                // If we're within 5KB of target or quality is too low, accept this result
-                if (sizeKB <= targetSizeKB + 5 || quality <= minQuality + 0.05) {
-                  // Create a new File object with the compressed blob
-                  const compressedFile = new File([blob], file.name, {
-                    type: "image/jpeg", // Always convert to JPEG for better compression
-                    lastModified: Date.now(),
-                  })
-                  resolve(compressedFile)
-                  return
-                }
-
-                // Adjust quality based on current size
-                if (sizeKB > targetSizeKB) {
-                  // Too large, reduce quality
-                  maxQuality = quality
-                  quality = (quality + minQuality) / 2
-                } else {
-                  // Could be smaller, try higher quality
-                  minQuality = quality
-                  quality = (quality + maxQuality) / 2
-                }
-
-                // Recursively try again with adjusted quality
-                compress()
-              },
-              "image/jpeg", // Always use JPEG for better compression
-              quality
-            )
-          }
-
-          // Start compression process
-          compress()
-        }
-        img.onerror = () => reject(new Error("Failed to load image"))
-        img.src = e.target?.result as string
-      }
-      reader.onerror = () => reject(new Error("Failed to read file"))
       reader.readAsDataURL(file)
     })
   }

@@ -12,6 +12,7 @@ import { UserProfileSettings } from "./user-profile-settings"
 import { InboxView } from "./inbox-view"
 import { OrderTracking } from "./order-tracking"
 import { StickyOrderStatus } from "./sticky-order-status"
+import { WebsiteInquiryView } from "./website-inquiry-view"
 import { useData } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { toast } from "sonner"
@@ -20,7 +21,7 @@ import { X } from "lucide-react"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
-export type CustomerView = "menu" | "orders" | "profile" | "preorders" | "inbox" | "activeorders"
+export type CustomerView = "menu" | "orders" | "profile" | "preorders" | "inbox" | "activeorders" | "inquiry"
 
 export function CustomerInterface() {
   const [currentView, setCurrentView] = useState<CustomerView>("menu")
@@ -221,6 +222,10 @@ export function CustomerInterface() {
         ) : currentView === "inbox" ? (
           <div className="p-3 xs:p-6">
             <InboxView orderIdToOpen={orderIdToOpen} onOrderOpened={() => setOrderIdToOpen(null)} />
+          </div>
+        ) : currentView === "inquiry" ? (
+          <div className="p-3 xs:p-6">
+            <WebsiteInquiryView />
           </div>
         ) : (
           <div className="p-3 xs:p-6">

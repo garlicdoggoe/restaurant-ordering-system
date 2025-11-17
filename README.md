@@ -53,16 +53,25 @@ A comprehensive restaurant ordering and management system built with Next.js, Co
    NEXT_PUBLIC_CONVEX_URL=your_convex_deployment_url
    \`\`\`
 
-5. Seed the database with dummy data:
+5. Configure Resend for email functionality (Website Inquiry feature):
+   - Sign up for a Resend account at https://resend.com
+   - Get your API key from https://resend.com/api-keys
+   - In your Convex dashboard, go to **Settings > Environment Variables**
+   - Add a new environment variable:
+     - **Name**: `RESEND_API_KEY`
+     - **Value**: Your Resend API key
+   - Note: The email will be sent to `selwynguiruela03@gmail.com` (configured in `convex/email.ts`)
+
+6. Seed the database with dummy data:
    - Open the Convex dashboard
    - Run the `seed:seedDatabase` mutation
 
-6. Start the development server:
+7. Start the development server:
    \`\`\`bash
    npm run dev
    \`\`\`
 
-7. Open [http://localhost:3000](http://localhost:3000)
+8. Open [http://localhost:3000](http://localhost:3000)
 
 ## Project Structure
 
@@ -81,6 +90,7 @@ A comprehensive restaurant ordering and management system built with Next.js, Co
 │   ├── menuItems.ts    # Menu item operations
 │   ├── vouchers.ts     # Voucher management
 │   ├── promotions.ts   # Promotion management
+│   ├── email.ts        # Email sending via Resend
 │   └── seed.ts         # Database seeding
 └── lib/
     └── convex.ts       # Convex client setup
@@ -113,6 +123,7 @@ A comprehensive restaurant ordering and management system built with Next.js, Co
 3. Add items to cart
 4. Proceed to checkout and place order
 5. View order history in "My Orders"
+6. Submit website inquiries via "Website Inquiry" in the sidebar
 
 ## Notes
 

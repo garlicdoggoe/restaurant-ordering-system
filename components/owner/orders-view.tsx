@@ -22,34 +22,71 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
 
   const { ordersByStatus, deliveryFees } = useData()
 
-  // NEW: Use status-specific queries instead of client-side filtering for better cache performance
-  const statusCounts = {
-    pending: ordersByStatus.pending.length,
-    preparing: ordersByStatus.accepted.length,
-    ready: ordersByStatus.ready.length,
-    completed: ordersByStatus.completed.length,
-    cancelled: ordersByStatus.cancelled.length,
-    denied: ordersByStatus.denied.length,
-    "in-transit": ordersByStatus["in-transit"].length,
-    delivered: ordersByStatus.delivered.length,
-    "pre-order-pending": ordersByStatus["pre-order-pending"]?.length || 0,
+  // Helper function to check if a timestamp is from today (local time)
+  // Compares the date portion only, ignoring time
+  const isToday = (timestamp: number): boolean => {
+    const orderDate = new Date(timestamp)
+    const today = new Date()
+    
+    // Compare year, month, and day only (ignore time)
+    return (
+      orderDate.getFullYear() === today.getFullYear() &&
+      orderDate.getMonth() === today.getMonth() &&
+      orderDate.getDate() === today.getDate()
+    )
   }
 
-  // NEW: Get filtered orders directly from status-specific queries
+  // Filter orders to only show today's orders (except pre-orders)
+  // Pre-orders are shown regardless of creation date
+  const filterByToday = (orders: any[]) => {
+    return orders.filter((order) => {
+      // Always show pre-orders regardless of creation date
+      if (order.orderType === "pre-order") {
+        return true
+      }
+      // For regular orders, only show if created today
+      // Use createdAt timestamp if available, otherwise fall back to _creationTime
+      const orderTimestamp = order.createdAt || order._creationTime || 0
+      return isToday(orderTimestamp)
+    })
+  }
+
+  // NEW: Get filtered orders directly from status-specific queries, then apply today filter
   const getFilteredOrders = () => {
-    if (selectedStatus === "pending") return ordersByStatus.pending
-    if (selectedStatus === "preparing") return ordersByStatus.accepted
-    if (selectedStatus === "ready") return ordersByStatus.ready
-    if (selectedStatus === "completed") return ordersByStatus.completed
-    if (selectedStatus === "cancelled") return ordersByStatus.cancelled
-    if (selectedStatus === "denied") return ordersByStatus.denied
-    if (selectedStatus === "in-transit") return ordersByStatus["in-transit"]
-    if (selectedStatus === "delivered") return ordersByStatus.delivered
-    if (selectedStatus === "pre-order-pending") return ordersByStatus["pre-order-pending"] || []
-    return []
+    let orders: any[] = []
+    if (selectedStatus === "pending") orders = ordersByStatus.pending
+    else if (selectedStatus === "preparing") orders = ordersByStatus.accepted
+    else if (selectedStatus === "ready") orders = ordersByStatus.ready
+    else if (selectedStatus === "completed") orders = ordersByStatus.completed
+    else if (selectedStatus === "cancelled") orders = ordersByStatus.cancelled
+    else if (selectedStatus === "denied") orders = ordersByStatus.denied
+    else if (selectedStatus === "in-transit") orders = ordersByStatus["in-transit"]
+    else if (selectedStatus === "delivered") orders = ordersByStatus.delivered
+    else if (selectedStatus === "pre-order-pending") orders = ordersByStatus["pre-order-pending"] || []
+    
+    // Apply today filter (excludes pre-orders from date filtering)
+    return filterByToday(orders)
   }
 
   const filteredOrders = getFilteredOrders()
+
+  // Calculate counts based on filtered orders (today's orders only, except pre-orders)
+  // This ensures the badge counts match what's actually displayed
+  const getFilteredCounts = () => {
+    return {
+      pending: filterByToday(ordersByStatus.pending).length,
+      preparing: filterByToday(ordersByStatus.accepted).length,
+      ready: filterByToday(ordersByStatus.ready).length,
+      completed: filterByToday(ordersByStatus.completed).length,
+      cancelled: filterByToday(ordersByStatus.cancelled).length,
+      denied: filterByToday(ordersByStatus.denied).length,
+      "in-transit": filterByToday(ordersByStatus["in-transit"]).length,
+      delivered: filterByToday(ordersByStatus.delivered).length,
+      "pre-order-pending": (ordersByStatus["pre-order-pending"] || []).length, // Pre-orders always shown
+    }
+  }
+
+  const statusCounts = getFilteredCounts()
   // Auto-expand the provided orderId on mount so users see it immediately
   useEffect(() => {
     if (initialOrderId) {
