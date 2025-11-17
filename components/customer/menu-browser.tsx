@@ -71,26 +71,35 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
 
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
+      // If there's a search query, search across all items regardless of category filter
+      if (searchQuery.trim() !== "") {
+        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.description.toLowerCase().includes(searchQuery.toLowerCase())
+        // Only show available items that match search
+        return matchesSearch && item.available
+      }
+      
+      // When no search query, apply category filtering as normal
       // Category filtering: match "all" or check if item category matches any selected category
       const matchesCategory = selectedCategories.includes("all") || 
         selectedCategories.some(cat => item.category.toLowerCase() === cat.toLowerCase())
       
-      // Search filtering: check if item name or description contains search query
-      const matchesSearch = searchQuery === "" || 
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase())
-      
-      // Only show available items
-      return matchesCategory && matchesSearch && item.available
+      // Only show available items that match category
+      return matchesCategory && item.available
     })
   }, [menuItems, selectedCategories, searchQuery])
 
-  // Group items by category when multiple categories are selected
+  // Group items by category when multiple categories are selected or when searching
   const groupedItems = useMemo(() => {
-    if (selectedCategories.includes("all") || selectedCategories.length <= 1) {
+    // When searching, always group by actual category to show results clearly
+    const isSearching = searchQuery.trim() !== ""
+    
+    // If not searching and only one category selected, show as single group
+    if (!isSearching && (selectedCategories.includes("all") || selectedCategories.length <= 1)) {
       return { "All Items": filteredItems }
     }
 
+    // Group items by their actual categories
     const groups: { [key: string]: typeof filteredItems } = {}
     filteredItems.forEach(item => {
       const categoryName = availableCategories.find(cat => 
@@ -104,7 +113,7 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
     })
     
     return groups
-  }, [filteredItems, selectedCategories, availableCategories])
+  }, [filteredItems, selectedCategories, availableCategories, searchQuery])
 
   const handleToggleCategory = (categoryId: string) => {
     if (categoryId === "all") {
