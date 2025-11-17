@@ -400,15 +400,13 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
         <div 
           className={cn(
-            "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0",
-            // Add extra bottom padding on iOS mobile devices to prevent Safari address bar from covering input
-            isIOS && "pb-10 md:pb-4"
+            "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0"
           )}
           style={{
             // Use CSS safe area inset for iOS devices to handle notched devices and Safari UI
-            // Combine 40px (2.5rem) padding with safe area inset for proper spacing above Safari address bar
+            // This prevents the Safari address bar from covering the input section on iOS
             paddingBottom: typeof window !== 'undefined' && isIOS 
-              ? `calc(2.5rem + env(safe-area-inset-bottom))`
+              ? `env(safe-area-inset-bottom)`
               : undefined
           }}
         >
