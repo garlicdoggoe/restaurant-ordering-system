@@ -56,8 +56,8 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
-  // Detect iOS devices to apply additional padding for Safari address bar
-  const [isIOS, setIsIOS] = useState(false)
+  // Detect mobile devices to apply additional padding for browser toolbar
+  const [isMobile, setIsMobile] = useState(false)
 
   const order = getOrderById(orderId)
   const messagesQuery = useQuery(api.chat.listByOrder, { orderId })
@@ -75,12 +75,20 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   // This helps us only mark new messages as read when they arrive while dialog is open
   const lastMarkedTimestampRef = useRef<number | null>(null)
 
-  // Detect iOS devices on component mount
+  // Detect mobile devices on component mount
   useEffect(() => {
-    // Check user agent for iOS devices (iPhone, iPad, iPod)
+    // Check if device is mobile by:
+    // 1. Touch capability (touch devices)
+    // 2. Screen width (smaller than tablet breakpoint)
+    // 3. User agent patterns for mobile devices (iOS, Android, etc.)
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    const isSmallScreen = window.innerWidth < 768 // md breakpoint
     const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || ""
-    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as { MSStream?: unknown }).MSStream
-    setIsIOS(isIOSDevice)
+    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
+    
+    // Consider it mobile if it has touch AND (small screen OR mobile user agent)
+    const isMobileDevice = hasTouch && (isSmallScreen || isMobileUserAgent)
+    setIsMobile(isMobileDevice)
   }, [])
 
   // Mark messages as read when dialog opens
@@ -436,11 +444,11 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
             "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0"
           )}
           style={{
-            // Use CSS safe area inset for iOS devices to handle notched devices and Safari UI
-            // Add additional padding (44px) for the Safari browser toolbar (address bar + bottom navigation)
-            // This prevents the Safari toolbar from covering the input section on iOS
-            paddingBottom: typeof window !== 'undefined' && isIOS 
-              ? `calc(env(safe-area-inset-bottom) + 52px)`
+            // Use CSS safe area inset for mobile devices to handle notched devices and browser UI
+            // Add additional padding (56px) for the browser toolbar (address bar + bottom navigation)
+            // This prevents the browser toolbar from covering the input section on mobile devices
+            paddingBottom: typeof window !== 'undefined' && isMobile 
+              ? `calc(env(safe-area-inset-bottom) + 56px)`
               : undefined
           }}
         >
