@@ -56,35 +56,89 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
-  const [keyboardOffset, setKeyboardOffset] = useState(0)
-  const [isMobile, setIsMobile] = useState(false)
-  
-  // Track if we're on mobile (for responsive footer positioning)
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
-  
-  // Track mobile virtual keyboard height (visualViewport) so the composer stays visible when keyboard opens.
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return
+  // Comprehensive visualViewport state tracking for dynamic footer positioning
+  // This tracks all visualViewport properties to handle mobile browser UI changes,
+  // keyboard appearance, scrolling, and system UI overlays (Android nav bar, iOS home indicator)
+  const [viewportState, setViewportState] = useState<{
+    offsetTop: number
+    offsetLeft: number
+    height: number
+    width: number
+    scale: number
+    keyboardHeight: number
+  }>({
+    offsetTop: 0,
+    offsetLeft: 0,
+    height: typeof window !== "undefined" ? window.innerHeight : 0,
+    width: typeof window !== "undefined" ? window.innerWidth : 0,
+    scale: 1,
+    keyboardHeight: 0,
+  })
 
-    const updateOffset = () => {
-      const vv = window.visualViewport
-      if (!vv) return
-      const heightLoss = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-      setKeyboardOffset(heightLoss)
+  // Track visualViewport changes to dynamically position the chat footer
+  // This ensures the footer stays visible when keyboard opens, browser UI changes, or viewport scrolls
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) {
+      // Fallback for browsers without visualViewport support
+      const updateFallback = () => {
+        setViewportState({
+          offsetTop: 0,
+          offsetLeft: 0,
+          height: window.innerHeight,
+          width: window.innerWidth,
+          scale: 1,
+          keyboardHeight: 0,
+        })
+      }
+      updateFallback()
+      window.addEventListener("resize", updateFallback)
+      return () => window.removeEventListener("resize", updateFallback)
     }
 
-    updateOffset()
-    window.visualViewport.addEventListener("resize", updateOffset)
-    window.visualViewport.addEventListener("scroll", updateOffset)
+    const vv = window.visualViewport
+
+    const updateViewport = () => {
+      if (!vv) return
+
+      // Calculate keyboard height more accurately
+      // The keyboard height is the difference between layout viewport and visual viewport
+      // We account for offsetTop which indicates scrolling/positioning changes
+      const layoutHeight = window.innerHeight
+      const visualHeight = vv.height
+      const offsetTop = vv.offsetTop || 0
+      
+      // Keyboard height calculation: difference between layout and visual viewport
+      // Account for offsetTop which can indicate viewport has been scrolled/positioned
+      // Scale factor is important for zoomed views
+      const keyboardHeight = Math.max(
+        0,
+        (layoutHeight - visualHeight - offsetTop) / (vv.scale || 1)
+      )
+
+      setViewportState({
+        offsetTop: vv.offsetTop || 0,
+        offsetLeft: vv.offsetLeft || 0,
+        height: visualHeight,
+        width: vv.width || window.innerWidth,
+        scale: vv.scale || 1,
+        keyboardHeight,
+      })
+    }
+
+    // Initial update
+    updateViewport()
+
+    // Listen to all visualViewport events that affect positioning
+    vv.addEventListener("resize", updateViewport)
+    vv.addEventListener("scroll", updateViewport)
+    
+    // Also listen to window resize as fallback
+    window.addEventListener("resize", updateViewport)
+
     return () => {
-      window.visualViewport?.removeEventListener("resize", updateOffset)
-      window.visualViewport?.removeEventListener("scroll", updateOffset)
+      vv.removeEventListener("resize", updateViewport)
+      vv.removeEventListener("scroll", updateViewport)
+      window.removeEventListener("resize", updateViewport)
     }
   }, [])
   // Detect iOS devices to apply additional padding for Safari address bar
@@ -423,10 +477,9 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
           ref={scrollRef}
           className="flex-1 min-h-0 pr-1 md:pr-4 overflow-y-auto"
           style={{
-            // Add bottom margin on mobile so messages don't get hidden behind the fixed footer
-            marginBottom: isMobile
-              ? `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 80px)`
-              : undefined,
+            // Add padding to account for keyboard height and ensure content is scrollable
+            // when keyboard is visible. This prevents content from being hidden behind the footer.
+            paddingBottom: `${viewportState.keyboardHeight}px`,
           }}
         >
           <div className="space-y-4">
@@ -469,20 +522,21 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
         <div 
           className={cn(
-            "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0",
-            // On mobile, make footer fixed at bottom of viewport so it stays above iOS Safari toolbar
-            "md:relative fixed bottom-0 left-0 right-0 bg-background z-50 md:z-auto"
+            "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0"
           )}
           style={{
-            // Position fixed footer above browser chrome and keyboard on mobile
-            bottom: isMobile
-              ? `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px))`
+            // Dynamic positioning based on visualViewport to keep footer visible
+            // Calculate bottom offset: keyboard height + safe area insets + base padding
+            // The keyboardHeight accounts for virtual keyboard appearance
+            // offsetTop is considered in keyboardHeight calculation to handle viewport scrolling
+            // This ensures the footer stays within visible viewport bounds on all mobile browsers
+            // (iOS Safari, Chrome Android, etc.)
+            paddingBottom: `calc(${viewportState.keyboardHeight}px + env(safe-area-inset-bottom, 0px) + 8px)`,
+            // Ensure footer doesn't exceed a reasonable portion of viewport height
+            // This prevents the footer from taking up too much space on very small viewports
+            maxHeight: viewportState.height > 0 && viewportState.height < 500
+              ? `${Math.min(viewportState.height * 0.4, 120)}px` 
               : undefined,
-            paddingBottom: isMobile
-              ? "12px"
-              : `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 12px)`,
-            paddingLeft: isMobile ? "12px" : undefined,
-            paddingRight: isMobile ? "12px" : undefined,
           }}
         >
           {/* Image upload button (visible only if allowed) */}
