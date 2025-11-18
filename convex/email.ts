@@ -70,8 +70,8 @@ You can reply directly to ${args.email} to respond.
 
     // Prepare email payload for Resend API
     const emailPayload = {
-      // FROM: Using verified domain inquiry.blackpeppercampspizza.comzz
-      from: "Website Inquiry <noreply@inquiry.blackpeppercampspizza.com>",
+      // FROM: Using verified domain inquiry.blackpeppercampspizza.xyz
+      from: "Website Inquiry <noreply@inquiry.blackpeppercampspizza.xyz>",
       // TO: Recipient email address (the developer's email)
       to: ["selwynguiruela03@gmail.com"],
       replyTo: args.email, // Allow replying directly to the customer
