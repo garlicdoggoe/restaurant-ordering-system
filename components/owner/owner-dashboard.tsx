@@ -11,10 +11,11 @@ import { VouchersView } from "./vouchers-view"
 import { PromotionsView } from "./promotions-view"
 import { ChatView } from "./chat-view" // Added chat view import
 import { HistoryLogView } from "./history-log-view" // Added history log view import
+import { TotalMonitoringView } from "./total-monitoring-view" // Added total monitoring view import for pre-order aggregation
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
-export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" | "promotions" | "chat" | "history-log" // Added chat, history & history-log to view types
+export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" | "promotions" | "chat" | "history-log" | "total-monitoring" // Added chat, history & history-log & total-monitoring to view types
 
 export function OwnerDashboard({ initialOrderId }: { initialOrderId?: string }) {
   const [currentView, setCurrentView] = useState<OwnerView>("orders")
@@ -55,6 +56,7 @@ export function OwnerDashboard({ initialOrderId }: { initialOrderId?: string }) 
           {currentView === "promotions" && <PromotionsView />}
           {currentView === "chat" && <ChatView />} {/* Added chat view */}
           {currentView === "history-log" && <HistoryLogView />} {/* Added history log view */}
+          {currentView === "total-monitoring" && <TotalMonitoringView />} {/* Added total monitoring view */}
         </main>
       </div>
     </div>

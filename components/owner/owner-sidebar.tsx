@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { Home, UtensilsCrossed, Settings, Ticket, Megaphone, LogOut, HelpCircle, MessageSquare, History, FileText, Menu, X } from "lucide-react" // Added MessageSquare icon & History icon & FileText icon & Menu & X
+import { Home, UtensilsCrossed, Settings, Ticket, Megaphone, LogOut, HelpCircle, MessageSquare, History, FileText, Menu, X, BarChart3 } from "lucide-react" // Added MessageSquare icon & History icon & FileText icon & Menu & X & BarChart3
 import type { OwnerView } from "./owner-dashboard"
 
 interface OwnerSidebarProps {
@@ -19,6 +19,7 @@ export function OwnerSidebar({ currentView, onViewChange, isMobileMenuOpen, onMo
     { id: "orders" as OwnerView, icon: Home, label: "Orders" },
     { id: "history" as OwnerView, icon: History, label: "History" },
     { id: "menu" as OwnerView, icon: UtensilsCrossed, label: "Menu" },
+    { id: "total-monitoring" as OwnerView, icon: BarChart3, label: "Total Monitoring" }, // Added total monitoring tab for pre-order aggregation
     { id: "chat" as OwnerView, icon: MessageSquare, label: "Chat", badge: unreadMessageCount > 0 ? unreadMessageCount : undefined }, // Added chat menu item with badge
     { id: "history-log" as OwnerView, icon: FileText, label: "History Log" }, // Added history log menu item
     { id: "vouchers" as OwnerView, icon: Ticket, label: "Vouchers" },
