@@ -190,7 +190,7 @@ const TimePicker = ({ id, value, onChange, disabled }: TimePickerProps) => {
       period,
       ...next,
     }
-    onChange(to24HourString(merged.hour, merged.minute, merged.period))
+    onChange(to24HourString(merged.hour, merged.minute, merged.period as "AM" | "PM"))
   }
 
   return (
@@ -446,7 +446,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       return `Time must be between ${formatTime12h(entry.startTime)} and ${formatTime12h(entry.endTime)}`
     }
     return ""
-  }
+    }
 
   const clampPreOrderTime = (time: string): string => {
     if (!time) return DEFAULT_PREORDER_TIME
@@ -838,41 +838,41 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     </div>
                   )
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="preorder-date" className="block text-[11px] text-gray-500 mb-1">
-                        Date
-                      </Label>
-                      <Input
-                        id="preorder-date"
-                        type="date"
-                        value={preOrderDate}
-                        onChange={(e) => {
-                          const rawDate = e.target.value
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="preorder-date" className="block text-[11px] text-gray-500 mb-1">
+                      Date
+                    </Label>
+                    <Input
+                      id="preorder-date"
+                      type="date"
+                      value={preOrderDate}
+                      onChange={(e) => {
+                        const rawDate = e.target.value
                           const normalizedDate = clampPreOrderDate(rawDate)
                           setPreOrderDate(normalizedDate)
                           setDateError(validatePreOrderDate(normalizedDate))
-                        }}
-                        required
-                        className="w-full text-xs relative z-[100]"
-                        placeholder="mm/dd/yyyy"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="preorder-time" className="block text-[11px] text-gray-500 mb-1">
-                        Time
-                      </Label>
+                      }}
+                      required
+                      className="w-full text-xs relative z-[100]"
+                      placeholder="mm/dd/yyyy"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="preorder-time" className="block text-[11px] text-gray-500 mb-1">
+                      Time
+                    </Label>
                       <TimePicker
-                        id="preorder-time"
-                        value={preOrderTime}
+                      id="preorder-time"
+                      value={preOrderTime}
                         onChange={(value) => {
                           const normalizedTime = clampPreOrderTime(value)
                           setPreOrderTime(normalizedTime)
                           setTimeError(validatePreOrderTime(normalizedTime, preOrderDate))
-                        }}
-                      />
-                    </div>
+                      }}
+                    />
                   </div>
+                </div>
                 )}
 
                 {dateError && <p className="text-sm text-red-500 mt-1">{dateError}</p>}

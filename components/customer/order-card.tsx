@@ -335,7 +335,7 @@ export function OrderCard({
               className="flex-1 touch-target text-xs"
             >
               <FileText className="w-3 h-3 mr-1" />
-              <span>Details</span>
+              <span>View Payment</span>
             </Button>
             {onNavigateToInbox && (
               <Button
