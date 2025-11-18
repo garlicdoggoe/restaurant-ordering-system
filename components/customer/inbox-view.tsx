@@ -80,6 +80,41 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     return status === statusFilter
   }
 
+  // Calculate unread counts per status filter option
+  // Only calculate for specific order statuses, NOT for aggregate filters (all, recent, active)
+  const statusUnreadCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    
+    // Aggregate filter IDs that should NOT show notifications
+    const aggregateFilters = new Set(["all", "recent", "active"])
+    
+    // Initialize only specific status options with 0 (exclude aggregate filters)
+    statusFilterOptions.forEach(option => {
+      if (!aggregateFilters.has(option.id)) {
+        counts.set(option.id, 0)
+      }
+    })
+    
+    // Calculate counts for each order - only for specific order statuses
+    allCustomerOrders.forEach(order => {
+      const orderId = order._id as string
+      const stats = statsMap.get(orderId)
+      const unreadCount = stats?.unreadCount ?? 0
+      
+      if (unreadCount === 0) return // Skip orders with no unread messages
+      
+      const orderStatus = order.status
+      
+      // Only add to specific status count (not aggregate filters)
+      if (orderStatus && !aggregateFilters.has(orderStatus)) {
+        const statusCount = counts.get(orderStatus) ?? 0
+        counts.set(orderStatus, statusCount + unreadCount)
+      }
+    })
+    
+    return counts
+  }, [allCustomerOrders, statsMap, statusFilterOptions])
+
   // Use unified filtering utility with custom sorting for inbox view
   // Standard: most recent first (by last message timestamp for "recent", by creation time otherwise)
   const ordersWithChat = filterAndSortOrders(allCustomerOrders, {
@@ -167,6 +202,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
         statusFilter={statusFilter}
         onStatusFilterChange={handleStatusFilterChange}
         statusFilterOptions={statusFilterOptions}
+        statusUnreadCounts={statusUnreadCounts}
         onClearAll={() => {
           // Reset both draft and applied to defaults
           setFromDateDraft("")

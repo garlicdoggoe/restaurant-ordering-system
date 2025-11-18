@@ -63,6 +63,10 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
   // Mutation to mark messages as read
   const markAsRead = useMutation(api.chat.markAsRead)
+  
+  // Track the last message timestamp that was marked as read to avoid unnecessary calls
+  // This helps us only mark new messages as read when they arrive while dialog is open
+  const lastMarkedTimestampRef = useRef<number | null>(null)
 
   // Detect iOS devices on component mount
   useEffect(() => {
@@ -79,8 +83,30 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
       markAsRead({ orderId }).catch((error) => {
         console.error("Failed to mark messages as read:", error)
       })
+      // Reset the last marked timestamp when dialog opens
+      lastMarkedTimestampRef.current = null
+    } else if (!open) {
+      // Reset when dialog closes
+      lastMarkedTimestampRef.current = null
     }
   }, [open, orderId, markAsRead])
+
+  // Continuously mark messages as read while dialog is open
+  // This ensures that new messages arriving while the user is viewing the chat are marked as read
+  useEffect(() => {
+    if (!open || !orderId || messages.length === 0) return
+
+    // Get the latest message timestamp
+    const latestTimestamp = Math.max(...messages.map((m) => m.timestamp))
+    
+    // Only mark as read if there are new messages (timestamp has increased)
+    if (lastMarkedTimestampRef.current === null || latestTimestamp > lastMarkedTimestampRef.current) {
+      markAsRead({ orderId }).catch((error) => {
+        console.error("Failed to mark messages as read:", error)
+      })
+      lastMarkedTimestampRef.current = latestTimestamp
+    }
+  }, [open, orderId, messages, markAsRead])
 
   useEffect(() => {
     // Find the scrollable viewport element within the ScrollArea
