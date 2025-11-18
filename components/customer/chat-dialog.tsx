@@ -56,92 +56,8 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
-  // Comprehensive visualViewport state tracking for dynamic footer positioning
-  // This tracks all visualViewport properties to handle mobile browser UI changes,
-  // keyboard appearance, scrolling, and system UI overlays (Android nav bar, iOS home indicator)
-  const [viewportState, setViewportState] = useState<{
-    offsetTop: number
-    offsetLeft: number
-    height: number
-    width: number
-    scale: number
-    keyboardHeight: number
-  }>({
-    offsetTop: 0,
-    offsetLeft: 0,
-    height: typeof window !== "undefined" ? window.innerHeight : 0,
-    width: typeof window !== "undefined" ? window.innerWidth : 0,
-    scale: 1,
-    keyboardHeight: 0,
-  })
-
-  // Track visualViewport changes to dynamically position the chat footer
-  // This ensures the footer stays visible when keyboard opens, browser UI changes, or viewport scrolls
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) {
-      // Fallback for browsers without visualViewport support
-      const updateFallback = () => {
-        setViewportState({
-          offsetTop: 0,
-          offsetLeft: 0,
-          height: window.innerHeight,
-          width: window.innerWidth,
-          scale: 1,
-          keyboardHeight: 0,
-        })
-      }
-      updateFallback()
-      window.addEventListener("resize", updateFallback)
-      return () => window.removeEventListener("resize", updateFallback)
-    }
-
-    const vv = window.visualViewport
-
-    const updateViewport = () => {
-      if (!vv) return
-
-      // Calculate keyboard height more accurately
-      // The keyboard height is the difference between layout viewport and visual viewport
-      // We account for offsetTop which indicates scrolling/positioning changes
-      const layoutHeight = window.innerHeight
-      const visualHeight = vv.height
-      const offsetTop = vv.offsetTop || 0
-      
-      // Keyboard height calculation: difference between layout and visual viewport
-      // Account for offsetTop which can indicate viewport has been scrolled/positioned
-      // Scale factor is important for zoomed views
-      const keyboardHeight = Math.max(
-        0,
-        (layoutHeight - visualHeight - offsetTop) / (vv.scale || 1)
-      )
-
-      setViewportState({
-        offsetTop: vv.offsetTop || 0,
-        offsetLeft: vv.offsetLeft || 0,
-        height: visualHeight,
-        width: vv.width || window.innerWidth,
-        scale: vv.scale || 1,
-        keyboardHeight,
-      })
-    }
-
-    // Initial update
-    updateViewport()
-
-    // Listen to all visualViewport events that affect positioning
-    vv.addEventListener("resize", updateViewport)
-    vv.addEventListener("scroll", updateViewport)
-    
-    // Also listen to window resize as fallback
-    window.addEventListener("resize", updateViewport)
-
-    return () => {
-      vv.removeEventListener("resize", updateViewport)
-      vv.removeEventListener("scroll", updateViewport)
-      window.removeEventListener("resize", updateViewport)
-    }
-  }, [])
   // Detect iOS devices to apply additional padding for Safari address bar
+  const [isIOS, setIsIOS] = useState(false)
 
   const order = getOrderById(orderId)
   const messagesQuery = useQuery(api.chat.listByOrder, { orderId })
@@ -159,6 +75,13 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   // This helps us only mark new messages as read when they arrive while dialog is open
   const lastMarkedTimestampRef = useRef<number | null>(null)
 
+  // Detect iOS devices on component mount
+  useEffect(() => {
+    // Check user agent for iOS devices (iPhone, iPad, iPod)
+    const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || ""
+    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as { MSStream?: unknown }).MSStream
+    setIsIOS(isIOSDevice)
+  }, [])
 
   // Mark messages as read when dialog opens
   useEffect(() => {
@@ -454,11 +377,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Use dynamic viewport height so Android browsers don't clip the footer (chat input + send button). */}
-      <DialogContent
-        className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none !max-h-none md:!w-[85vw] md:!h-auto md:!max-w-2xl md:!max-h-[80vh] md:!inset-auto md:!top-[50%] md:!left-[50%] md:!-translate-x-1/2 md:!-translate-y-1/2 !flex !flex-col p-3 md:p-6 rounded-none md:rounded-lg"
-        style={{ minHeight: "100dvh" }}
-      >
+      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none !max-h-none md:!w-[85vw] md:!h-auto md:!max-w-2xl md:!max-h-[80vh] md:!inset-auto md:!top-[50%] md:!left-[50%] md:!-translate-x-1/2 md:!-translate-y-1/2 !flex !flex-col p-3 md:p-6 rounded-none md:rounded-lg">
         <DialogHeader className="p-0 flex-shrink-0">
           <DialogTitle className="text-sm md:text-fluid-lg">
             Chat -
@@ -473,15 +392,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea
-          ref={scrollRef}
-          className="flex-1 min-h-0 pr-1 md:pr-4 overflow-y-auto"
-          style={{
-            // Add padding to account for keyboard height and ensure content is scrollable
-            // when keyboard is visible. This prevents content from being hidden behind the footer.
-            paddingBottom: `${viewportState.keyboardHeight}px`,
-          }}
-        >
+        <ScrollArea ref={scrollRef} className="flex-1 min-h-0 pr-1 md:pr-4 overflow-y-auto">
           <div className="space-y-4">
             {messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-6 md:py-8 text-xs md:text-fluid-sm">No messages yet. Start a conversation!</div>
@@ -525,18 +436,11 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
             "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0"
           )}
           style={{
-            // Dynamic positioning based on visualViewport to keep footer visible
-            // Calculate bottom offset: keyboard height + safe area insets + base padding
-            // The keyboardHeight accounts for virtual keyboard appearance
-            // offsetTop is considered in keyboardHeight calculation to handle viewport scrolling
-            // This ensures the footer stays within visible viewport bounds on all mobile browsers
-            // (iOS Safari, Chrome Android, etc.)
-            paddingBottom: `calc(${viewportState.keyboardHeight}px + env(safe-area-inset-bottom, 0px) + 8px)`,
-            // Ensure footer doesn't exceed a reasonable portion of viewport height
-            // This prevents the footer from taking up too much space on very small viewports
-            maxHeight: viewportState.height > 0 && viewportState.height < 500
-              ? `${Math.min(viewportState.height * 0.4, 120)}px` 
-              : undefined,
+            // Use CSS safe area inset for iOS devices to handle notched devices and Safari UI
+            // This prevents the Safari address bar from covering the input section on iOS
+            paddingBottom: typeof window !== 'undefined' && isIOS 
+              ? `env(safe-area-inset-bottom)`
+              : undefined
           }}
         >
           {/* Image upload button (visible only if allowed) */}
