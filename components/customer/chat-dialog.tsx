@@ -57,6 +57,17 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
+  
+  // Track if we're on mobile (for responsive footer positioning)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+  
   // Track mobile virtual keyboard height (visualViewport) so the composer stays visible when keyboard opens.
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return
@@ -412,7 +423,10 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
           ref={scrollRef}
           className="flex-1 min-h-0 pr-1 md:pr-4 overflow-y-auto"
           style={{
-            paddingBottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 32px)`,
+            // Add bottom margin on mobile so messages don't get hidden behind the fixed footer
+            marginBottom: isMobile
+              ? `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 80px)`
+              : undefined,
           }}
         >
           <div className="space-y-4">
@@ -455,11 +469,20 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
         <div 
           className={cn(
-            "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0"
+            "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0",
+            // On mobile, make footer fixed at bottom of viewport so it stays above iOS Safari toolbar
+            "md:relative fixed bottom-0 left-0 right-0 bg-background z-50 md:z-auto"
           )}
           style={{
-            // Add safe-area padding & keyboard offset so the composer floats above mobile browser chrome + virtual keyboards.
-            paddingBottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 12px)`,
+            // Position fixed footer above browser chrome and keyboard on mobile
+            bottom: isMobile
+              ? `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px))`
+              : undefined,
+            paddingBottom: isMobile
+              ? "12px"
+              : `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 12px)`,
+            paddingLeft: isMobile ? "12px" : undefined,
+            paddingRight: isMobile ? "12px" : undefined,
           }}
         >
           {/* Image upload button (visible only if allowed) */}
