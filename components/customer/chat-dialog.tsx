@@ -411,7 +411,9 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
         <ScrollArea
           ref={scrollRef}
           className="flex-1 min-h-0 pr-1 md:pr-4 overflow-y-auto"
-          style={{ paddingBottom: keyboardOffset }}
+          style={{
+            paddingBottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 32px)`,
+          }}
         >
           <div className="space-y-4">
             {messages.length === 0 ? (
@@ -456,8 +458,8 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
             "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0"
           )}
           style={{
-            // Add safe-area padding on mobile browsers so system UI (Android nav bar / iOS home indicator) doesn't cover the composer.
-            paddingBottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 8px)`,
+            // Add safe-area padding & keyboard offset so the composer floats above mobile browser chrome + virtual keyboards.
+            paddingBottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 12px)`,
           }}
         >
           {/* Image upload button (visible only if allowed) */}
