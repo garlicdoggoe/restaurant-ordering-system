@@ -56,8 +56,27 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
+  const [keyboardOffset, setKeyboardOffset] = useState(0)
+  // Track mobile virtual keyboard height (visualViewport) so the composer stays visible when keyboard opens.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return
+
+    const updateOffset = () => {
+      const vv = window.visualViewport
+      if (!vv) return
+      const heightLoss = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      setKeyboardOffset(heightLoss)
+    }
+
+    updateOffset()
+    window.visualViewport.addEventListener("resize", updateOffset)
+    window.visualViewport.addEventListener("scroll", updateOffset)
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateOffset)
+      window.visualViewport?.removeEventListener("scroll", updateOffset)
+    }
+  }, [])
   // Detect iOS devices to apply additional padding for Safari address bar
-  const [isIOS, setIsIOS] = useState(false)
 
   const order = getOrderById(orderId)
   const messagesQuery = useQuery(api.chat.listByOrder, { orderId })
@@ -75,13 +94,6 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   // This helps us only mark new messages as read when they arrive while dialog is open
   const lastMarkedTimestampRef = useRef<number | null>(null)
 
-  // Detect iOS devices on component mount
-  useEffect(() => {
-    // Check user agent for iOS devices (iPhone, iPad, iPod)
-    const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || ""
-    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as { MSStream?: unknown }).MSStream
-    setIsIOS(isIOSDevice)
-  }, [])
 
   // Mark messages as read when dialog opens
   useEffect(() => {
@@ -377,7 +389,11 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none !max-h-none md:!w-[85vw] md:!h-auto md:!max-w-2xl md:!max-h-[80vh] md:!inset-auto md:!top-[50%] md:!left-[50%] md:!-translate-x-1/2 md:!-translate-y-1/2 !flex !flex-col p-3 md:p-6 rounded-none md:rounded-lg">
+      {/* Use dynamic viewport height so Android browsers don't clip the footer (chat input + send button). */}
+      <DialogContent
+        className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none !max-h-none md:!w-[85vw] md:!h-auto md:!max-w-2xl md:!max-h-[80vh] md:!inset-auto md:!top-[50%] md:!left-[50%] md:!-translate-x-1/2 md:!-translate-y-1/2 !flex !flex-col p-3 md:p-6 rounded-none md:rounded-lg"
+        style={{ minHeight: "100dvh" }}
+      >
         <DialogHeader className="p-0 flex-shrink-0">
           <DialogTitle className="text-sm md:text-fluid-lg">
             Chat -
@@ -392,7 +408,11 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea ref={scrollRef} className="flex-1 min-h-0 pr-1 md:pr-4 overflow-y-auto">
+        <ScrollArea
+          ref={scrollRef}
+          className="flex-1 min-h-0 pr-1 md:pr-4 overflow-y-auto"
+          style={{ paddingBottom: keyboardOffset }}
+        >
           <div className="space-y-4">
             {messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-6 md:py-8 text-xs md:text-fluid-sm">No messages yet. Start a conversation!</div>
@@ -436,11 +456,8 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
             "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0"
           )}
           style={{
-            // Use CSS safe area inset for iOS devices to handle notched devices and Safari UI
-            // This prevents the Safari address bar from covering the input section on iOS
-            paddingBottom: typeof window !== 'undefined' && isIOS 
-              ? `env(safe-area-inset-bottom)`
-              : undefined
+            // Add safe-area padding on mobile browsers so system UI (Android nav bar / iOS home indicator) doesn't cover the composer.
+            paddingBottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom, 0px) + 8px)`,
           }}
         >
           {/* Image upload button (visible only if allowed) */}
