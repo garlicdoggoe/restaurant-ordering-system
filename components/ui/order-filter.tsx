@@ -71,7 +71,7 @@ export function OrderFilter({
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
 
   // Aggregate filter IDs that should NOT show notifications
-  const aggregateFilters = new Set(["all", "recent", "active"])
+  const aggregateFilters = new Set(["all", "active"])
 
   // Calculate aggregated total unread count for mobile dropdown indicator
   // Only sum counts from specific order statuses (exclude aggregate filters)
@@ -148,10 +148,6 @@ export function OrderFilter({
                 <Calendar className="h-4 w-4" />
                 <span className="text-xs hidden xs:inline">
                   {(() => {
-                    // Don't show dates when "Recent" filter is active
-                    if (statusFilter === "recent") {
-                      return "Dates"
-                    }
                     // Show actual dates when filters are active
                     if (appliedFromDate || appliedToDate) {
                       const formatDate = (dateStr: string) => {

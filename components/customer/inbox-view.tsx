@@ -28,17 +28,16 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   // Draft filters (controlled)
   const [fromDateDraft, setFromDateDraft] = useState("")
   const [toDateDraft, setToDateDraft] = useState("")
-  const [, setStatusFilterDraft] = useState<string>("recent")
+  const [, setStatusFilterDraft] = useState<string>("active")
   // Applied filters (used for actual filtering)
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("recent")
+  const [statusFilter, setStatusFilter] = useState<string>("active")
 
   const customerId = currentUser?._id || ""
   // Status filter options - memoized to prevent dependency changes
   const statusFilterOptions: StatusFilterOption[] = useMemo(() => [
     { id: "all", label: "All", icon: Clock },
-    { id: "recent", label: "Recent", icon: Clock },
     { id: "active", label: "Active", icon: ListFilter },
     { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
@@ -57,7 +56,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
 
 
 
-  // Build per-order chat stats for all of this customer's orders to support "recent" filtering
+  // Build per-order chat stats for all of this customer's orders
   const allCustomerOrders = useMemo(() => orders.filter((o) => o.customerId === customerId), [orders, customerId])
   const allOrderIds = useMemo(() => allCustomerOrders.map((o) => o._id as string), [allCustomerOrders])
   const perOrderStatsQuery = useQuery(api.chat.getPerOrderUnreadAndLast, allOrderIds.length ? { orderIds: allOrderIds } : "skip")
@@ -71,23 +70,16 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   const matchesStatus = (orderId: string, status: string) => {
     if (statusFilter === "all") return true
     if (statusFilter === "active") return activeStatuses.has(status as OrderStatus)
-    if (statusFilter === "recent") {
-      const last = statsMap.get(orderId)?.lastMessage
-      if (!last) return false
-      const ts = new Date(last.timestamp)
-      const now = new Date()
-      return ts.getFullYear() === now.getFullYear() && ts.getMonth() === now.getMonth() && ts.getDate() === now.getDate()
-    }
     return status === statusFilter
   }
 
   // Calculate unread counts per status filter option
-  // Only calculate for specific order statuses, NOT for aggregate filters (all, recent, active)
+  // Only calculate for specific order statuses, NOT for aggregate filters (all, active)
   const statusUnreadCounts = useMemo(() => {
     const counts = new Map<string, number>()
     
     // Aggregate filter IDs that should NOT show notifications
-    const aggregateFilters = new Set(["all", "recent", "active"])
+    const aggregateFilters = new Set(["all", "active"])
     
     // Initialize only specific status options with 0 (exclude aggregate filters)
     statusFilterOptions.forEach(option => {
@@ -117,7 +109,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   }, [allCustomerOrders, statsMap, statusFilterOptions])
 
   // Use unified filtering utility with custom sorting for inbox view
-  // Standard: most recent first (by last message timestamp for "recent", by creation time otherwise)
+  // Standard: most recent first (by creation time)
   const ordersWithChat = filterAndSortOrders(allCustomerOrders, {
     customerId,
     fromDate,
@@ -126,14 +118,8 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     orderType: "all",
     // Custom status matcher for inbox view
     customStatusMatcher: (order) => matchesStatus(order._id as string, order.status),
-    // Custom sort: most recent first (by last message for "recent", by creation time otherwise)
+    // Custom sort: most recent first (by creation time)
     customSort: (a, b) => {
-      if (statusFilter === "recent") {
-        // Sort by last message timestamp (most recent first - descending)
-        const la = statsMap.get(a._id as string)?.lastMessage?.timestamp ?? 0
-        const lb = statsMap.get(b._id as string)?.lastMessage?.timestamp ?? 0
-        return lb - la // Descending: most recent first
-      }
       // Sort by creation time (most recent first - descending)
       const ta = getOrderTimestamp(a)
       const tb = getOrderTimestamp(b)
@@ -162,32 +148,9 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
 
   // Handler for status filter changes - applies immediately (especially for mobile)
   const handleStatusFilterChange = (newStatus: string) => {
-    const today = new Date()
-    const todayStr = today.toISOString().split("T")[0] // Format as YYYY-MM-DD
-    
     setStatusFilterDraft(newStatus)
     // Apply immediately - no need to click "Apply Filters" for status filters
     setStatusFilter(newStatus)
-    
-    // When "Recent" is selected, automatically set date filters to today
-    if (newStatus === "recent") {
-      // Set both draft and applied date filters to today
-      setFromDateDraft(todayStr)
-      setToDateDraft(todayStr)
-      setFromDate(todayStr)
-      setToDate(todayStr)
-    } else {
-      // When switching to any other filter, clear auto-set dates (if dates are set to today)
-      // but preserve manually set date ranges
-      // If both dates are set to today (auto-set by "Recent"), clear them
-      if (fromDate === todayStr && toDate === todayStr) {
-        setFromDateDraft("")
-        setToDateDraft("")
-        setFromDate("")
-        setToDate("")
-      }
-      // Otherwise, keep the existing date filters as they were manually set
-    }
   }
 
   return (
@@ -208,10 +171,10 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
           // Reset both draft and applied to defaults
           setFromDateDraft("")
           setToDateDraft("")
-          setStatusFilterDraft("recent")
+          setStatusFilterDraft("active")
           setFromDate("")
           setToDate("")
-          setStatusFilter("recent")
+          setStatusFilter("active")
         }}
         onApply={() => {
           // Only apply date filters - status filters are already applied immediately
