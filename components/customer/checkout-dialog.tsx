@@ -108,6 +108,7 @@ interface NumericDropdownInputProps {
   optionLabel?: (value: string) => string
   disabled?: boolean
   ariaLabel: string
+  size?: "sm" | "md"
 }
 
 const NumericDropdownInput = ({
@@ -117,6 +118,7 @@ const NumericDropdownInput = ({
   optionLabel,
   disabled,
   ariaLabel,
+  size = "md",
 }: NumericDropdownInputProps) => {
   const [internal, setInternal] = useState(value)
 
@@ -133,6 +135,20 @@ const NumericDropdownInput = ({
     onChange(normalized)
   }
 
+  const inputClasses =
+    size === "sm"
+      ? "w-16 h-8 text-center text-xs px-2"
+      : "w-20 text-center"
+
+  const triggerClasses =
+    size === "sm"
+      ? "h-8 w-8"
+      : "w-10 h-10"
+
+  const iconClasses = size === "sm" ? "h-3 w-3" : "h-4 w-4"
+
+  const menuClasses = size === "sm" ? "text-xs" : ""
+
   return (
     <div className="flex items-center gap-1">
       <Input
@@ -147,7 +163,7 @@ const NumericDropdownInput = ({
         disabled={disabled}
         inputMode="numeric"
         aria-label={ariaLabel}
-        className="w-20 text-center"
+        className={inputClasses}
       />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -157,13 +173,18 @@ const NumericDropdownInput = ({
             size="icon"
             disabled={disabled}
             aria-label={`${ariaLabel} options`}
+            className={triggerClasses}
           >
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className={iconClasses} />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="max-h-60 overflow-y-auto p-0">
+        <DropdownMenuContent className="max-h-60 overflow-y-auto p-0 text-xs">
           {options.map((option) => (
-            <DropdownMenuItem key={`${ariaLabel}-${option}`} onSelect={() => commitValue(option)}>
+            <DropdownMenuItem
+              key={`${ariaLabel}-${option}`}
+              onSelect={() => commitValue(option)}
+              className={menuClasses}
+            >
               {optionLabel ? optionLabel(option) : option}
             </DropdownMenuItem>
           ))}
@@ -194,7 +215,7 @@ const TimePicker = ({ id, value, onChange, disabled }: TimePickerProps) => {
   }
 
   return (
-    <div className="flex flex-wrap gap-2" id={id}>
+    <div className="flex flex-wrap gap-1.5" id={id}>
       <NumericDropdownInput
         value={hour}
         onChange={(val) => updateValue({ hour: val })}
@@ -202,6 +223,7 @@ const TimePicker = ({ id, value, onChange, disabled }: TimePickerProps) => {
         optionLabel={(val) => `${Number(val)}`}
         disabled={disabled}
         ariaLabel="Hour"
+        size="sm"
       />
       <NumericDropdownInput
         value={minute}
@@ -209,14 +231,15 @@ const TimePicker = ({ id, value, onChange, disabled }: TimePickerProps) => {
         options={MINUTES_60}
         disabled={disabled}
         ariaLabel="Minute"
+        size="sm"
       />
       <Select value={period} onValueChange={(val: "AM" | "PM") => updateValue({ period: val })} disabled={disabled}>
-        <SelectTrigger className="w-20">
-          <SelectValue />
+        <SelectTrigger className="w-18 h-8 text-xs">
+          <SelectValue className="text-xs" />
         </SelectTrigger>
         <SelectContent>
           {PERIODS.map((option) => (
-            <SelectItem key={`period-${option}`} value={option}>
+            <SelectItem key={`period-${option}`} value={option} className="text-xs">
               {option}
             </SelectItem>
           ))}
@@ -735,7 +758,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 {/* Top Row - Fulfillment Method and Payment Terms */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Fulfillment Method</p>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Fulfillment Method</p>
                     <Select value={preOrderFulfillment} onValueChange={(v: PreOrderFulfillment) => setPreOrderFulfillment(v)}>
                       <SelectTrigger className="w-full text-xs">
                         <SelectValue placeholder="Fulfillment Method" className="text-gray-500" />
@@ -748,7 +771,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Payment Terms</p>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Payment Terms</p>
                     <Select value={paymentPlan} onValueChange={(v: PaymentPlan) => setPaymentPlan(v)}>
                       <SelectTrigger className="w-full text-xs">
                         <SelectValue placeholder="Payment Plan" className="text-gray-500" />
@@ -787,7 +810,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                   hasConfiguredDates ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <Label htmlFor="preorder-date-select" className="block text-[11px] text-gray-500 mb-1">
+                        <Label htmlFor="preorder-date-select" className="block text-[12px] text-gray-500 mb-1">
                           Available dates
                         </Label>
                         <Select
@@ -815,7 +838,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="preorder-time-window" className="block text-[11px] text-gray-500">
+                        <Label htmlFor="preorder-time-window" className="block text-[12px] text-gray-500">
                           Preferred time within the window
                         </Label>
                         <TimePicker
@@ -828,7 +851,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                           disabled={!selectedScheduleEntry}
                         />
                         {selectedScheduleEntry && (
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-[12px] text-muted-foreground">
                             Allowed window: {formatTimeRange12h(selectedScheduleEntry.startTime, selectedScheduleEntry.endTime)}
                           </p>
                         )}
@@ -836,7 +859,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     </div>
                   ) : (
                     <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                      The owner has not published any pre-order dates yet. Please check back later or contact the store
+                      The restaurant has not published any pre-order dates yet. Please check back later or contact the store
                       for updates.
                     </div>
                   )
@@ -884,11 +907,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 {!restrictionsEnabled && !timeError && (
                   <p className="text-[12px] font-medium text-yellow-600 text-muted-foreground">
                     Pre-orders are open for any date and time while restrictions are disabled.
-                  </p>
-                )}
-                {restrictionsEnabled && hasConfiguredDates && (
-                  <p className="text-[12px] text-muted-foreground">
-                    Pick from the published schedule. You can choose any time within the owner&apos;s window for that date.
                   </p>
                 )}
               </div>
