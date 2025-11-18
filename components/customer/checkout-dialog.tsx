@@ -232,11 +232,14 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   const { updateQuantity } = useCart()
 
   // Mirror the owner's configured schedule so we can enforce it client-side
-  const preorderSchedule: PreorderSchedule =
-    restaurant?.preorderSchedule ?? {
-      restrictionsEnabled: false,
-      dates: [] as PreorderScheduleDate[],
-    }
+  const preorderSchedule: PreorderSchedule = useMemo(() => {
+    return (
+      restaurant?.preorderSchedule ?? {
+        restrictionsEnabled: false,
+        dates: [] as PreorderScheduleDate[],
+      }
+    )
+  }, [restaurant?.preorderSchedule])
   const scheduledDates = useMemo(
     () => [...(preorderSchedule.dates ?? [])].sort((a, b) => a.date.localeCompare(b.date)),
     [preorderSchedule],
