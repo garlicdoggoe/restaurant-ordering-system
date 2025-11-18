@@ -24,6 +24,18 @@ export const upsert = mutation({
     averageDeliveryTime: v.number(),
     platformFee: v.optional(v.number()), // Platform service fee
     platformFeeEnabled: v.optional(v.boolean()), // Whether platform fee is enabled
+    preorderSchedule: v.optional(
+      v.object({
+        restrictionsEnabled: v.boolean(),
+        dates: v.array(
+          v.object({
+            date: v.string(), // YYYY-MM-DD
+            startTime: v.string(), // HH:MM 24h
+            endTime: v.string(), // HH:MM 24h
+          })
+        ),
+      })
+    ),
     coordinates: v.optional(
       v.object({
         lng: v.number(),
@@ -34,11 +46,41 @@ export const upsert = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const existing = await ctx.db.query("restaurant").collect();
+    const normalizeEntry = (entry: { date: string; startTime: string; endTime?: string }) => ({
+      date: entry.date,
+      startTime: entry.startTime,
+      endTime: entry.endTime ?? entry.startTime,
+    });
+    const normalizeSchedule = (schedule?: {
+      restrictionsEnabled: boolean;
+      dates: { date: string; startTime: string; endTime?: string }[];
+    }) => {
+      if (!schedule) {
+        return {
+          restrictionsEnabled: false,
+          dates: [],
+        };
+      }
+      return {
+        restrictionsEnabled: schedule.restrictionsEnabled,
+        dates: schedule.dates.map(normalizeEntry),
+      };
+    };
+    const preorderSchedule = normalizeSchedule(args.preorderSchedule ?? existing[0]?.preorderSchedule);
     if (existing[0]) {
-      await ctx.db.patch(existing[0]._id, { ...args, updatedAt: now });
+      await ctx.db.patch(existing[0]._id, {
+        ...args,
+        preorderSchedule,
+        updatedAt: now,
+      });
       return existing[0]._id;
     }
-    return await ctx.db.insert("restaurant", { ...args, createdAt: now, updatedAt: now });
+    return await ctx.db.insert("restaurant", {
+      ...args,
+      preorderSchedule,
+      createdAt: now,
+      updatedAt: now,
+    });
   },
 });
 

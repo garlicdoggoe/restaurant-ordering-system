@@ -2,15 +2,17 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { ChevronDown } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 // Switched order type controls to dropdown Select components
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
-import { useData, type PreOrderFulfillment, type PaymentPlan, type RemainingPaymentMethod } from "@/lib/data-context"
+import { useData, type PreOrderFulfillment, type PaymentPlan, type RemainingPaymentMethod, type PreorderSchedule, type PreorderScheduleDate } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -42,10 +44,207 @@ interface CheckoutDialogProps {
   onNavigateToView?: (view: "preorders" | "activeorders") => void
 }
 
+const DEFAULT_PREORDER_TIME = "13:00"
+const HOURS_12 = Array.from({ length: 12 }, (_v, idx) => String(idx + 1).padStart(2, "0"))
+const MINUTES_60 = Array.from({ length: 60 }, (_v, idx) => String(idx).padStart(2, "0"))
+const PERIODS: Array<"AM" | "PM"> = ["AM", "PM"]
+
+const getTodayIsoDate = () => {
+  const now = new Date()
+  return now.toISOString().split("T")[0]
+}
+
+const timeToMinutes = (value: string | undefined) => {
+  if (!value) return null
+  const [hh, mm] = value.split(":").map(Number)
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null
+  return hh * 60 + mm
+}
+
+const to12HourParts = (value?: string) => {
+  if (!value) {
+    return { hour: "12", minute: "00", period: "PM" as "AM" | "PM" }
+  }
+  const [hhStr, mm] = value.split(":")
+  let hh = Number(hhStr)
+  const period = hh >= 12 ? "PM" : "AM"
+  hh = hh % 12
+  if (hh === 0) hh = 12
+  return {
+    hour: String(hh).padStart(2, "0"),
+    minute: mm ?? "00",
+    period,
+  }
+}
+
+const to24HourString = (hour: string, minute: string, period: "AM" | "PM") => {
+  let hh = Number(hour)
+  if (period === "PM" && hh !== 12) {
+    hh += 12
+  }
+  if (period === "AM" && hh === 12) {
+    hh = 0
+  }
+  const minuteClean = minute.padStart(2, "0")
+  return `${String(hh).padStart(2, "0")}:${minuteClean}`
+}
+
+const formatTime12h = (value?: string) => {
+  if (!value) return ""
+  const { hour, minute, period } = to12HourParts(value)
+  const minuteClean = minute ?? "00"
+  return `${Number(hour)}:${minuteClean} ${period}`
+}
+
+const formatTimeRange12h = (start?: string, end?: string) => {
+  if (!start || !end) return ""
+  return `${formatTime12h(start)} - ${formatTime12h(end)}`
+}
+
+interface NumericDropdownInputProps {
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+  optionLabel?: (value: string) => string
+  disabled?: boolean
+  ariaLabel: string
+}
+
+const NumericDropdownInput = ({
+  value,
+  onChange,
+  options,
+  optionLabel,
+  disabled,
+  ariaLabel,
+}: NumericDropdownInputProps) => {
+  const [internal, setInternal] = useState(value)
+
+  useEffect(() => {
+    setInternal(value)
+  }, [value])
+
+  const sanitize = (input: string) => input.replace(/[^0-9]/g, "").slice(0, 2)
+
+  const commitValue = (next: string) => {
+    const fallback = options[0] ?? "00"
+    const normalized = next ? sanitize(next).padStart(2, "0") : fallback
+    setInternal(normalized)
+    onChange(normalized)
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Input
+        value={internal}
+        onChange={(e) => setInternal(sanitize(e.target.value))}
+        onBlur={() => commitValue(internal)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commitValue((e.currentTarget as HTMLInputElement).value)
+          }
+        }}
+        disabled={disabled}
+        inputMode="numeric"
+        aria-label={ariaLabel}
+        className="w-20 text-center"
+      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            disabled={disabled}
+            aria-label={`${ariaLabel} options`}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="max-h-60 overflow-y-auto p-0">
+          {options.map((option) => (
+            <DropdownMenuItem key={`${ariaLabel}-${option}`} onSelect={() => commitValue(option)}>
+              {optionLabel ? optionLabel(option) : option}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+interface TimePickerProps {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+}
+
+const TimePicker = ({ id, value, onChange, disabled }: TimePickerProps) => {
+  const { hour, minute, period } = to12HourParts(value)
+
+  const updateValue = (next: Partial<{ hour: string; minute: string; period: "AM" | "PM" }>) => {
+    const merged = {
+      hour,
+      minute,
+      period,
+      ...next,
+    }
+    onChange(to24HourString(merged.hour, merged.minute, merged.period))
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2" id={id}>
+      <NumericDropdownInput
+        value={hour}
+        onChange={(val) => updateValue({ hour: val })}
+        options={HOURS_12}
+        optionLabel={(val) => `${Number(val)}`}
+        disabled={disabled}
+        ariaLabel="Hour"
+      />
+      <NumericDropdownInput
+        value={minute}
+        onChange={(val) => updateValue({ minute: val })}
+        options={MINUTES_60}
+        disabled={disabled}
+        ariaLabel="Minute"
+      />
+      <Select value={period} onValueChange={(val: "AM" | "PM") => updateValue({ period: val })} disabled={disabled}>
+        <SelectTrigger className="w-20">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {PERIODS.map((option) => (
+            <SelectItem key={`period-${option}`} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess, onOpenSettings, onNavigateToView }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("pre-order")
-  const { addOrder, currentUser } = useData()
+  const { addOrder, currentUser, restaurant } = useData()
   const { updateQuantity } = useCart()
+
+  // Mirror the owner's configured schedule so we can enforce it client-side
+  const preorderSchedule: PreorderSchedule =
+    restaurant?.preorderSchedule ?? {
+      restrictionsEnabled: false,
+      dates: [] as PreorderScheduleDate[],
+    }
+  const scheduledDates = useMemo(
+    () => [...(preorderSchedule.dates ?? [])].sort((a, b) => a.date.localeCompare(b.date)),
+    [preorderSchedule],
+  )
+  const restrictionsEnabled = preorderSchedule.restrictionsEnabled
+  const hasConfiguredDates = scheduledDates.length > 0
+  const restrictionsActive = restrictionsEnabled && hasConfiguredDates
+  const restrictionsEnabledButEmpty = restrictionsEnabled && !hasConfiguredDates
   
   // Initialize form fields from current user when available; fall back to empty
   const [customerAddress, setCustomerAddress] = useState(() => currentUser?.address ?? "")
@@ -56,9 +255,16 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
   // Pre-order fields
   const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery">("pickup")
-  // Initialize with default valid values for mobile compatibility (first available date and time)
-  const [preOrderDate, setPreOrderDate] = useState<string>("2025-12-21") // ISO date - default to first available date
-  const [preOrderTime, setPreOrderTime] = useState<string>("13:00") // HH:MM - default to first available time
+  const [preOrderDate, setPreOrderDate] = useState<string>(() =>
+    restrictionsActive ? scheduledDates[0]?.date ?? "" : getTodayIsoDate(),
+  )
+  const [preOrderTime, setPreOrderTime] = useState<string>(() =>
+    restrictionsActive ? scheduledDates[0]?.startTime ?? "" : DEFAULT_PREORDER_TIME,
+  )
+  const selectedScheduleEntry = useMemo(() => {
+    if (!restrictionsActive) return undefined
+    return scheduledDates.find((entry) => entry.date === preOrderDate) ?? scheduledDates[0]
+  }, [restrictionsActive, scheduledDates, preOrderDate])
   const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment">("full")
   const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
   // Special instructions with auto-save to localStorage
@@ -93,6 +299,57 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       setCustomerAddress((prev) => prev || (currentUser.address as string))
     }
   }, [orderType, preOrderFulfillment, currentUser?.address])
+
+  // Keep the date/time inputs synchronized with whatever the owner configured
+  useEffect(() => {
+    if (restrictionsEnabledButEmpty) {
+      if (preOrderDate !== "") {
+        setPreOrderDate("")
+      }
+      if (preOrderTime !== "") {
+        setPreOrderTime("")
+      }
+      setDateError("Pre-orders are temporarily unavailable. Please check back soon.")
+      setTimeError("")
+      return
+    }
+
+    if (restrictionsActive) {
+      if (!selectedScheduleEntry) return
+      if (preOrderDate !== selectedScheduleEntry.date) {
+        setPreOrderDate(selectedScheduleEntry.date)
+      }
+      const startMinutes = timeToMinutes(selectedScheduleEntry.startTime)
+      const endMinutes = timeToMinutes(selectedScheduleEntry.endTime)
+      const currentMinutes = timeToMinutes(preOrderTime)
+      if (
+        currentMinutes === null ||
+        startMinutes === null ||
+        endMinutes === null ||
+        currentMinutes < startMinutes ||
+        currentMinutes > endMinutes
+      ) {
+        setPreOrderTime(selectedScheduleEntry.startTime)
+      }
+      setDateError("")
+      setTimeError("")
+      return
+    }
+
+    if (!preOrderDate) {
+      setPreOrderDate(getTodayIsoDate())
+    }
+    if (!preOrderTime) {
+      setPreOrderTime(DEFAULT_PREORDER_TIME)
+    }
+  }, [
+    restrictionsActive,
+    restrictionsEnabledButEmpty,
+    scheduledDates,
+    preOrderDate,
+    preOrderTime,
+    selectedScheduleEntry,
+  ])
 
   // Restore any pending image from localStorage (if available)
   useEffect(() => {
@@ -145,88 +402,54 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
     })
   }
 
-  // Validation functions for pre-order date and time
-  // Ensures pre-order date is between December 21-27, 2025 (Christmas week)
-  const validatePreOrderDate = (date: string): string => {
-    if (!date) return ""
-    
-    const selectedDate = new Date(date)
-    const minDate = new Date("2025-12-21")
-    minDate.setHours(0, 0, 0, 0)
-    const maxDate = new Date("2025-12-27")
-    maxDate.setHours(23, 59, 59, 999)
-    
-    selectedDate.setHours(0, 0, 0, 0)
-    
-    if (selectedDate < minDate || selectedDate > maxDate) {
-      return "Pre-orders are only available for December 21-27, 2025"
-    }
-    
-    return ""
+  // Human-friendly label for each scheduled day (date + time window)
+  const formatScheduleLabel = (entry: PreorderScheduleDate) => {
+    const parsed = new Date(entry.date)
+    const friendlyDate = Number.isNaN(parsed.getTime())
+      ? entry.date
+      : parsed.toLocaleDateString("en-PH", {
+          weekday: "long",
+          month: "short",
+          day: "numeric",
+        })
+    return `${friendlyDate} • ${formatTimeRange12h(entry.startTime, entry.endTime)}`
   }
 
-  // Clamp date to valid range (enforces min/max even if browser allows invalid selection)
+  // Validation + normalization helpers respect the owner's schedule
+  const validatePreOrderDate = (date: string): string => {
+    if (!date || !restrictionsEnabled) return ""
+    if (!hasConfiguredDates) {
+      return "Owner has not published any pre-order dates."
+    }
+    const allowed = scheduledDates.some((entry) => entry.date === date)
+    return allowed ? "" : "Please choose one of the published pre-order dates."
+  }
+
   const clampPreOrderDate = (date: string): string => {
-    if (!date) return "2025-12-21" // Default to first available date
-    
-    const selectedDate = new Date(date)
-    const minDate = new Date("2025-12-21")
-    minDate.setHours(0, 0, 0, 0)
-    const maxDate = new Date("2025-12-27")
-    maxDate.setHours(23, 59, 59, 999)
-    
-    selectedDate.setHours(0, 0, 0, 0)
-    
-    // Clamp to valid range
-    if (selectedDate < minDate) {
-      return "2025-12-21"
-    }
-    if (selectedDate > maxDate) {
-      return "2025-12-27"
-    }
-    
-    // Return date in YYYY-MM-DD format
+    if (!date) return getTodayIsoDate()
     return date
   }
 
-  // Validates that pre-order time is between 1:00 PM and 7:00 PM
   const validatePreOrderTime = (time: string, date: string): string => {
-    if (!time || !date) return ""
-    
-    const [selectedHour, selectedMinute] = time.split(":").map(Number)
-    const selectedMinutes = selectedHour * 60 + selectedMinute
-    
-    // Pre-order hours: 1:00 PM (13:00) to 7:00 PM (19:00)
-    const minMinutes = 13 * 60 // 1:00 PM
-    const maxMinutes = 19 * 60 // 7:00 PM
-    
-    if (selectedMinutes < minMinutes || selectedMinutes > maxMinutes) {
-      return "Pre-order time must be between 1:00 PM and 7:00 PM"
+    if (!time || !restrictionsEnabled) return ""
+    const entry = scheduledDates.find((d) => d.date === date)
+    if (!entry) {
+      return "Choose an available date first."
     }
-    
+    const selectedMinutes = timeToMinutes(time)
+    const startMinutes = timeToMinutes(entry.startTime)
+    const endMinutes = timeToMinutes(entry.endTime)
+    if (selectedMinutes === null || startMinutes === null || endMinutes === null) {
+      return "Invalid time format."
+    }
+    if (selectedMinutes < startMinutes || selectedMinutes > endMinutes) {
+      return `Time must be between ${formatTime12h(entry.startTime)} and ${formatTime12h(entry.endTime)}`
+    }
     return ""
   }
 
-  // Clamp time to valid range (enforces min/max even if browser allows invalid selection)
   const clampPreOrderTime = (time: string): string => {
-    if (!time) return "13:00" // Default to first available time
-    
-    const [selectedHour, selectedMinute] = time.split(":").map(Number)
-    const selectedMinutes = selectedHour * 60 + selectedMinute
-    
-    // Pre-order hours: 1:00 PM (13:00) to 7:00 PM (19:00)
-    const minMinutes = 13 * 60 // 1:00 PM
-    const maxMinutes = 19 * 60 // 7:00 PM
-    
-    // Clamp to valid range
-    if (selectedMinutes < minMinutes) {
-      return "13:00"
-    }
-    if (selectedMinutes > maxMinutes) {
-      return "19:00"
-    }
-    
-    // Return time in HH:MM format
+    if (!time) return DEFAULT_PREORDER_TIME
     return time
   }
 
@@ -273,6 +496,13 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
 
       // Validate pre-order fields if it's a pre-order
       if (orderType === "pre-order") {
+        if (restrictionsEnabledButEmpty) {
+          setIsSubmitting(false)
+          toast.error("Pre-orders are temporarily unavailable", {
+            description: "No published schedule is available right now.",
+          })
+          return
+        }
         const dateValidationError = validatePreOrderDate(preOrderDate)
         const timeValidationError = validatePreOrderTime(preOrderTime, preOrderDate)
         
@@ -549,72 +779,115 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
             {orderType === "pre-order" && (
               <div className="space-y-3">
                 <Label className="text-xs md:text-sm text-gray-500">Pickup/Delivery Date & Time</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    {/* Provide field-specific label so customers immediately know this input collects the date */}
-                    <Label htmlFor="preorder-date" className="block text-[11px] text-gray-500 mb-1">
-                      Date
-                    </Label>
-                    <Input
-                      id="preorder-date"
-                      type="date"
-                      value={preOrderDate}
-                      onChange={(e) => {
-                        const rawDate = e.target.value
-                        // Clamp date to valid range (prevents invalid dates on mobile browsers)
-                        const clampedDate = clampPreOrderDate(rawDate)
-                        setPreOrderDate(clampedDate)
-                        setDateError(validatePreOrderDate(clampedDate))
-                        if (preOrderTime) {
-                          setTimeError(validatePreOrderTime(preOrderTime, clampedDate))
-                        }
-                      }}
-                      required
-                      min="2025-12-21"
-                      max="2025-12-27"
-                      className="w-full text-xs relative z-[100]"
-                      placeholder="mm/dd/yyyy"
-                    />
-                  </div>
-                  <div>
-                    {/* Provide field-specific label so customers immediately know this input collects the time */}
-                    <Label htmlFor="preorder-time" className="block text-[11px] text-gray-500 mb-1">
-                      Time
-                    </Label>
-                    <Input
-                      id="preorder-time"
-                      type="time"
-                      value={preOrderTime}
-                      onChange={(e) => {
-                        const rawTime = e.target.value
-                        // Clamp time to valid range (prevents invalid times on mobile browsers)
-                        const clampedTime = clampPreOrderTime(rawTime)
-                        setPreOrderTime(clampedTime)
-                        setTimeError(validatePreOrderTime(clampedTime, preOrderDate))
-                      }}
-                      required
-                      min="13:00"
-                      max="19:00"
-                      className="w-full text-xs relative z-[100]"
-                      placeholder="--:--"
-                    />
-                  </div>
-                </div>
-                {/* Error messages displayed below the grid to take full width */}
-                {dateError && (
-                  <p className="text-sm text-red-500 mt-1">{dateError}</p>
-                )}
-                {timeError ? (
-                  <p className="text-[12px] text-red-500 mt-1">{timeError}</p>
+
+                {restrictionsEnabled ? (
+                  hasConfiguredDates ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="preorder-date-select" className="block text-[11px] text-gray-500 mb-1">
+                          Available dates
+                        </Label>
+                        <Select
+                          value={preOrderDate}
+                          onValueChange={(value) => {
+                            setPreOrderDate(value)
+                            const entry = scheduledDates.find((d) => d.date === value)
+                            if (entry) {
+                              setPreOrderTime(entry.startTime)
+                              setTimeError("")
+                            }
+                            setDateError(validatePreOrderDate(value))
+                          }}
+                        >
+                          <SelectTrigger id="preorder-date-select" className="w-full text-xs">
+                            <SelectValue placeholder="Choose a date" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {scheduledDates.map((entry) => (
+                              <SelectItem key={entry.date} value={entry.date} className="text-xs">
+                                {formatScheduleLabel(entry)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="preorder-time-window" className="block text-[11px] text-gray-500">
+                          Preferred time within the window
+                        </Label>
+                        <TimePicker
+                          id="preorder-time-window"
+                          value={preOrderTime}
+                          onChange={(value) => {
+                            setPreOrderTime(value)
+                            setTimeError(validatePreOrderTime(value, preOrderDate))
+                          }}
+                          disabled={!selectedScheduleEntry}
+                        />
+                        {selectedScheduleEntry && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Allowed window: {formatTimeRange12h(selectedScheduleEntry.startTime, selectedScheduleEntry.endTime)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      The owner has not published any pre-order dates yet. Please check back later or contact the store
+                      for updates.
+                    </div>
+                  )
                 ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="preorder-date" className="block text-[11px] text-gray-500 mb-1">
+                        Date
+                      </Label>
+                      <Input
+                        id="preorder-date"
+                        type="date"
+                        value={preOrderDate}
+                        onChange={(e) => {
+                          const rawDate = e.target.value
+                          const normalizedDate = clampPreOrderDate(rawDate)
+                          setPreOrderDate(normalizedDate)
+                          setDateError(validatePreOrderDate(normalizedDate))
+                        }}
+                        required
+                        className="w-full text-xs relative z-[100]"
+                        placeholder="mm/dd/yyyy"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="preorder-time" className="block text-[11px] text-gray-500 mb-1">
+                        Time
+                      </Label>
+                      <TimePicker
+                        id="preorder-time"
+                        value={preOrderTime}
+                        onChange={(value) => {
+                          const normalizedTime = clampPreOrderTime(value)
+                          setPreOrderTime(normalizedTime)
+                          setTimeError(validatePreOrderTime(normalizedTime, preOrderDate))
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {dateError && <p className="text-sm text-red-500 mt-1">{dateError}</p>}
+                {timeError && <p className="text-[12px] text-red-500 mt-1">{timeError}</p>}
+
+                {!restrictionsEnabled && !timeError && (
                   <p className="text-[12px] font-medium text-yellow-600 text-muted-foreground">
-                    Available dates: December 21 - December 27, 2025
+                    Pre-orders are open for any date and time while restrictions are disabled.
                   </p>
                 )}
-                {/* Surface the allowed pre-order date window so customers can plan ahead without guessing */}
-                  <p className="text-[12px] font-medium text-yellow-600 text-muted-foreground mt-[-10px]">
-                    Pre-order hours: 1:00 PM - 7:00 PM
+                {restrictionsEnabled && hasConfiguredDates && (
+                  <p className="text-[12px] text-muted-foreground">
+                    Pick from the published schedule. You can choose any time within the owner&apos;s window for that date.
                   </p>
+                )}
               </div>
             )}
 
@@ -808,6 +1081,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 isSubmitting || 
                 !previewUrl || // Require payment proof image
                 (orderType === "pre-order" && (
+                  restrictionsEnabledButEmpty ||
                   !preOrderDate || 
                   !preOrderTime || 
                   !!dateError || 

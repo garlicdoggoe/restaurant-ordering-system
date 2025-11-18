@@ -36,6 +36,18 @@ export default defineSchema({
     averageDeliveryTime: v.number(),
     platformFee: v.optional(v.number()), // Platform service fee
     platformFeeEnabled: v.optional(v.boolean()), // Whether platform fee is enabled
+    preorderSchedule: v.optional(
+      v.object({
+        restrictionsEnabled: v.boolean(),
+        dates: v.array(
+          v.object({
+            date: v.string(), // YYYY-MM-DD
+            startTime: v.string(), // HH:MM 24h format
+            endTime: v.string(), // HH:MM 24h format
+          })
+        ),
+      })
+    ),
     coordinates: v.optional(
       v.object({
         lng: v.number(),

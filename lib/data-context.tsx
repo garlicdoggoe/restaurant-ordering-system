@@ -17,6 +17,17 @@ export type RestaurantStatus = "open" | "closed" | "busy"
 export type VoucherType = "percentage" | "fixed"
 export type DiscountType = "percentage" | "fixed"
 
+export interface PreorderScheduleDate {
+  date: string // YYYY-MM-DD
+  startTime: string // HH:MM 24h
+  endTime: string // HH:MM 24h
+}
+
+export interface PreorderSchedule {
+  restrictionsEnabled: boolean
+  dates: PreorderScheduleDate[]
+}
+
 export interface User {
   _id: string
   clerkId: string
@@ -51,6 +62,7 @@ export interface Restaurant {
   averageDeliveryTime: number
   platformFee?: number // Platform service fee
   platformFeeEnabled?: boolean // Whether platform fee is enabled
+  preorderSchedule?: PreorderSchedule
   coordinates?: {
     lng: number
     lat: number
@@ -451,6 +463,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const sendChatMut = useMutation(api.chat.send)
 
   // Mapped values - memoized to prevent dependency changes
+  const normalizePreorderSchedule = (schedule?: { restrictionsEnabled: boolean; dates: { date: string; startTime: string; endTime?: string }[] }): PreorderSchedule => {
+    if (!schedule) {
+      return {
+        restrictionsEnabled: false,
+        dates: [],
+      }
+    }
+    return {
+      restrictionsEnabled: schedule.restrictionsEnabled,
+      dates: schedule.dates.map((entry) => ({
+        date: entry.date,
+        startTime: entry.startTime,
+        endTime: entry.endTime ?? entry.startTime,
+      })),
+    }
+  }
+
   const restaurant: Restaurant = useMemo(() => restaurantDoc
     ? ({
         _id: restaurantDoc._id as string,
@@ -467,6 +496,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         averageDeliveryTime: restaurantDoc.averageDeliveryTime,
         platformFee: restaurantDoc.platformFee,
         platformFeeEnabled: restaurantDoc.platformFeeEnabled,
+        preorderSchedule: normalizePreorderSchedule(restaurantDoc.preorderSchedule),
         coordinates: restaurantDoc.coordinates,
       } as Restaurant)
     : ({
@@ -479,6 +509,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         status: "open",
         averagePrepTime: 0,
         averageDeliveryTime: 0,
+        preorderSchedule: normalizePreorderSchedule(undefined),
       } as Restaurant), [restaurantDoc])
 
   const deliveryFees: DeliveryFee[] = deliveryFeesDocs.map((df) => ({
@@ -626,6 +657,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       averageDeliveryTime: data.averageDeliveryTime ?? restaurant.averageDeliveryTime,
       platformFee: data.platformFee !== undefined ? data.platformFee : restaurant.platformFee,
       platformFeeEnabled: data.platformFeeEnabled !== undefined ? data.platformFeeEnabled : restaurant.platformFeeEnabled,
+      preorderSchedule: normalizePreorderSchedule(data.preorderSchedule ?? restaurant.preorderSchedule),
     }
     void upsertRestaurant(body)
   }, [restaurant, upsertRestaurant])

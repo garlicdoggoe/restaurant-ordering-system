@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
-import { useData } from "@/lib/data-context"
+import { useData, type PreorderScheduleDate } from "@/lib/data-context"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { isValidPhoneNumber } from "@/lib/phone-validation"
 import Image from "next/image"
@@ -114,6 +114,19 @@ export function RestaurantSettings() {
     closingTime: restaurant.closingTime || "18:30",
   })
   const [deliveryFees, setDeliveryFees] = useState<Record<string, string>>({})
+  // Local state for the owner-managed pre-order calendar
+  const [preorderRestrictionsEnabled, setPreorderRestrictionsEnabled] = useState(
+    restaurant.preorderSchedule?.restrictionsEnabled ?? false,
+  )
+  const [preorderDates, setPreorderDates] = useState<PreorderScheduleDate[]>(
+    (restaurant.preorderSchedule?.dates ?? []).map((entry) => ({
+      ...entry,
+      endTime: entry.endTime ?? entry.startTime,
+    })),
+  )
+  const [newPreorderDate, setNewPreorderDate] = useState("")
+  const [newPreorderStartTime, setNewPreorderStartTime] = useState("13:00")
+  const [newPreorderEndTime, setNewPreorderEndTime] = useState("19:00")
 
   // Update form data when restaurant data changes from Convex
   useEffect(() => {
@@ -149,7 +162,94 @@ export function RestaurantSettings() {
       initialFees[b] = typeof value === "number" ? String(value) : ""
     })
     setDeliveryFees(initialFees)
+
+    const schedule = restaurant.preorderSchedule ?? { restrictionsEnabled: false, dates: [] }
+    setPreorderRestrictionsEnabled(schedule.restrictionsEnabled)
+    setPreorderDates((schedule.dates ?? []).map((entry) => ({
+      ...entry,
+      endTime: entry.endTime ?? entry.startTime,
+    })))
   }, [restaurant, dbDeliveryFees])
+  // Keep everything sorted so the UI and persistence stay predictable
+  const sortedPreorderDates = [...preorderDates].sort((a, b) => a.date.localeCompare(b.date))
+
+  const parseTimeToMinutes = (time: string) => {
+    const [hh, mm] = time.split(":").map(Number)
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return null
+    return hh * 60 + mm
+  }
+
+  const handleAddPreorderDate = () => {
+    if (!newPreorderDate || !newPreorderStartTime || !newPreorderEndTime) {
+      alert("Please select a date, start time, and end time")
+      return
+    }
+
+    const startMinutes = parseTimeToMinutes(newPreorderStartTime)
+    const endMinutes = parseTimeToMinutes(newPreorderEndTime)
+    if (startMinutes === null || endMinutes === null) {
+      alert("Invalid time format. Please use HH:MM.")
+      return
+    }
+    if (startMinutes >= endMinutes) {
+      alert("End time must be after the start time.")
+      return
+    }
+
+    // Prevent duplicate dates by overriding the existing entry
+    const nextDates = [
+      ...preorderDates.filter((entry) => entry.date !== newPreorderDate),
+      { date: newPreorderDate, startTime: newPreorderStartTime, endTime: newPreorderEndTime },
+    ]
+    setPreorderDates(nextDates)
+    setNewPreorderDate("")
+    setNewPreorderStartTime("13:00")
+    setNewPreorderEndTime("19:00")
+  }
+
+  const handlePreorderStartTimeChange = (date: string, newTime: string) => {
+    const entry = preorderDates.find((item) => item.date === date)
+    if (!entry) return
+    const newMinutes = parseTimeToMinutes(newTime)
+    const endMinutes = parseTimeToMinutes(entry.endTime)
+    if (newMinutes === null || endMinutes === null) return
+    if (newMinutes >= endMinutes) {
+      alert("Start time must be earlier than the end time.")
+      return
+    }
+    setPreorderDates((prev) =>
+      prev.map((item) => (item.date === date ? { ...item, startTime: newTime } : item)),
+    )
+  }
+
+  const handlePreorderEndTimeChange = (date: string, newTime: string) => {
+    const entry = preorderDates.find((item) => item.date === date)
+    if (!entry) return
+    const newMinutes = parseTimeToMinutes(newTime)
+    const startMinutes = parseTimeToMinutes(entry.startTime)
+    if (newMinutes === null || startMinutes === null) return
+    if (newMinutes <= startMinutes) {
+      alert("End time must be later than the start time.")
+      return
+    }
+    setPreorderDates((prev) =>
+      prev.map((item) => (item.date === date ? { ...item, endTime: newTime } : item)),
+    )
+  }
+
+  const handleRemovePreorderDate = (date: string) => {
+    setPreorderDates((prev) => prev.filter((entry) => entry.date !== date))
+  }
+
+  const savePreorderSchedule = () => {
+    // Persist the entire structure in one mutation so the owner always writes a consistent snapshot
+    const payload = {
+      restrictionsEnabled: preorderRestrictionsEnabled,
+      dates: sortedPreorderDates,
+    }
+    updateRestaurant({ preorderSchedule: payload })
+    alert("Pre-order schedule saved successfully.")
+  }
 
   // Function to check if restaurant should be open based on current time
   const isWithinOperatingHours = () => {
@@ -270,6 +370,18 @@ export function RestaurantSettings() {
     alert("Delivery fees saved.")
   }
 
+  // Display helper so owners instantly know which day they configured
+  const formatFriendlyDate = (value: string) => {
+    if (!value) return "—"
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return value
+    return parsed.toLocaleDateString("en-PH", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    })
+  }
+
   return (
     <div className="space-y-6 max-w-4xl">
       <h1 className="text-fluid-2xl font-bold">Restaurant Settings</h1>
@@ -382,6 +494,140 @@ export function RestaurantSettings() {
                 You can manually override the operating hours status above
               </p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pre-order Schedule</CardTitle>
+          <CardDescription>
+            Choose whether pre-orders are limited to selected days or open on any date. For each allowed day, set the start and end time window for pickups/deliveries.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Restrict pre-orders to specific days</p>
+              <p className="text-xs text-muted-foreground">
+                When disabled, customers can schedule pre-orders on any day and time.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="preorder-restrictions"
+                checked={preorderRestrictionsEnabled}
+                onCheckedChange={setPreorderRestrictionsEnabled}
+              />
+              <Label htmlFor="preorder-restrictions" className="text-sm font-medium cursor-pointer">
+                {preorderRestrictionsEnabled ? "Restrictions enabled" : "No restrictions"}
+              </Label>
+            </div>
+          </div>
+
+          {preorderRestrictionsEnabled && (
+            <div className="rounded-lg border border-dashed p-4 space-y-3">
+              <p className="text-sm font-medium">Add an available pre-order day</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="preorder-new-date">Date</Label>
+                  <Input
+                    id="preorder-new-date"
+                    type="date"
+                    value={newPreorderDate}
+                    onChange={(e) => setNewPreorderDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="preorder-new-start-time">Start time</Label>
+                  <Input
+                    id="preorder-new-start-time"
+                    type="time"
+                    value={newPreorderStartTime}
+                    onChange={(e) => setNewPreorderStartTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="preorder-new-end-time">End time</Label>
+                  <Input
+                    id="preorder-new-end-time"
+                    type="time"
+                    value={newPreorderEndTime}
+                    onChange={(e) => setNewPreorderEndTime(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button type="button" className="w-full" onClick={handleAddPreorderDate}>
+                    Add day
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The latest value you add for a date replaces any previous time for that same date.
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Configured days</p>
+            {sortedPreorderDates.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {preorderRestrictionsEnabled
+                  ? "No days added yet. Add at least one date to enforce restrictions."
+                  : "Dates are ignored because restrictions are disabled."}
+              </p>
+            ) : (
+              sortedPreorderDates.map((entry) => (
+                <div
+                  key={entry.date}
+                  className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+                >
+                  <div>
+                    <p className="text-sm font-semibold">{formatFriendlyDate(entry.date)}</p>
+                    <p className="text-xs text-muted-foreground">{entry.date}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Start</Label>
+                    <Input
+                      type="time"
+                      value={entry.startTime}
+                      onChange={(e) => handlePreorderStartTimeChange(entry.date, e.target.value)}
+                      className="w-28"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">End</Label>
+                    <Input
+                      type="time"
+                      value={entry.endTime}
+                      onChange={(e) => handlePreorderEndTimeChange(entry.date, e.target.value)}
+                      className="w-28"
+                    />
+                  </div>
+                  <div className="flex items-end justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemovePreorderDate(entry.date)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+            {sortedPreorderDates.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Customers can pick any time inside each start/end window. All times use the 24-hour format.
+              </p>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <Button type="button" onClick={savePreorderSchedule}>
+              Save Pre-order Schedule
+            </Button>
           </div>
         </CardContent>
       </Card>
