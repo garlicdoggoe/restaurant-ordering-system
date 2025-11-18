@@ -448,7 +448,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
             // Add additional padding (56px) for the browser toolbar (address bar + bottom navigation)
             // This prevents the browser toolbar from covering the input section on mobile devices
             paddingBottom: typeof window !== 'undefined' && isMobile 
-              ? `calc(env(safe-area-inset-bottom) + 56px)`
+              ? `calc(env(safe-area-inset-bottom) + 64px)`
               : undefined
           }}
         >
