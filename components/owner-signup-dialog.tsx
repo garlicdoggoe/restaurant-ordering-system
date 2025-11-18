@@ -52,9 +52,9 @@ export function OwnerSignupDialog({ children }: OwnerSignupDialogProps) {
         setError("Token generation failed. Please try again.")
       }
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Owner code validation error:", err)
-      setError(err.message || "Failed to validate owner code")
+      setError(err instanceof Error ? err.message : "Failed to validate owner code")
     } finally {
       setIsLoading(false)
     }

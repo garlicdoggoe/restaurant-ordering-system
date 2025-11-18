@@ -65,7 +65,7 @@ export function DeliveryMapModal({
             setIsGeocoding(false)
             return
           }
-          const data: any = await res.json()
+          const data = await res.json() as { features?: Array<{ geometry?: { coordinates?: [number, number] } }> }
           const feature = data?.features?.[0]
           if (feature?.geometry?.coordinates) {
             const coords: LngLatTuple = [

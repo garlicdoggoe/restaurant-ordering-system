@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, Truck, Package, CircleCheck, Ban, MapPin, ShoppingBag, Edit, Plus, Minus, Trash2, Check, X } from "lucide-react"
+import { ChevronDown, ChevronUp, MapPin, ShoppingBag, Edit, Plus, Minus, Trash2, Check, X } from "lucide-react"
 import { type Order, type DeliveryFee, type OrderItem, useData } from "@/lib/data-context"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { DeliveryMap } from "@/components/ui/delivery-map"
 import { DeliveryMapModal } from "@/components/ui/delivery-map-modal"
 import { PaymentModal } from "@/components/ui/payment-modal"
@@ -20,7 +21,6 @@ import {
   getDeliveryFeeFromAddress,
   isDeliveryOrder as isDeliveryOrderUtil,
   getOrderTypePrefix,
-  calculateFullOrderTotal,
   getStatusIcon,
   ORDER_STATUS_COLORS,
   getStatusLabel,
@@ -55,7 +55,7 @@ export function OrderCardBase({
   statusActionButton,
 }: OrderCardBaseProps) {
   // Calculate total item count by quantity so we can surface it up front
-  const totalItemCount = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+  const totalItemCount = order.items.reduce((sum: number, item) => sum + item.quantity, 0)
   
   // Determine order type prefix
   const orderTypePrefix = getOrderTypePrefix(order.orderType)
@@ -63,14 +63,6 @@ export function OrderCardBase({
   // Calculate delivery fee for delivery orders
   const isDeliveryOrder = isDeliveryOrderUtil(order)
   const deliveryFee = isDeliveryOrder ? getDeliveryFeeFromAddress(order.customerAddress, deliveryFees) : 0
-  
-  // Calculate full order total (subtotal + platformFee + deliveryFee - discount)
-  const fullOrderTotal = calculateFullOrderTotal(
-    order.subtotal,
-    order.platformFee,
-    deliveryFee,
-    order.discount
-  )
 
   // Determine coordinates for map: use provided coordinates > order's stored coordinates > null
   // Order's customerCoordinates are stored at order creation time (isolated per order)
@@ -246,7 +238,7 @@ export function OrderCardBase({
         const newDateStr = formatDateForChat(newScheduledTimestamp)
         
         await createOrderModificationMut({
-          orderId: order._id as any,
+          orderId: order._id as Id<"orders">,
           modifiedBy: currentUser._id,
           modifiedByName: `${currentUser.firstName} ${currentUser.lastName}`,
           modificationType: "order_edited",
@@ -499,7 +491,7 @@ export function OrderCardBase({
             </div>
           ) : (
             <div className="space-y-2">
-              {currentItems.map((item: any, idx: number) => (
+              {currentItems.map((item, idx: number) => (
                 <div key={idx} className="flex justify-between text-xs">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium">{item.name}</div>

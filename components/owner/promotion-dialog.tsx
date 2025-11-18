@@ -13,6 +13,7 @@ import { Upload, X } from "lucide-react"
 import { useData, type Promotion, type DiscountType } from "@/lib/data-context"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { compressImage } from "@/lib/image-compression"
 import Image from "next/image"
 
@@ -52,7 +53,7 @@ export function PromotionDialog({ promotion, onClose }: PromotionDialogProps) {
 
   const existingImageUrl = useQuery(
     api.files.getUrl,
-    isStorageId ? { storageId: promotion.image as any } : "skip"
+    isStorageId ? { storageId: promotion.image as Id<"_storage"> } : "skip"
   )
 
   // Initialize preview with existing promotion image

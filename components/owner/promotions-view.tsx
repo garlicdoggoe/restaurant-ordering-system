@@ -10,6 +10,7 @@ import { PromotionDialog } from "./promotion-dialog"
 import Image from "next/image"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 
 // Component to resolve storageId to URL and display promotion image
 function PromotionImage({ image, alt }: { image?: string; alt: string }) {
@@ -22,7 +23,7 @@ function PromotionImage({ image, alt }: { image?: string; alt: string }) {
 
   const imageUrl = useQuery(
     api.files.getUrl,
-    isStorageId ? { storageId: image as any } : "skip"
+    isStorageId ? { storageId: image as Id<"_storage"> } : "skip"
   )
 
   // Final image source: resolved URL, original URL, or undefined (no image)
@@ -144,7 +145,7 @@ function PromotionCard({
 
 export function PromotionsView() {
   const [showDialog, setShowDialog] = useState(false)
-  const [editingPromotion, setEditingPromotion] = useState<any>(null)
+  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
 
   const { promotions, updatePromotion, deletePromotion } = useData()
 
@@ -195,7 +196,7 @@ export function PromotionsView() {
 
       {showDialog && (
         <PromotionDialog
-          promotion={editingPromotion}
+          promotion={editingPromotion ?? undefined}
           onClose={() => {
             setShowDialog(false)
             setEditingPromotion(null)

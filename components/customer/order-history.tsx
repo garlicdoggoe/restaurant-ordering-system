@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { FileText, Upload, Clock, CheckCircle, XCircle, Ban } from "lucide-react"
+import { FileText, Clock, CheckCircle, XCircle, Ban } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { OrderTracking } from "./order-tracking"
 import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
@@ -22,6 +22,7 @@ import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import { filterAndSortOrders } from "@/lib/order-filter-utils"
 import { OrderCard } from "./order-card"
+import Image from "next/image"
 
 interface OrderHistoryProps {
   onBackToMenu: () => void
@@ -29,7 +30,7 @@ interface OrderHistoryProps {
   onNavigateToInbox?: (orderId: string) => void
 }
 
-export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryProps) {
+export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
   const { orders, updateOrder, currentUser, deliveryFees } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -55,7 +56,7 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
   ]
 
   // State for remaining payment proof upload - per order
-  const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
+  const [, setUploadingOrderId] = useState<string | null>(null)
   const [orderUploadStates, setOrderUploadStates] = useState<Record<string, { file: File | null; previewUrl: string | null }>>({})
   const [hasRestoredFromStorage, setHasRestoredFromStorage] = useState(false)
   
@@ -63,7 +64,7 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
 
   // Convex mutations and queries for file upload
-  const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl)
 
   // Use unified filtering utility - standard: most recent first
   const filteredOrders = filterAndSortOrders(orders, {
@@ -157,7 +158,8 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
   }
 
   // Handle remaining payment proof selection (deferred upload with confirmation)
-  const handleRemainingPaymentProofChange = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleRemainingPaymentProofChange = async (e: React.ChangeEvent<HTMLInputElement>, orderId: string) => {
     if (!e.target.files || !e.target.files[0]) return
     const file = e.target.files[0]
     try {
@@ -176,7 +178,8 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
     }
   }
 
-  const handleConfirmRemainingPaymentUpload = async (orderId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleConfirmRemainingPaymentUpload = async (orderId: string) => {
     const pending = orderUploadStates[orderId]
     if (!pending?.file) {
       toast.error("No image selected to upload")
@@ -199,6 +202,7 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
       // Clear local pending state and storage
       try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
       setOrderUploadStates((prev) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [orderId]: _, ...rest } = prev
         return rest
       })
@@ -211,11 +215,13 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
     }
   }
 
-  const handleCancelPendingRemainingPayment = (orderId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleCancelPendingRemainingPayment = (orderId: string) => {
     // Clear localStorage immediately to prevent re-restoration by useEffect
     try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
     // Clear from state synchronously to update UI immediately
     setOrderUploadStates((prev) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [orderId]: _, ...rest } = prev
       return rest
     })
@@ -229,7 +235,8 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
   }
 
   // Helper function to format current date filter display
-  const getCurrentDateFilterText = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _getCurrentDateFilterText = () => {
     if (!fromDate && !toDate) return "All dates"
     
     const formatDate = (dateStr: string) => {
@@ -259,7 +266,7 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
         onFromDateChange={setFromDate}
         onToDateChange={setToDate}
         statusFilter={statusFilter}
-        onStatusFilterChange={(filter) => setStatusFilter(filter as any)}
+        onStatusFilterChange={(filter) => setStatusFilter(filter as "all" | OrderStatus | "pre-orders")}
         statusFilterOptions={statusFilterOptions}
         onClearAll={clearAllFilters}
         drawerTitle="Date Range"
@@ -335,13 +342,18 @@ export function OrderHistory({ onBackToMenu, onNavigateToInbox }: OrderHistoryPr
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+      <Dialog open={paymentOpen} onOpenChange={(open) => {
+        setPaymentOpen(open)
+        if (!open) setPaymentUrl(null)
+      }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Payment Proof</DialogTitle>
           </DialogHeader>
           {paymentUrl ? (
-            <img src={paymentUrl} alt="Payment Proof" className="w-full rounded border object-contain" />
+            <div className="relative w-full h-96">
+              <Image src={paymentUrl} alt="Payment Proof" fill className="rounded border object-contain" />
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground">No payment proof available.</p>
           )}

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Calendar, Download, Filter } from "lucide-react"
+import { Search, Download } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
 
@@ -142,7 +142,7 @@ export function HistoryLogView() {
       <div className="text-sm text-muted-foreground">
         Showing {filteredModifications.length} of {orderModifications.length} modifications
         {searchQuery && (
-          <span> matching "{searchQuery}"</span>
+          <span> matching &quot;{searchQuery}&quot;</span>
         )}
         {dateFilter !== "all" && (
           <span> from {dateFilter}</span>

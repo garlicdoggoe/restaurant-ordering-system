@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,10 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useData, type MenuItem } from "@/lib/data-context"
+import { useData, type MenuItem, type MenuItemVariant } from "@/lib/data-context"
 import { toast } from "sonner"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { Plus, Trash2, Edit, Upload } from "lucide-react"
 import { compressImage } from "@/lib/image-compression"
 
@@ -40,8 +42,8 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
 
   // Variants state
-  const [variants, setVariants] = useState<any[]>([])
-  const [editingVariant, setEditingVariant] = useState<any>(null)
+  const [variants, setVariants] = useState<MenuItemVariant[]>([])
+  const [editingVariant, setEditingVariant] = useState<MenuItemVariant | null>(null)
   const [newVariant, setNewVariant] = useState({
     name: "",
     price: "",
@@ -51,7 +53,7 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
 
   // Fetch variants when editing existing item
   const variantsQuery = useQuery(api.menu.getVariantsByMenuItem, 
-    item ? { menuItemId: item._id as any } : "skip"
+    item ? { menuItemId: item._id as Id<"menu_items"> } : "skip"
   )
 
   useEffect(() => {
@@ -185,7 +187,7 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
     }
   }
 
-  const handleUpdateVariant = async (variantId: string, data: any) => {
+  const handleUpdateVariant = async (variantId: string, data: Partial<MenuItemVariant>) => {
     try {
       await updateVariant(variantId, data)
       toast.success("Variant updated successfully")
@@ -427,14 +429,12 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
             {(previewUrl || formData.image) && (
               <div className="mt-2">
                 <Label className="text-sm text-muted-foreground">Preview:</Label>
-                <div className="mt-1">
-                  <img
-                    src={previewUrl || formData.image}
+                <div className="mt-1 relative w-20 h-20">
+                  <Image
+                    src={previewUrl || formData.image || "/menu-sample.jpg"}
                     alt="Menu item preview"
-                    className="w-20 h-20 object-cover rounded-md border"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
+                    fill
+                    className="object-cover rounded-md border"
                   />
                 </div>
               </div>
@@ -508,7 +508,10 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
                                   type="number"
                                   step="0.01"
                                   value={String(editingVariant.price ?? '')}
-                                  onChange={(e) => setEditingVariant({ ...editingVariant, price: sanitizeNumericInput(e.target.value) })}
+                                  onChange={(e) => {
+                                    const sanitized = sanitizeNumericInput(e.target.value)
+                                    setEditingVariant({ ...editingVariant, price: sanitized === '' ? 0 : parseFloat(sanitized) || 0 })
+                                  }}
                                 />
                               </div>
                               <div className="flex items-center gap-4">

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,7 +12,9 @@ import { useData, type ChatMessage } from "@/lib/data-context"
 import { cn } from "@/lib/utils"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { OrderTracking } from "./order-tracking"
+import Image from "next/image"
 
 interface ChatDialogProps {
   orderId: string
@@ -26,18 +28,22 @@ function ChatImageMessage({ message, onImageClick }: { message: string; onImageC
   const isStorageId = message && !message.startsWith('http') && !message.startsWith('/') && !message.includes('.') && message.length > 20 && !message.includes(' ')
   const imageUrl = useQuery(
     api.files.getUrl,
-    isStorageId ? { storageId: message as any } : "skip"
+    isStorageId ? { storageId: message as Id<"_storage"> } : "skip"
   )
   
   const finalUrl = imageUrl || message
   
   return (
-    <img
-      src={finalUrl}
-      alt="Attachment"
-      className="rounded max-h-64 max-w-full object-contain cursor-zoom-in"
-      onClick={onImageClick ? () => onImageClick(finalUrl) : undefined}
-    />
+    <div className="relative rounded max-h-64 max-w-full cursor-zoom-in" onClick={onImageClick ? () => onImageClick(finalUrl) : undefined}>
+      <Image
+        src={finalUrl}
+        alt="Attachment"
+        width={400}
+        height={256}
+        className="rounded object-contain"
+        style={{ maxHeight: "256px", maxWidth: "100%" }}
+      />
+    </div>
   )
 }
 
@@ -54,7 +60,8 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const [isIOS, setIsIOS] = useState(false)
 
   const order = getOrderById(orderId)
-  const messages: ChatMessage[] = useQuery(api.chat.listByOrder, { orderId }) ?? []
+  const messagesQuery = useQuery(api.chat.listByOrder, { orderId })
+  const messages: ChatMessage[] = useMemo(() => messagesQuery ?? [], [messagesQuery])
   const customerId = currentUser?._id || ""
   const customerName = order?.customerName || "Customer"
   const allowCustomerImages = !!order?.allowCustomerImages
@@ -71,8 +78,8 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   // Detect iOS devices on component mount
   useEffect(() => {
     // Check user agent for iOS devices (iPhone, iPad, iPod)
-    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
-    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream
+    const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || ""
+    const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as { MSStream?: unknown }).MSStream
     setIsIOS(isIOSDevice)
   }, [])
 
@@ -150,7 +157,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
     if (!order) return false
     
     const finalStatuses: Array<"completed" | "delivered" | "cancelled"> = ["completed", "delivered", "cancelled"]
-    const isFinalStatus = finalStatuses.includes(order.status as any)
+    const isFinalStatus = finalStatuses.includes(order.status as "completed" | "delivered" | "cancelled")
     
     if (!isFinalStatus) {
       // Order is not in a final status, allow messaging regardless of day
@@ -475,11 +482,16 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
       <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto flex items-center justify-center">
           {previewImageUrl && (
-            <img
-              src={previewImageUrl}
-              alt="Preview"
-              className="max-w-[90vw] max-h-[80vh] object-contain rounded"
-            />
+            <div className="relative w-full h-full max-w-[90vw] max-h-[80vh]">
+              <Image
+                src={previewImageUrl}
+                alt="Preview"
+                width={1280}
+                height={720}
+                className="object-contain rounded"
+                style={{ maxWidth: "90vw", maxHeight: "80vh" }}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

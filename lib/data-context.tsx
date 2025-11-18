@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode } from "react"
 import type { Id } from "@/convex/_generated/dataModel"
 import { useQuery, useMutation } from "convex/react"
 import { useUser } from "@clerk/nextjs"
@@ -449,12 +449,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const addDenialReasonMut = useMutation(api.denial_reasons.add)
   const initializePresetReasonsMut = useMutation(api.denial_reasons.initializePresetReasons)
   const sendChatMut = useMutation(api.chat.send)
-  const createOrderModificationMut = useMutation(api.order_modifications.create)
 
-  // Mapped values
-  const restaurant: Restaurant = restaurantDoc
+  // Mapped values - memoized to prevent dependency changes
+  const restaurant: Restaurant = useMemo(() => restaurantDoc
     ? ({
-        _id: (restaurantDoc as any)._id as string,
+        _id: restaurantDoc._id as string,
         name: restaurantDoc.name,
         description: restaurantDoc.description,
         address: restaurantDoc.address,
@@ -480,7 +479,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         status: "open",
         averagePrepTime: 0,
         averageDeliveryTime: 0,
-      } as Restaurant)
+      } as Restaurant), [restaurantDoc])
 
   const deliveryFees: DeliveryFee[] = deliveryFeesDocs.map((df) => ({
     _id: df._id as string,
@@ -521,45 +520,80 @@ export function DataProvider({ children }: { children: ReactNode }) {
     specialInstructions: o.specialInstructions,
     estimatedPrepTime: o.estimatedPrepTime,
     estimatedDeliveryTime: o.estimatedDeliveryTime,
-    allowCustomerImages: (o as any).allowCustomerImages ?? false,
+    allowCustomerImages: (o as { allowCustomerImages?: boolean }).allowCustomerImages ?? false,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   }))
   
   // NEW: Status-specific order arrays for owners - prevents full cache invalidation during status changes
-  const transformOrderArray = (orderDocs: any[]) => orderDocs.map((o) => ({
-    _id: o._id as string,
-    _creationTime: o._creationTime as number,
-    customerId: o.customerId,
-    customerName: o.customerName,
-    customerPhone: o.customerPhone,
-    customerAddress: o.customerAddress,
-    customerCoordinates: o.customerCoordinates,
-    gcashNumber: o.gcashNumber,
-    items: o.items,
-    subtotal: o.subtotal,
-    platformFee: o.platformFee,
-    discount: o.discount,
-    total: o.total,
-    orderType: o.orderType,
-    preOrderFulfillment: o.preOrderFulfillment,
-    preOrderScheduledAt: o.preOrderScheduledAt,
-    paymentPlan: o.paymentPlan,
-    downpaymentAmount: o.downpaymentAmount,
-    downpaymentProofUrl: o.downpaymentProofUrl,
-    remainingPaymentMethod: o.remainingPaymentMethod,
-    remainingPaymentProofUrl: o.remainingPaymentProofUrl,
-    status: o.status,
-    paymentScreenshot: o.paymentScreenshot,
-    voucherCode: o.voucherCode,
-    denialReason: o.denialReason,
-    specialInstructions: o.specialInstructions,
-    estimatedPrepTime: o.estimatedPrepTime,
-    estimatedDeliveryTime: o.estimatedDeliveryTime,
-    allowCustomerImages: (o as any).allowCustomerImages ?? false,
-    createdAt: o.createdAt,
-    updatedAt: o.updatedAt,
-  }))
+  const transformOrderArray = (orderDocs: unknown[]) => orderDocs.map((o: unknown) => {
+    const order = o as {
+      _id: unknown
+      _creationTime?: number
+      customerId: string
+      customerName: string
+      customerPhone: string
+      customerAddress?: string
+      customerCoordinates?: { lng: number; lat: number }
+      gcashNumber?: string
+      items: OrderItem[]
+      subtotal: number
+      platformFee: number
+      discount: number
+      total: number
+      orderType: OrderType
+      preOrderFulfillment?: PreOrderFulfillment
+      preOrderScheduledAt?: number
+      paymentPlan?: PaymentPlan
+      downpaymentAmount?: number
+      downpaymentProofUrl?: string
+      remainingPaymentMethod?: RemainingPaymentMethod
+      remainingPaymentProofUrl?: string
+      status: OrderStatus
+      paymentScreenshot?: string
+      voucherCode?: string
+      denialReason?: string
+      specialInstructions?: string
+      estimatedPrepTime?: number
+      estimatedDeliveryTime?: number
+      allowCustomerImages?: boolean
+      createdAt: number
+      updatedAt: number
+    }
+    return {
+    _id: order._id as string,
+    _creationTime: order._creationTime as number,
+    customerId: order.customerId,
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    customerAddress: order.customerAddress,
+    customerCoordinates: order.customerCoordinates,
+    gcashNumber: order.gcashNumber,
+    items: order.items,
+    subtotal: order.subtotal,
+    platformFee: order.platformFee,
+    discount: order.discount,
+    total: order.total,
+    orderType: order.orderType,
+    preOrderFulfillment: order.preOrderFulfillment,
+    preOrderScheduledAt: order.preOrderScheduledAt,
+    paymentPlan: order.paymentPlan,
+    downpaymentAmount: order.downpaymentAmount,
+    downpaymentProofUrl: order.downpaymentProofUrl,
+    remainingPaymentMethod: order.remainingPaymentMethod,
+    remainingPaymentProofUrl: order.remainingPaymentProofUrl,
+    status: order.status,
+    paymentScreenshot: order.paymentScreenshot,
+    voucherCode: order.voucherCode,
+    denialReason: order.denialReason,
+    specialInstructions: order.specialInstructions,
+    estimatedPrepTime: order.estimatedPrepTime,
+    estimatedDeliveryTime: order.estimatedDeliveryTime,
+    allowCustomerImages: order.allowCustomerImages ?? false,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+  }
+  })
   
   const ordersByStatus = {
     pending: transformOrderArray(pendingOrders),
@@ -635,14 +669,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [removeMenuItem])
 
   // Variant methods
-  const getVariantsByMenuItem = useCallback((menuItemId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getVariantsByMenuItem = useCallback((_menuItemId: string) => {
     // This will be implemented as a lazy query when needed
     return [] as MenuItemVariant[]
   }, [])
 
   const addVariant = useCallback((variant: Omit<MenuItemVariant, "_id" | "createdAt" | "updatedAt">) => {
     void addVariantMut({
-      menuItemId: variant.menuItemId as any,
+      menuItemId: variant.menuItemId as Id<"menu_items">,
       name: variant.name,
       price: variant.price,
       available: variant.available,
@@ -652,7 +687,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const updateVariant = useCallback((id: string, data: Partial<MenuItemVariant>) => {
     void updateVariantMut({ 
-      id: id as any, 
+      id: id as Id<"menu_item_variants">, 
       data: {
         name: data.name,
         price: data.price,
@@ -663,13 +698,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [updateVariantMut])
 
   const deleteVariant = useCallback((id: string) => {
-    void deleteVariantMut({ id: id as any })
+    void deleteVariantMut({ id: id as Id<"menu_item_variants"> })
   }, [deleteVariantMut])
 
   const setVariantAttribute = useCallback((variantId: string, attributeId: string, value: string) => {
     void setVariantAttributeMut({
-      variantId: variantId as any,
-      attributeId: attributeId as any,
+      variantId: variantId as Id<"menu_item_variants">,
+      attributeId: attributeId as Id<"attributes">,
       value,
     })
   }, [setVariantAttributeMut])
@@ -775,7 +810,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (voucher.expiresAt < Date.now()) return { valid: false, discount: 0, message: "Voucher has expired" }
     if (voucher.usageCount >= voucher.usageLimit) return { valid: false, discount: 0, message: "Voucher usage limit reached" }
     if (orderAmount < voucher.minOrderAmount) return { valid: false, discount: 0, message: `Minimum order amount is ₱${voucher.minOrderAmount}` }
-    let discount = voucher.type === "fixed" ? voucher.value : Math.min((orderAmount * voucher.value) / 100, voucher.maxDiscount ?? Number.POSITIVE_INFINITY)
+    const discount = voucher.type === "fixed" ? voucher.value : Math.min((orderAmount * voucher.value) / 100, voucher.maxDiscount ?? Number.POSITIVE_INFINITY)
     return { valid: true, discount }
   }, [vouchers])
 
@@ -811,23 +846,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
     void sendChatMut({ orderId, senderId, senderName, senderRole, message })
   }, [sendChatMut])
 
-  const getOrderMessages = useCallback((orderId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getOrderMessages = useCallback((_orderId: string) => {
     // For UI, components should query directly with useQuery(api.chat.listByOrder, { orderId })
     return [] as ChatMessage[]
   }, [])
 
   // Order modifications methods
-  const orderModifications = orderModificationsDocs.map((doc: any) => ({
-    _id: doc._id as string,
-    orderId: doc.orderId as string,
-    modifiedBy: doc.modifiedBy,
-    modifiedByName: doc.modifiedByName,
-    modificationType: doc.modificationType,
-    previousValue: doc.previousValue,
-    newValue: doc.newValue,
-    itemDetails: doc.itemDetails,
-    timestamp: doc.timestamp,
-  }))
+  const orderModifications: OrderModification[] = orderModificationsDocs.map((doc: unknown) => {
+    const mod = doc as {
+      _id: unknown
+      orderId: string
+      modifiedBy: string
+      modifiedByName: string
+      modificationType: string
+      fieldName: string
+      previousValue: string
+      newValue: string
+      itemDetails?: string
+      timestamp: number
+    }
+    return {
+    _id: mod._id as string,
+    orderId: mod.orderId,
+    modifiedBy: mod.modifiedBy,
+    modifiedByName: mod.modifiedByName,
+    modificationType: mod.modificationType as OrderModification["modificationType"],
+    previousValue: mod.previousValue,
+    newValue: mod.newValue,
+    itemDetails: mod.itemDetails,
+    timestamp: mod.timestamp,
+  }
+  })
 
   const getOrderModifications = useCallback((orderId: string) => {
     return orderModifications.filter(mod => mod.orderId === orderId)

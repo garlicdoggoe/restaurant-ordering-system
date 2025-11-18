@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,7 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { OrderDetails } from "./order-details"
-import { useRouter } from "next/navigation"
+import Image from "next/image"
+import type { Id } from "@/convex/_generated/dataModel"
 
 interface OwnerChatDialogProps {
   orderId: string
@@ -44,18 +45,22 @@ function ChatImageMessage({ message, onImageClick }: { message: string; onImageC
   const isStorageId = message && !message.startsWith('http') && !message.startsWith('/') && !message.includes('.') && message.length > 20 && !message.includes(' ')
   const imageUrl = useQuery(
     api.files.getUrl,
-    isStorageId ? { storageId: message as any } : "skip"
+    isStorageId ? { storageId: message as Id<"_storage"> } : "skip"
   )
   
   const finalUrl = imageUrl || message
   
   return (
-    <img
-      src={finalUrl}
-      alt="Attachment"
-      className="rounded max-h-64 max-w-full object-contain cursor-zoom-in"
-      onClick={onImageClick ? () => onImageClick(finalUrl) : undefined}
-    />
+    <div className="relative rounded max-h-64 max-w-full cursor-zoom-in" onClick={onImageClick ? () => onImageClick(finalUrl) : undefined}>
+      <Image
+        src={finalUrl}
+        alt="Attachment"
+        width={400}
+        height={256}
+        className="rounded object-contain"
+        style={{ maxHeight: "256px", maxWidth: "100%" }}
+      />
+    </div>
   )
 }
 
@@ -68,10 +73,10 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
 
   const order = getOrderById(orderId)
-  const messages: ChatMessage[] = useQuery(api.chat.listByOrder, { orderId }) ?? []
+  const messagesQuery = useQuery(api.chat.listByOrder, { orderId })
+  const messages: ChatMessage[] = useMemo(() => messagesQuery ?? [], [messagesQuery])
   const ownerId = currentUser?._id || ""
 
   // Mutations for file upload
@@ -176,6 +181,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
   }
 
   // Helper function to check if text is a storageId (not a URL)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isStorageId = (text: string) => {
     // StorageIds are alphanumeric strings without spaces - exclude text messages
     return text && !text.startsWith('http') && !text.startsWith('/') && !text.includes('.') && text.length > 20 && !text.includes(' ')
@@ -448,11 +454,16 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
       <Dialog open={imagePreviewOpen} onOpenChange={setImagePreviewOpen}>
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto flex items-center justify-center">
           {previewImageUrl && (
-            <img
-              src={previewImageUrl}
-              alt="Preview"
-              className="max-w-[90vw] max-h-[80vh] object-contain rounded"
-            />
+            <div className="relative w-full h-full max-w-[90vw] max-h-[80vh]">
+              <Image
+                src={previewImageUrl}
+                alt="Preview"
+                width={1280}
+                height={720}
+                className="object-contain rounded"
+                style={{ maxWidth: "90vw", maxHeight: "80vh" }}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

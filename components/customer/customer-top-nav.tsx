@@ -25,7 +25,8 @@ const pageTitles: Record<CustomerView, string> = {
   activeorders: "Active Orders",
   orders: "Order History",
   inbox: "Inbox",
-  profile: "Profile Settings"
+  profile: "Profile Settings",
+  inquiry: "Website Inquiry"
 }
 
 export function CustomerTopNav({

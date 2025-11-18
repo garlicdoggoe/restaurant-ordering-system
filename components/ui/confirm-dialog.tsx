@@ -74,7 +74,7 @@ export function ConfirmDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              Type <span className="font-mono font-bold text-primary">"{confirmText}"</span> to confirm:
+              Type <span className="font-mono font-bold text-primary">&quot;{confirmText}&quot;</span> to confirm:
             </label>
             <Input
               value={typedText}

@@ -15,7 +15,7 @@ import { StatusBadge } from "@/lib/status-badge"
 // Displays orders in a row-based layout with filters for order type and time range.
 // Clicking a row opens the full order details modal reused from active orders view.
 export function HistoricalOrdersView() {
-  const { orders, menuItems, categories } = useData()
+  const { orders } = useData()
 
   // Filters
   const [selectedOrderType, setSelectedOrderType] = useState<string>("all")

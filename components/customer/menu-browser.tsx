@@ -7,9 +7,10 @@ import { CategoryFilter, Category } from "@/components/ui/category-filter"
 import { MenuItemGrid } from "./menu-item-grid"
 import { PromotionBanner } from "./promotion-banner"
 import { useData } from "@/lib/data-context"
+import type { CartItem } from "@/lib/cart-context"
 
 interface MenuBrowserProps {
-  onAddToCart: (item: any, quantity?: number, suppressToast?: boolean) => void
+  onAddToCart: (item: Omit<CartItem, "quantity">, quantity?: number, suppressToast?: boolean) => void
 }
 
 export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
@@ -22,8 +23,8 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
   console.log("Customer - Menu items:", ctxMenuItems)
   console.log("Customer - Promotions:", promotions)
 
-  // Build categories with fallback data (same logic as menu-view.tsx)
-  const availableCategories = ctxCategories.length > 0 ? ctxCategories : [
+  // Build categories with fallback data (same logic as menu-view.tsx) - memoized to prevent dependency changes
+  const availableCategories = useMemo(() => ctxCategories.length > 0 ? ctxCategories : [
     { _id: "1", name: "Pasta", icon: "🍝", order: 1 },
     { _id: "2", name: "Pizza", icon: "🍕", order: 2 },
     { _id: "3", name: "Rice Meals", icon: "🍚", order: 3 },
@@ -33,7 +34,7 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
     { _id: "7", name: "Snacks", icon: "🍟", order: 7 },
     { _id: "8", name: "Chillers", icon: "🍮", order: 8 },
     { _id: "9", name: "Salad", icon: "🥗", order: 9 },
-  ]
+  ], [ctxCategories])
 
   const categories: Category[] = useMemo(
     () => [
@@ -52,7 +53,7 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
         ).length
       }))
     ],
-    [ctxCategories, ctxMenuItems, availableCategories],
+    [ctxMenuItems, availableCategories],
   )
 
   const menuItems = useMemo(

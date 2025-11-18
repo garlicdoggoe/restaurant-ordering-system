@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useData } from "@/lib/data-context"
+import { useData, type Order } from "@/lib/data-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -38,7 +38,7 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
 
   // Filter orders to only show today's orders (except pre-orders)
   // Pre-orders are shown regardless of creation date
-  const filterByToday = (orders: any[]) => {
+  const filterByToday = (orders: Order[]) => {
     return orders.filter((order) => {
       // Always show pre-orders regardless of creation date
       if (order.orderType === "pre-order") {
@@ -53,7 +53,7 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
 
   // NEW: Get filtered orders directly from status-specific queries, then apply today filter
   const getFilteredOrders = () => {
-    let orders: any[] = []
+    let orders: Order[] = []
     if (selectedStatus === "pending") orders = ordersByStatus.pending
     else if (selectedStatus === "preparing") orders = ordersByStatus.accepted
     else if (selectedStatus === "ready") orders = ordersByStatus.ready

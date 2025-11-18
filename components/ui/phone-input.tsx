@@ -6,9 +6,7 @@ import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { 
   validatePhoneInput, 
-  handlePhoneInputChange, 
-  getPhonePlaceholder,
-  formatPhoneForDisplay 
+  handlePhoneInputChange
 } from "@/lib/phone-validation"
 
 interface PhoneInputProps {
@@ -16,7 +14,6 @@ interface PhoneInputProps {
   label: string
   value: string
   onChange: (value: string) => void
-  placeholder?: string
   required?: boolean
   className?: string
   error?: string
@@ -32,7 +29,6 @@ export function PhoneInput({
   label,
   value,
   onChange,
-  placeholder,
   required = false,
   className,
   error,
@@ -96,7 +92,6 @@ interface GcashInputProps {
   label: string
   value: string
   onChange: (value: string) => void
-  placeholder?: string
   required?: boolean
   className?: string
   error?: string
@@ -114,7 +109,6 @@ export function GcashInput({
   label,
   value,
   onChange,
-  placeholder,
   required = false,
   className,
   error,

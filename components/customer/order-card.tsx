@@ -47,7 +47,7 @@ export function OrderCard({
   const [isPaymentProofDialogOpen, setIsPaymentProofDialogOpen] = useState(false)
   
   // Calculate total item count by quantity
-  const totalItemCount = order.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+  const totalItemCount = order.items.reduce((sum: number, item) => sum + item.quantity, 0)
   
   // Get first 2 items for collapsed view
   const firstTwoItems = order.items.slice(0, 2)
@@ -116,7 +116,7 @@ export function OrderCard({
           {/* Hidden on desktop since expanded view is always shown there */}
           {!isExpanded && (
             <div className="space-y-2 mb-3 lg:hidden">
-              {firstTwoItems.map((item: any, idx: number) => {
+              {firstTwoItems.map((item, idx: number) => {
                 const itemTotal = item.price * item.quantity
                 
                 return (
@@ -205,7 +205,7 @@ export function OrderCard({
           </div>
           <Separator className="mb-2" />
           <div className="space-y-2">
-            {order.items.map((item: any, idx: number) => (
+            {order.items.map((item, idx: number) => (
               <div key={idx} className="flex justify-between text-xs">
                 <div className="flex-1 min-w-0">
                   <div className="font-medium">{item.name}</div>

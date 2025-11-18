@@ -26,7 +26,7 @@ interface ActiveOrdersViewProps {
   onNavigateToInbox?: (orderId: string) => void
 }
 
-export function ActiveOrdersView({ onBackToMenu, onNavigateToInbox }: ActiveOrdersViewProps) {
+export function ActiveOrdersView({ onNavigateToInbox }: ActiveOrdersViewProps) {
   const { orders, updateOrder, currentUser, deliveryFees } = useData()
   const customerId = currentUser?._id || ""
   
@@ -88,7 +88,7 @@ export function ActiveOrdersView({ onBackToMenu, onNavigateToInbox }: ActiveOrde
               <Activity className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-fluid-lg font-semibold mb-2">No active orders</h3>
               <p className="text-fluid-sm text-muted-foreground">
-                You don't have any active orders at the moment.
+                You don&apos;t have any active orders at the moment.
               </p>
             </CardContent>
           </Card>

@@ -10,8 +10,6 @@ import {
   CheckCircle, 
   Truck, 
   ChevronUp,
-  ChevronDown,
-  Pizza,
   XCircle
 } from "lucide-react"
 import { useData } from "@/lib/data-context"

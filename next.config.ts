@@ -8,11 +8,11 @@ const nextConfig: NextConfig = {
    */
   eslint: {
     // Do not block production builds due to ESLint errors
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
     // Do not block production builds on type errors
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     remotePatterns: [

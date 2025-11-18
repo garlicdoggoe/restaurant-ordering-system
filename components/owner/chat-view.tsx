@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MessageSquare } from "lucide-react"
-import { useData } from "@/lib/data-context"
+import { useData, type OrderStatus } from "@/lib/data-context"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { OwnerChatDialog } from "./owner-chat-dialog"
@@ -29,9 +29,10 @@ export function ChatView() {
   // Aggregate chat stats per order without calling hooks in a loop
   const filteredOrders = useMemo(() => orders, [orders])
   const orderIds = useMemo(() => filteredOrders.map((o) => o._id as string), [filteredOrders])
-  const perOrderStats = useQuery(api.chat.getPerOrderUnreadAndLast, orderIds.length ? { orderIds } : "skip") ?? []
+  const perOrderStatsQuery = useQuery(api.chat.getPerOrderUnreadAndLast, orderIds.length ? { orderIds } : "skip")
+  const perOrderStats = useMemo(() => perOrderStatsQuery ?? [], [perOrderStatsQuery])
   const statsMap = useMemo(() => {
-    const m = new Map<string, { unreadCount: number; lastMessage: any | null }>()
+    const m = new Map<string, { unreadCount: number; lastMessage: { timestamp: number; message?: string; senderRole?: "owner" | "customer" } | null }>()
     for (const r of perOrderStats) m.set(r.orderId, { unreadCount: r.unreadCount, lastMessage: r.lastMessage })
     return m
   }, [perOrderStats])
@@ -50,7 +51,7 @@ export function ChatView() {
 
   const matchesStatus = (orderId: string, status: string) => {
     if (statusFilter === "all") return true
-    if (statusFilter === "active") return activeStatuses.has(status as any)
+    if (statusFilter === "active") return activeStatuses.has(status as OrderStatus)
     if (statusFilter === "recent") {
       const last = statsMap.get(orderId)?.lastMessage
       if (!last) return false
@@ -64,15 +65,15 @@ export function ChatView() {
   // Apply filters and sort ascending by creation time
   const ordersWithChat = orders
     .filter((o) => matchesStatus(o._id as string, o.status))
-    .filter((o) => withinDateRange((o as any)._creationTime ?? (o as any).createdAt ?? 0))
+    .filter((o) => withinDateRange(o._creationTime ?? o.createdAt ?? 0))
     .sort((a, b) => {
       if (statusFilter === "recent") {
         const la = statsMap.get(a._id as string)?.lastMessage?.timestamp ?? 0
         const lb = statsMap.get(b._id as string)?.lastMessage?.timestamp ?? 0
         return la - lb
       }
-      const ta = (a as any)._creationTime ?? (a as any).createdAt ?? 0
-      const tb = (b as any)._creationTime ?? (b as any).createdAt ?? 0
+      const ta = a._creationTime ?? a.createdAt ?? 0
+      const tb = b._creationTime ?? b.createdAt ?? 0
       return ta - tb
     })
 

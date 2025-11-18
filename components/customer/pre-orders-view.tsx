@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Clock, CheckCircle, XCircle, CircleCheck, Ban, Truck, Package, Calendar } from "lucide-react"
-import { useData, type OrderStatus } from "@/lib/data-context"
+import { useData, type OrderStatus, type Order } from "@/lib/data-context"
 import { OrderTracking } from "./order-tracking"
 import { OrderFilter, type StatusFilterOption } from "@/components/ui/order-filter"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -73,7 +73,7 @@ export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
 
   // Helper function to check if a pre-order can be cancelled
   // Pre-orders can only be cancelled if cancelled at least 1 day before the scheduled date
-  const canCancelPreOrder = (order: any): { allowed: boolean; reason?: string } => {
+  const canCancelPreOrder = (order: Order): { allowed: boolean; reason?: string } => {
     // Only allow cancellation for pending, pre-order-pending, or denied status
     if (order.status !== "pending" && order.status !== "pre-order-pending" && order.status !== "denied") {
       return { allowed: false, reason: "This pre-order cannot be cancelled in its current status" }
@@ -124,9 +124,9 @@ export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
       
       toast.success("Pre-order cancelled successfully")
       setCancelOrderId(null)
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle error from backend
-      const errorMessage = error?.message || "Failed to cancel pre-order"
+      const errorMessage = error instanceof Error ? error.message : "Failed to cancel pre-order"
       toast.error(errorMessage)
       setCancelOrderId(null)
     }
@@ -176,7 +176,7 @@ export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
               <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-fluid-lg font-semibold mb-2">No pre-orders</h3>
               <p className="text-fluid-sm text-muted-foreground">
-                You don't have any pre-orders {statusFilter !== "all" ? `with status "${statusFilter}"` : ""} at the moment.
+                You don&apos;t have any pre-orders {statusFilter !== "all" ? `with status "${statusFilter}"` : ""} at the moment.
               </p>
             </CardContent>
           </Card>

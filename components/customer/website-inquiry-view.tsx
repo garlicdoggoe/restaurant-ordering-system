@@ -100,7 +100,7 @@ export function WebsiteInquiryView() {
 
     try {
       // Call Convex action to send email via Resend
-      const result = await sendEmail({
+      await sendEmail({
         name: name.trim(),
         email: email.trim(),
         companyName: companyName.trim() || undefined,

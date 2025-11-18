@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { SearchBox } from "@mapbox/search-js-react"
@@ -79,7 +79,7 @@ export function AddressMapPicker({
   const [isWithinBounds, setIsWithinBounds] = useState<boolean | null>(null)
 
   // Helper: Check if coordinates are within Libmanan and notify parent
-  const validateLocation = (coords: LngLatTuple | null) => {
+  const validateLocation = useCallback((coords: LngLatTuple | null) => {
     if (!coords) {
       setIsWithinBounds(null)
       // Don't notify parent when coordinates are null - let parent handle that
@@ -88,11 +88,11 @@ export function AddressMapPicker({
     const isValid = isWithinLibmanan(coords)
     setIsWithinBounds(isValid)
     onLocationValid?.(isValid)
-  }
+  }, [onLocationValid])
 
   // Helper: reverse geocode coordinates -> address via Mapbox Geocoding API
   const reverseTimerRef = useRef<number | null>(null)
-  const scheduleReverseGeocode = (lng: number, lat: number) => {
+  const scheduleReverseGeocode = useCallback((lng: number, lat: number) => {
     if (reverseTimerRef.current) window.clearTimeout(reverseTimerRef.current)
     reverseTimerRef.current = window.setTimeout(async () => {
       try {
@@ -100,14 +100,46 @@ export function AddressMapPicker({
         const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${accessToken}`
         const res = await fetch(url)
         if (!res.ok) return
-        const data: any = await res.json()
+        const data = await res.json() as { features?: Array<{ place_name?: string }> }
         const place = data?.features?.[0]?.place_name as string | undefined
         if (place) onAddressChange(place)
       } catch {
         // best-effort only
       }
     }, 400)
-  }
+  }, [accessToken, onAddressChange])
+
+  // Ensure marker exists and attach drag handlers
+  const ensureMarker = useCallback((map: mapboxgl.Map, lngLat: LngLatTuple) => {
+    if (!markerRef.current) {
+      markerRef.current = new mapboxgl.Marker({ draggable: interactive })
+        .setLngLat(lngLat)
+        .addTo(map)
+
+      if (interactive) {
+        markerRef.current.on("drag", () => {
+          const m = markerRef.current
+          if (!m) return
+          const pos = m.getLngLat()
+          const tuple: LngLatTuple = [pos.lng, pos.lat]
+          onCoordinatesChange(tuple)
+          validateLocation(tuple)
+          scheduleReverseGeocode(pos.lng, pos.lat)
+        })
+
+        markerRef.current.on("dragend", () => {
+          const m = markerRef.current
+          if (!m) return
+          const pos = m.getLngLat()
+          const tuple: LngLatTuple = [pos.lng, pos.lat]
+          onCoordinatesChange(tuple)
+          validateLocation(tuple)
+        })
+      }
+    } else {
+      markerRef.current.setLngLat(lngLat)
+    }
+  }, [interactive, onCoordinatesChange, validateLocation, scheduleReverseGeocode])
 
   // Initialize map once
   useEffect(() => {
@@ -144,6 +176,9 @@ export function AddressMapPicker({
       mapRef.current = null
       markerRef.current = null
     }
+    // Map initialization should only run once when accessToken changes
+    // The callbacks (ensureMarker, validateLocation, etc.) are stable due to useCallback
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken])
 
   // If parent provides coordinates later, reflect them in the map/marker and fly
@@ -153,40 +188,9 @@ export function AddressMapPicker({
     ensureMarker(mapRef.current, coordinates)
     mapRef.current.flyTo({ center: coordinates, zoom: Math.max(mapRef.current.getZoom(), 14) })
     validateLocation(coordinates)
-  }, [mapLoaded, coordinates])
+  }, [mapLoaded, coordinates, ensureMarker, validateLocation])
 
-  // Ensure marker exists and attach drag handlers
-  const ensureMarker = (map: mapboxgl.Map, lngLat: LngLatTuple) => {
-    if (!markerRef.current) {
-      markerRef.current = new mapboxgl.Marker({ draggable: interactive })
-        .setLngLat(lngLat)
-        .addTo(map)
-
-      if (interactive) {
-        markerRef.current.on("drag", () => {
-          const m = markerRef.current
-          if (!m) return
-          const pos = m.getLngLat()
-          const tuple: LngLatTuple = [pos.lng, pos.lat]
-          onCoordinatesChange(tuple)
-          validateLocation(tuple)
-          scheduleReverseGeocode(pos.lng, pos.lat)
-        })
-
-        markerRef.current.on("dragend", () => {
-          const m = markerRef.current
-          if (!m) return
-          const pos = m.getLngLat()
-          const tuple: LngLatTuple = [pos.lng, pos.lat]
-          onCoordinatesChange(tuple)
-          validateLocation(tuple)
-        })
-      }
-    } else {
-      markerRef.current.setLngLat(lngLat)
-    }
-  }
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const coordsText = coordinates ? `${coordinates[1].toFixed(6)}, ${coordinates[0].toFixed(6)}` : ""
 
   return (
@@ -217,13 +221,13 @@ export function AddressMapPicker({
             <SearchBox
               accessToken={accessToken}
               map={mapRef.current as unknown as mapboxgl.Map}
-              mapboxgl={mapboxgl as unknown as any}
+              mapboxgl={mapboxgl as unknown as typeof mapboxgl}
               value={searchValue}
               onChange={(v) => setSearchValue(v)}
               onRetrieve={(res) => {
-                const feature = (res as any)?.features?.[0]
+                const feature = (res as unknown as { features?: Array<{ geometry?: { coordinates?: [number, number] }; properties?: Record<string, string> }> })?.features?.[0]
                 const coords = feature?.geometry?.coordinates as LngLatTuple | undefined
-                const props = (feature?.properties as any) || {}
+                const props = feature?.properties || {}
                 const placeName = props.full_address || props.name || props.place_formatted || props.formatted_address
                 if (coords && mapRef.current) {
                   mapRef.current.flyTo({ center: coords, zoom: 14 })

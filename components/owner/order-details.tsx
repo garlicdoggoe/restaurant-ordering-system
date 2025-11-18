@@ -475,7 +475,7 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                 
                 {showModificationHistory && (
                   <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
-                    {modifications.map((mod: any, index: number) => (
+                    {modifications.map((mod, index: number) => (
                       <div key={index} className="p-2 bg-muted rounded text-xs">
                         <div className="flex justify-between items-start">
                           <div>

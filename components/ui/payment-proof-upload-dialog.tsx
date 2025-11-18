@@ -13,6 +13,7 @@ import { Upload, X, Check } from "lucide-react"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { useData } from "@/lib/data-context"
+import Image from "next/image"
 
 interface PaymentProofUploadDialogProps {
   open: boolean
@@ -160,10 +161,11 @@ export function PaymentProofUploadDialog({
             >
               {previewUrl ? (
                 <div className="relative w-full h-full flex items-center justify-center">
-                  <img
+                  <Image
                     src={previewUrl}
                     alt="Payment proof preview"
-                    className="max-h-full max-w-full object-contain rounded"
+                    fill
+                    className="object-contain rounded"
                   />
                   <button
                     type="button"

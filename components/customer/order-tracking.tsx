@@ -12,9 +12,8 @@ import {
   CheckCircle,
   XCircle, 
   MessageSquare, 
-  Ban, 
-  Upload, 
-  X
+  Ban,
+  Upload
 } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
@@ -49,7 +48,7 @@ interface OrderTrackingProps {
 }
 
 export function OrderTracking({ orderId }: OrderTrackingProps) {
-  const { getOrderById, updateOrder, currentUser, deliveryFees } = useData()
+  const { getOrderById, updateOrder, deliveryFees } = useData()
   const order = getOrderById(orderId)
   const [chatOpen, setChatOpen] = useState(false)
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)
@@ -62,7 +61,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
   const [hasRestoredFromStorage, setHasRestoredFromStorage] = useState(false)
 
   // Convex mutations and queries for file upload
-  const generateUploadUrl = useMutation((api as any).files?.generateUploadUrl)
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl)
 
   // Restore pending proofs from localStorage for the current order
   React.useEffect(() => {
@@ -165,6 +164,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
       // Clear local pending state and storage
       try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
       setOrderUploadStates((prev) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [orderId]: _, ...rest } = prev
         return rest
       })
@@ -182,6 +182,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
     try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
     // Clear from state synchronously to update UI immediately
     setOrderUploadStates((prev) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [orderId]: _, ...rest } = prev
       return rest
     })

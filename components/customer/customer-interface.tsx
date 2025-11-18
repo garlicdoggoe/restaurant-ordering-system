@@ -14,7 +14,7 @@ import { OrderTracking } from "./order-tracking"
 import { StickyOrderStatus } from "./sticky-order-status"
 import { WebsiteInquiryView } from "./website-inquiry-view"
 import { useData } from "@/lib/data-context"
-import { useCart } from "@/lib/cart-context"
+import { useCart, type CartItem } from "@/lib/cart-context"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
@@ -48,10 +48,11 @@ export function CustomerInterface() {
   )
   
   // Get per-order unread stats to find the order with most recent unread message
-  const perOrderStats = useQuery(
+  const perOrderStatsQuery = useQuery(
     api.chat.getPerOrderUnreadAndLast, 
     allOrderIds.length ? { orderIds: allOrderIds } : "skip"
-  ) ?? []
+  )
+  const perOrderStats = useMemo(() => perOrderStatsQuery ?? [], [perOrderStatsQuery])
   
   // Find the order with the most recent unread message
   // Filter orders with unread messages and find the one with the latest lastMessage timestamp
@@ -75,7 +76,7 @@ export function CustomerInterface() {
     setCurrentView("inbox")
   }
 
-  const addToCart = (item: any, quantity: number = 1, suppressToast: boolean = false) => {
+  const addToCart = (item: Omit<CartItem, "quantity">, quantity: number = 1, suppressToast: boolean = false) => {
     if (activeOrder) {
       toast.info("You have an active order", {
         description: "Please wait for your current order to be completed, denied, or cancelled before adding new items.",
@@ -83,10 +84,6 @@ export function CustomerInterface() {
       })
       return
     }
-    
-    // Get the current quantity of this item in the cart before adding
-    const existingItem = cartItems.find(i => i.id === item.id)
-    const quantityBefore = existingItem?.quantity || 0
     
     // Add the item(s) to cart multiple times if quantity > 1
     // addToCartContext adds 1 at a time, so we call it 'quantity' times
@@ -96,8 +93,6 @@ export function CustomerInterface() {
     
     // Only show toast if not suppressed
     if (!suppressToast) {
-      // Calculate the final quantity after adding
-      const quantityAfter = quantityBefore + quantity
       // Show a single toast notification with the item name and quantity
       // If item already existed in cart, show total quantity; otherwise just show added quantity
       const quantityText = quantity > 1 ? `${quantity}` : ""

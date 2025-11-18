@@ -4,7 +4,7 @@
  * Standard: Always displays most recent entries first
  */
 
-import type { OrderStatus } from "@/lib/data-context"
+import type { Order } from "@/lib/data-context"
 
 export interface OrderFilterConfig {
   // Customer ID to filter by
@@ -21,27 +21,27 @@ export interface OrderFilterConfig {
   orderType?: "pre-order" | "regular" | "all"
   
   // Custom filter function for view-specific logic
-  customFilter?: (order: any) => boolean
+  customFilter?: (order: Order) => boolean
   
   // Custom status matcher for view-specific status filtering logic
-  customStatusMatcher?: (order: any, statusFilter: string) => boolean
+  customStatusMatcher?: (order: Order, statusFilter: string) => boolean
   
   // Custom sort function (optional, defaults to most recent first)
-  customSort?: (a: any, b: any) => number
+  customSort?: (a: Order, b: Order) => number
 }
 
 /**
  * Get the creation timestamp from an order
  * Handles both Convex _creationTime and legacy createdAt fields
  */
-export function getOrderTimestamp(order: any): number {
+export function getOrderTimestamp(order: Order): number {
   return (order._creationTime ?? order.createdAt) ?? 0
 }
 
 /**
  * Check if an order is within the specified date range
  */
-export function isWithinDateRange(order: any, fromDate?: string, toDate?: string): boolean {
+export function isWithinDateRange(order: Order, fromDate?: string, toDate?: string): boolean {
   if (!fromDate && !toDate) return true
   
   const createdTs = getOrderTimestamp(order)
@@ -61,7 +61,7 @@ export function isWithinDateRange(order: any, fromDate?: string, toDate?: string
 /**
  * Check if an order matches the status filter
  */
-export function matchesStatusFilter(order: any, statusFilter: string, customStatusMatcher?: (order: any, statusFilter: string) => boolean): boolean {
+export function matchesStatusFilter(order: Order, statusFilter: string, customStatusMatcher?: (order: Order, statusFilter: string) => boolean): boolean {
   // Use custom status matcher if provided (for view-specific logic)
   if (customStatusMatcher) {
     return customStatusMatcher(order, statusFilter)
@@ -76,7 +76,7 @@ export function matchesStatusFilter(order: any, statusFilter: string, customStat
  * Standard sort function: Most recent first (descending by creation time)
  * This is the default sorting behavior for all order views
  */
-export function sortByMostRecent(a: any, b: any): number {
+export function sortByMostRecent(a: Order, b: Order): number {
   const timestampA = getOrderTimestamp(a)
   const timestampB = getOrderTimestamp(b)
   return timestampB - timestampA // Descending: most recent first
@@ -87,9 +87,9 @@ export function sortByMostRecent(a: any, b: any): number {
  * Returns filtered and sorted orders (most recent first by default)
  */
 export function filterAndSortOrders(
-  orders: any[],
+  orders: Order[],
   config: OrderFilterConfig
-): any[] {
+): Order[] {
   const {
     customerId,
     fromDate,

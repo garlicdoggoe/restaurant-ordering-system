@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CategoryFilter, Category } from "@/components/ui/category-filter"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -11,6 +10,7 @@ import { Plus, Minus, Search, X } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import type { MenuItem, OrderItem, MenuItemVariant } from "@/lib/data-context"
 
 interface AddOrderItemDialogProps {
@@ -31,7 +31,7 @@ export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemD
   // Fetch variants for the selected item
   const variants = useQuery(
     api.menu.getVariantsByMenuItem,
-    selectedItem ? { menuItemId: selectedItem._id as any } : "skip"
+    selectedItem ? { menuItemId: selectedItem._id as Id<"menu_items"> } : "skip"
   ) || []
 
   // Reset state when dialog opens/closes

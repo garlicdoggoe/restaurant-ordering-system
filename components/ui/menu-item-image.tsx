@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 
 interface MenuItemImageProps {
   src?: string
@@ -23,7 +24,7 @@ export function MenuItemImage({ src, alt, fill, className, width, height }: Menu
     src.length > 20 // Storage IDs are typically longer than 20 characters
   
   const imageUrl = useQuery(api.files.getUrl, 
-    isStorageId ? { storageId: src as any } : "skip"
+    isStorageId ? { storageId: src as Id<"_storage"> } : "skip"
   )
 
   // Use the converted URL, fallback to original src, or default image

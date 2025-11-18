@@ -61,7 +61,7 @@ export function DeliveryMap({
             setIsGeocoding(false)
             return
           }
-          const data: any = await res.json()
+          const data = await res.json() as { features?: Array<{ geometry?: { coordinates?: [number, number] } }> }
           const feature = data?.features?.[0]
           if (feature?.geometry?.coordinates) {
             const coords: LngLatTuple = [
@@ -108,6 +108,9 @@ export function DeliveryMap({
       mapRef.current = null
       markerRef.current = null
     }
+    // Map initialization should only run once when accessToken changes
+    // resolvedCoordinates is handled in a separate useEffect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken])
 
   // Update map when coordinates change

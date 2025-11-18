@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Clock, CheckCircle, XCircle, Truck, Timer, PackageCheck, Ban, ListFilter } from "lucide-react"
-import { useData } from "@/lib/data-context"
+import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -28,15 +28,15 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   // Draft filters (controlled)
   const [fromDateDraft, setFromDateDraft] = useState("")
   const [toDateDraft, setToDateDraft] = useState("")
-  const [statusFilterDraft, setStatusFilterDraft] = useState<string>("recent")
+  const [, setStatusFilterDraft] = useState<string>("recent")
   // Applied filters (used for actual filtering)
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("recent")
 
   const customerId = currentUser?._id || ""
-  // Status filter options
-  const statusFilterOptions: StatusFilterOption[] = [
+  // Status filter options - memoized to prevent dependency changes
+  const statusFilterOptions: StatusFilterOption[] = useMemo(() => [
     { id: "all", label: "All", icon: Clock },
     { id: "recent", label: "Recent", icon: Clock },
     { id: "active", label: "Active", icon: ListFilter },
@@ -49,7 +49,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     { id: "denied", label: "Denied", icon: XCircle },
     { id: "completed", label: "Completed", icon: CheckCircle },
     { id: "cancelled", label: "Cancelled", icon: Ban },
-  ]
+  ], [])
 
   const activeStatuses = new Set(["pre-order-pending", "pending", "accepted", "ready", "in-transit"])
 
@@ -60,16 +60,17 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   // Build per-order chat stats for all of this customer's orders to support "recent" filtering
   const allCustomerOrders = useMemo(() => orders.filter((o) => o.customerId === customerId), [orders, customerId])
   const allOrderIds = useMemo(() => allCustomerOrders.map((o) => o._id as string), [allCustomerOrders])
-  const perOrderStats = useQuery(api.chat.getPerOrderUnreadAndLast, allOrderIds.length ? { orderIds: allOrderIds } : "skip") ?? []
+  const perOrderStatsQuery = useQuery(api.chat.getPerOrderUnreadAndLast, allOrderIds.length ? { orderIds: allOrderIds } : "skip")
+  const perOrderStats = useMemo(() => perOrderStatsQuery ?? [], [perOrderStatsQuery])
   const statsMap = useMemo(() => {
-    const m = new Map<string, { unreadCount: number; lastMessage: any | null }>()
+    const m = new Map<string, { unreadCount: number; lastMessage: { timestamp: number; message?: string } | null }>()
     for (const r of perOrderStats) m.set(r.orderId, { unreadCount: r.unreadCount, lastMessage: r.lastMessage })
     return m
   }, [perOrderStats])
 
   const matchesStatus = (orderId: string, status: string) => {
     if (statusFilter === "all") return true
-    if (statusFilter === "active") return activeStatuses.has(status as any)
+    if (statusFilter === "active") return activeStatuses.has(status as OrderStatus)
     if (statusFilter === "recent") {
       const last = statsMap.get(orderId)?.lastMessage
       if (!last) return false
@@ -124,7 +125,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     statusFilter,
     orderType: "all",
     // Custom status matcher for inbox view
-    customStatusMatcher: (order, filter) => matchesStatus(order._id as string, order.status),
+    customStatusMatcher: (order) => matchesStatus(order._id as string, order.status),
     // Custom sort: most recent first (by last message for "recent", by creation time otherwise)
     customSort: (a, b) => {
       if (statusFilter === "recent") {

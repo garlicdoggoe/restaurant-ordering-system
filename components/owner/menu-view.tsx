@@ -7,12 +7,12 @@ import { Plus, Search } from "lucide-react"
 import { MenuItemCard } from "./menu-item-card"
 import { MenuItemDialog } from "./menu-item-dialog"
 import { CategoryFilter, Category } from "@/components/ui/category-filter"
-import { useData } from "@/lib/data-context"
+import { useData, type MenuItem } from "@/lib/data-context"
 
 export function MenuView() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [showAddDialog, setShowAddDialog] = useState(false)
-  const [editingItem, setEditingItem] = useState<any>(null)
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
   const { categories, menuItems } = useData()
@@ -122,7 +122,7 @@ export function MenuView() {
 
       {(showAddDialog || editingItem) && (
         <MenuItemDialog
-          item={editingItem}
+          item={editingItem ?? undefined}
           onClose={handleCloseDialog}
         />
       )}

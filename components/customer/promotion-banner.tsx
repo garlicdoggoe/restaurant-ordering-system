@@ -9,6 +9,7 @@ import Image from "next/image"
 import { useData } from "@/lib/data-context"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 
 // Component to resolve storageId to URL and display promotion image
 function PromotionBannerImage({ image, alt }: { image?: string; alt: string }) {
@@ -21,7 +22,7 @@ function PromotionBannerImage({ image, alt }: { image?: string; alt: string }) {
 
   const imageUrl = useQuery(
     api.files.getUrl,
-    isStorageId ? { storageId: image as any } : "skip"
+    isStorageId ? { storageId: image as Id<"_storage"> } : "skip"
   )
 
   // Final image source: resolved URL, original URL, or undefined (no image)
@@ -91,6 +92,17 @@ export function PromotionBanner() {
     if (currentIndex >= promotionsToShow.length) setCurrentIndex(0)
   }, [promotionsToShow.length, currentIndex])
 
+  // Restart auto-play after user interaction stops
+  useEffect(() => {
+    if (!isAutoPlaying && promotionsToShow.length > 1) {
+      // Restart auto-play after 10 seconds of no interaction
+      const timeout = setTimeout(() => {
+        setIsAutoPlaying(true)
+      }, 10000)
+      return () => clearTimeout(timeout)
+    }
+  }, [isAutoPlaying, promotionsToShow.length])
+
   // After hooks: render branches
   if (promotionsToShow.length === 0) {
     // Temporary: Show first promotion regardless of status for debugging
@@ -143,17 +155,6 @@ export function PromotionBanner() {
       </Card>
     )
   }
-
-  // Restart auto-play after user interaction stops
-  useEffect(() => {
-    if (!isAutoPlaying && promotionsToShow.length > 1) {
-      // Restart auto-play after 8 seconds of no interaction
-      const timeout = setTimeout(() => {
-        setIsAutoPlaying(true)
-      }, 10000)
-      return () => clearTimeout(timeout)
-    }
-  }, [isAutoPlaying, promotionsToShow.length])
 
   const goPrev = () => {
     setCurrentIndex((prev) => (prev - 1 + promotionsToShow.length) % promotionsToShow.length)

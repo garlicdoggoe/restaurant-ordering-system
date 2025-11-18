@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, ToggleLeft, ToggleRight } from "lucide-react"
-import { useData } from "@/lib/data-context"
+import { useData, type Voucher } from "@/lib/data-context"
 import { VoucherDialog } from "./voucher-dialog"
 
 export function VouchersView() {
   const [showDialog, setShowDialog] = useState(false)
-  const [editingVoucher, setEditingVoucher] = useState<any>(null)
+  const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null)
 
   const { vouchers, updateVoucher, deleteVoucher } = useData()
 
@@ -136,7 +136,7 @@ export function VouchersView() {
 
       {showDialog && (
         <VoucherDialog
-          voucher={editingVoucher}
+          voucher={editingVoucher ?? undefined}
           onClose={() => {
             setShowDialog(false)
             setEditingVoucher(null)

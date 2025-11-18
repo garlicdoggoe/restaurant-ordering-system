@@ -13,7 +13,7 @@ import { toast } from "sonner"
 import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
 import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
-import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
+import { isValidPhoneNumber } from "@/lib/phone-validation"
 
 interface ProfileCompletionProps {
   onComplete?: () => void

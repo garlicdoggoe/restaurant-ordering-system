@@ -10,17 +10,17 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Upload, MapPin, Hand, CreditCard, Smartphone } from "lucide-react"
-import { useData, type OrderType, type PreOrderFulfillment, type PaymentPlan, type RemainingPaymentMethod } from "@/lib/data-context"
+import { useData, type PreOrderFulfillment, type PaymentPlan, type RemainingPaymentMethod } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
-import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
+import { isValidPhoneNumber } from "@/lib/phone-validation"
 import { PaymentModal } from "@/components/ui/payment-modal"
 import { compressImage } from "@/lib/image-compression"
+import Image from "next/image"
 
 interface CartItem {
   id: string
@@ -44,7 +44,7 @@ interface CheckoutDialogProps {
 
 export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess, onOpenSettings, onNavigateToView }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("pre-order")
-  const { addOrder, currentUser, restaurant } = useData()
+  const { addOrder, currentUser } = useData()
   const { updateQuantity } = useCart()
   
   // Initialize form fields from current user when available; fall back to empty
@@ -59,8 +59,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   // Initialize with default valid values for mobile compatibility (first available date and time)
   const [preOrderDate, setPreOrderDate] = useState<string>("2025-12-21") // ISO date - default to first available date
   const [preOrderTime, setPreOrderTime] = useState<string>("13:00") // HH:MM - default to first available time
-  const [pickupDate, setPickupDate] = useState<string>("") // ISO date
-  const [pickupTime, setPickupTime] = useState<string>("") // HH:MM
   const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment">("full")
   const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
   // Special instructions with auto-save to localStorage
@@ -69,9 +67,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   // Validation error states
   const [dateError, setDateError] = useState<string>("")
   const [timeError, setTimeError] = useState<string>("")
-
-  // Payment method selection
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("cash")
 
   // Optional coordinates for delivery address (lng, lat)
   const [deliveryCoordinates, setDeliveryCoordinates] = useState<[number, number] | null>(null)
@@ -192,14 +187,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
     
     // Return date in YYYY-MM-DD format
     return date
-  }
-
-  // Helper function to convert 24-hour format to 12-hour format with AM/PM
-  const formatTime12Hour = (time24: string): string => {
-    const [hours, minutes] = time24.split(":").map(Number)
-    const period = hours >= 12 ? "PM" : "AM"
-    const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
-    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`
   }
 
   // Validates that pre-order time is between 1:00 PM and 7:00 PM
@@ -660,7 +647,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
               {/* GCash Payment Method */}
               {currentUser?.gcashNumber && (
                 <div className="flex items-center space-x-3">
-                  <img src="/gcash.png" alt="GCash" className="h-8 w-auto" />
+                  <Image src="/gcash.png" alt="GCash" width={100} height={32} className="h-8 w-auto" />
                   <p className="text-xs text-gray-800">
                     Manual GCash payment. Please send payment to {" "}
                     <span className="text-blue-600 font-medium">L** G** (+63) 915-777-0545</span>.
@@ -702,11 +689,12 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="relative">
-                    <img 
+                  <div className="relative w-full h-32">
+                    <Image 
                       src={previewUrl} 
                       alt="Payment proof" 
-                      className="w-full rounded border object-contain max-h-32 cursor-pointer hover:opacity-90 transition-opacity" 
+                      fill
+                      className="rounded border object-contain cursor-pointer hover:opacity-90 transition-opacity" 
                       onClick={() => setPaymentModalOpen(true)}
                     />
                   </div>

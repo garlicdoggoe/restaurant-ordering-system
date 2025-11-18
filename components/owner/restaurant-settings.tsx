@@ -13,7 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { useData } from "@/lib/data-context"
 import { PhoneInput } from "@/components/ui/phone-input"
-import { normalizePhoneNumber, isValidPhoneNumber } from "@/lib/phone-validation"
+import { isValidPhoneNumber } from "@/lib/phone-validation"
+import Image from "next/image"
 
 // Source for barangay list: DILG Region V (Camarines Sur - Libmanan)
 const LIBMANAN_BARANGAYS = [
@@ -112,7 +113,6 @@ export function RestaurantSettings() {
     openingTime: restaurant.openingTime || "10:00",
     closingTime: restaurant.closingTime || "18:30",
   })
-  const [logoFile, setLogoFile] = useState<File | null>(null)
   const [deliveryFees, setDeliveryFees] = useState<Record<string, string>>({})
 
   // Update form data when restaurant data changes from Convex
@@ -209,8 +209,6 @@ export function RestaurantSettings() {
         alert('File size must be less than 5MB')
         return
       }
-      
-      setLogoFile(file)
       
       // Create preview URL for immediate display
       const reader = new FileReader()
@@ -413,11 +411,12 @@ export function RestaurantSettings() {
               {formData.logo && (
                 <div className="mb-4">
                   <p className="text-sm text-gray-600 mb-2">Current logo:</p>
-                  <div className="w-24 h-24 border rounded-lg overflow-hidden bg-gray-50">
-                    <img 
-                      src={formData.logo} 
+                  <div className="w-24 h-24 border rounded-lg overflow-hidden bg-gray-50 relative">
+                    <Image 
+                      src={formData.logo || "/logo-placeholder.png"} 
                       alt="Restaurant logo" 
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   </div>
                 </div>

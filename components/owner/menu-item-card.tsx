@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { useState, useEffect } from "react"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { MenuItemImage } from "@/components/ui/menu-item-image"
 
 interface MenuItemCardProps {
@@ -30,7 +31,7 @@ export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
   const [displayPrice, setDisplayPrice] = useState(item.price)
 
   // Fetch variants to determine display price
-  const variants = useQuery(api.menu.getVariantsByMenuItem, { menuItemId: item._id as any })
+  const variants = useQuery(api.menu.getVariantsByMenuItem, { menuItemId: item._id as Id<"menu_items"> })
 
   useEffect(() => {
     if (variants && variants.length > 0) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -12,7 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Save, User, Mail, Phone, MapPin, Shield, CreditCard, Settings, Bell, Lock } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { SignupCallback } from "@/components/signup-callback"
 import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
@@ -31,7 +30,6 @@ export function UserProfileSettings() {
 
 function UserProfileSettingsContent() {
   const { user } = useUser()
-  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeSection, setActiveSection] = useState<"profile" | "security" | "notifications" | "preferences">("profile")
 
@@ -58,7 +56,7 @@ function UserProfileSettingsContent() {
       setAddress(currentUser.address || "")
       setGcashNumber(currentUser.gcashNumber || "")
       // Load saved coordinates into state and form field
-      const saved = (currentUser as any)?.coordinates as { lng: number; lat: number } | undefined
+      const saved = (currentUser as { coordinates?: { lng: number; lat: number } })?.coordinates
       if (saved && typeof saved.lng === 'number' && typeof saved.lat === 'number') {
         const asTuple: [number, number] = [saved.lng, saved.lat]
         setSelectedLngLat(asTuple)
@@ -139,7 +137,7 @@ function UserProfileSettingsContent() {
               key={section.id}
               variant={isActive ? "default" : "outline"}
               size="sm"
-              onClick={() => setActiveSection(section.id as any)}
+              onClick={() => setActiveSection(section.id as "profile" | "security" | "notifications" | "preferences")}
               className={`flex-shrink-0 gap-2 touch-target ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
             >
               <Icon className="h-4 w-4" />

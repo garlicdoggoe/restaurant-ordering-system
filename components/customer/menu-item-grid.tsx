@@ -3,9 +3,10 @@
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Heart } from "lucide-react"
+import { Plus } from "lucide-react"
 import { MenuItemOrderDialog } from "./menu-item-order-dialog"
 import { MenuItemImage } from "@/components/ui/menu-item-image"
+import type { CartItem } from "@/lib/cart-context"
 
 interface MenuItemGridProps {
   items: Array<{
@@ -15,24 +16,11 @@ interface MenuItemGridProps {
     price: number
     image: string
   }>
-  onAddToCart: (item: any, quantity?: number, suppressToast?: boolean) => void
+  onAddToCart: (item: Omit<CartItem, "quantity">, quantity?: number, suppressToast?: boolean) => void
 }
 
 export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
-  const [favorites, setFavorites] = useState<Set<string>>(new Set())
-  const [activeItem, setActiveItem] = useState<any | null>(null)
-
-  const toggleFavorite = (itemId: string) => {
-    setFavorites(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId)
-      } else {
-        newSet.add(itemId)
-      }
-      return newSet
-    })
-  }
+  const [activeItem, setActiveItem] = useState<MenuItemGridProps["items"][0] | null>(null)
 
   if (items.length === 0) {
     return (

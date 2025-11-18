@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Minus, Plus } from "lucide-react"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import type { Id } from "@/convex/_generated/dataModel"
 import { MenuItemImage } from "@/components/ui/menu-item-image"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { MenuItemVariant } from "@/lib/data-context"
 
 interface ItemSummary {
   id: string
@@ -34,14 +36,14 @@ interface MenuItemOrderDialogProps {
 }
 
 export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderDialogProps) {
-  const variants = useQuery(api.menu.getVariantsByMenuItem, item?.id ? { menuItemId: item.id as any } : "skip") || []
-
-  const availableVariants = useMemo(() => variants.filter((v: any) => v.available !== false), [variants])
+  const variantsQuery = useQuery(api.menu.getVariantsByMenuItem, item?.id ? { menuItemId: item.id as Id<"menu_items"> } : "skip")
+  const variants = useMemo(() => variantsQuery || [], [variantsQuery])
+  const availableVariants = useMemo(() => (variants as MenuItemVariant[]).filter((v) => v.available !== false), [variants])
 
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
   const [quantity, setQuantity] = useState<number>(1)
 
-  const selectedVariant = useMemo(() => availableVariants.find((v: any) => v._id === selectedVariantId) || null, [availableVariants, selectedVariantId])
+  const selectedVariant = useMemo(() => availableVariants.find((v) => v._id === selectedVariantId) || null, [availableVariants, selectedVariantId])
   const unitPrice = selectedVariant ? selectedVariant.price : item.price
 
   const handleConfirm = () => {
@@ -105,7 +107,7 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
                     <SelectValue placeholder="Select variant" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableVariants.map((v: any) => (
+                    {availableVariants.map((v) => (
                       <SelectItem key={v._id} value={String(v._id)}>
                         {v.name} - ₱{v.price.toFixed(2)}
                       </SelectItem>
@@ -116,7 +118,7 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
               
               {/* Desktop: Button Grid */}
               <div className="hidden md:grid grid-cols-2 xs:grid-cols-3 gap-2 xs:gap-3">
-                {availableVariants.map((v: any) => {
+                {availableVariants.map((v) => {
                   const selected = selectedVariantId === String(v._id)
                   return (
                     <Button
