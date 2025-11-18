@@ -234,10 +234,10 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   // Mirror the owner's configured schedule so we can enforce it client-side
   const preorderSchedule: PreorderSchedule = useMemo(() => {
     return (
-      restaurant?.preorderSchedule ?? {
-        restrictionsEnabled: false,
-        dates: [] as PreorderScheduleDate[],
-      }
+    restaurant?.preorderSchedule ?? {
+      restrictionsEnabled: false,
+      dates: [] as PreorderScheduleDate[],
+    }
     )
   }, [restaurant?.preorderSchedule])
   const scheduledDates = useMemo(
@@ -248,7 +248,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   const hasConfiguredDates = scheduledDates.length > 0
   const restrictionsActive = restrictionsEnabled && hasConfiguredDates
   const restrictionsEnabledButEmpty = restrictionsEnabled && !hasConfiguredDates
-  const restaurantLoaded = restaurant?._id !== ""
   
   // Initialize form fields from current user when available; fall back to empty
   const [customerAddress, setCustomerAddress] = useState(() => currentUser?.address ?? "")
@@ -784,18 +783,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
               <div className="space-y-3">
                 <Label className="text-xs md:text-sm text-gray-500">Pickup/Delivery Date & Time</Label>
 
-                {!restaurantLoaded ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <div className="h-4 w-32 rounded bg-muted animate-pulse" />
-                      <div className="h-10 w-full rounded bg-muted animate-pulse" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-4 w-40 rounded bg-muted animate-pulse" />
-                      <div className="h-10 w-full rounded bg-muted animate-pulse" />
-                    </div>
-                  </div>
-                ) : restrictionsEnabled ? (
+                {restrictionsEnabled ? (
                   hasConfiguredDates ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
@@ -853,41 +841,41 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                     </div>
                   )
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="preorder-date" className="block text-[11px] text-gray-500 mb-1">
-                        Date
-                      </Label>
-                      <Input
-                        id="preorder-date"
-                        type="date"
-                        value={preOrderDate}
-                        onChange={(e) => {
-                          const rawDate = e.target.value
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="preorder-date" className="block text-[11px] text-gray-500 mb-1">
+                      Date
+                    </Label>
+                    <Input
+                      id="preorder-date"
+                      type="date"
+                      value={preOrderDate}
+                      onChange={(e) => {
+                        const rawDate = e.target.value
                           const normalizedDate = clampPreOrderDate(rawDate)
                           setPreOrderDate(normalizedDate)
                           setDateError(validatePreOrderDate(normalizedDate))
-                        }}
-                        required
-                        className="w-full text-xs relative z-[100]"
-                        placeholder="mm/dd/yyyy"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="preorder-time" className="block text-[11px] text-gray-500 mb-1">
-                        Time
-                      </Label>
+                      }}
+                      required
+                      className="w-full text-xs relative z-[100]"
+                      placeholder="mm/dd/yyyy"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="preorder-time" className="block text-[11px] text-gray-500 mb-1">
+                      Time
+                    </Label>
                       <TimePicker
-                        id="preorder-time"
-                        value={preOrderTime}
+                      id="preorder-time"
+                      value={preOrderTime}
                         onChange={(value) => {
                           const normalizedTime = clampPreOrderTime(value)
                           setPreOrderTime(normalizedTime)
                           setTimeError(validatePreOrderTime(normalizedTime, preOrderDate))
-                        }}
-                      />
-                    </div>
+                      }}
+                    />
                   </div>
+                </div>
                 )}
 
                 {dateError && <p className="text-sm text-red-500 mt-1">{dateError}</p>}
