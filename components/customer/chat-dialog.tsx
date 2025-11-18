@@ -440,7 +440,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
             // Add additional padding (44px) for the Safari browser toolbar (address bar + bottom navigation)
             // This prevents the Safari toolbar from covering the input section on iOS
             paddingBottom: typeof window !== 'undefined' && isIOS 
-              ? `calc(env(safe-area-inset-bottom) + 44px)`
+              ? `calc(env(safe-area-inset-bottom) + 52px)`
               : undefined
           }}
         >
