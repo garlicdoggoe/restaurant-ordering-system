@@ -31,7 +31,7 @@ interface OrderHistoryProps {
 }
 
 export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
-  const { orders, updateOrder, currentUser, deliveryFees } = useData()
+  const { orders, updateOrder, currentUser } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
@@ -304,7 +304,6 @@ export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
                 onNavigateToInbox={onNavigateToInbox}
                 onCancelClick={() => setCancelOrderId(order._id)}
                 canCancel={showCancelButton}
-                deliveryFees={deliveryFees}
                 showCancelButton={showCancelButton}
               />
             )

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Check, X, CheckCircle, Edit } from "lucide-react"
 import { toast } from "sonner"
-import { useData, type Order, type DeliveryFee } from "@/lib/data-context"
+import { useData, type Order } from "@/lib/data-context"
 import { ChangeStatusDialog } from "./change-status-dialog"
 import { OrderCardBase } from "@/components/shared/order-card-base"
 import { isDeliveryOrder as isDeliveryOrderUtil, canEditOrderStatus } from "@/lib/order-utils"
@@ -14,7 +14,6 @@ interface OrderCardProps {
   onStatusChange: () => void
   onDenyClick: (orderId: string) => void
   onAcceptClick?: (orderId: string) => void
-  deliveryFees: DeliveryFee[]
   // Optional delivery coordinates [lng, lat]
   deliveryCoordinates?: [number, number] | null
   // Expanded state for mobile collapse/expand
@@ -27,7 +26,6 @@ export function OrderCard({
   onStatusChange, 
   onDenyClick, 
   onAcceptClick,
-  deliveryFees,
   deliveryCoordinates,
   isExpanded,
   onToggleExpand,
@@ -263,7 +261,6 @@ export function OrderCard({
         order={order}
         isExpanded={isExpanded}
         onToggleExpand={onToggleExpand}
-        deliveryFees={deliveryFees}
         deliveryCoordinates={mapCoordinates}
         showDeliveryMap={isDeliveryOrder}
         actionButtons={renderActionButtons()}

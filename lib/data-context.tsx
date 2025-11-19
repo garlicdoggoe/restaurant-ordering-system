@@ -62,6 +62,7 @@ export interface Restaurant {
   averageDeliveryTime: number
   platformFee?: number // Platform service fee
   platformFeeEnabled?: boolean // Whether platform fee is enabled
+  feePerKilometer?: number // Delivery fee per kilometer (default 15)
   preorderSchedule?: PreorderSchedule
   coordinates?: {
     lng: number
@@ -152,6 +153,7 @@ export interface Order {
   items: OrderItem[]
   subtotal: number
   platformFee: number
+  deliveryFee?: number // Delivery fee calculated based on distance
   discount: number
   total: number
   orderType: OrderType
@@ -237,11 +239,6 @@ interface DataContextType {
   restaurant: Restaurant
   updateRestaurant: (data: Partial<Restaurant>) => void
 
-  // Delivery Fees
-  deliveryFees: DeliveryFee[]
-  updateDeliveryFee: (barangay: string, fee: number) => void
-  bulkUpdateDeliveryFees: (fees: { barangay: string; fee: number }[]) => void
-  removeDeliveryFee: (barangay: string) => void
 
   // Categories
   categories: Category[]
@@ -343,7 +340,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Queries
   const restaurantDoc = useQuery(api.restaurant.get) ?? null
-  const deliveryFeesDocs = useQuery(api.delivery_fees.list) ?? []
   const categoriesDocs = useQuery(api.menu.getCategories) ?? []
   const menuDocs = useQuery(api.menu.getMenuItems, {}) ?? []
   // Orders are role-filtered server-side. This returns either all orders (owner) or only the current customer's orders.
@@ -436,9 +432,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Mutations
   const upsertRestaurant = useMutation(api.restaurant.upsert)
-  const upsertDeliveryFee = useMutation(api.delivery_fees.upsert)
-  const bulkUpsertDeliveryFees = useMutation(api.delivery_fees.bulkUpsert)
-  const removeDeliveryFeeMut = useMutation(api.delivery_fees.remove)
   const createMenuItem = useMutation(api.menu.addMenuItem)
   const patchMenuItem = useMutation(api.menu.updateMenuItem)
   const removeMenuItem = useMutation(api.menu.deleteMenuItem)
@@ -512,14 +505,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         preorderSchedule: normalizePreorderSchedule(undefined),
       } as Restaurant), [restaurantDoc])
 
-  const deliveryFees: DeliveryFee[] = deliveryFeesDocs.map((df) => ({
-    _id: df._id as string,
-    barangay: df.barangay,
-    fee: df.fee,
-    createdAt: df.createdAt,
-    updatedAt: df.updatedAt,
-  }))
-
   const categories: Category[] = categoriesDocs.map((c) => ({ _id: c._id as string, name: c.name, icon: c.icon, order: c.order }))
   const menuItems: MenuItem[] = menuDocs.map((m) => ({ _id: m._id as string, name: m.name, description: m.description, price: m.price, category: m.category, image: m.image, available: m.available }))
   const orders: Order[] = ordersDocs.map((o) => ({
@@ -534,6 +519,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     items: o.items,
     subtotal: o.subtotal,
     platformFee: o.platformFee,
+    deliveryFee: o.deliveryFee,
     discount: o.discount,
     total: o.total,
     orderType: o.orderType,
@@ -570,6 +556,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       items: OrderItem[]
       subtotal: number
       platformFee: number
+      deliveryFee?: number
       discount: number
       total: number
       orderType: OrderType
@@ -603,6 +590,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     items: order.items,
     subtotal: order.subtotal,
     platformFee: order.platformFee,
+    deliveryFee: order.deliveryFee,
     discount: order.discount,
     total: order.total,
     orderType: order.orderType,
@@ -661,18 +649,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     void upsertRestaurant(body)
   }, [restaurant, upsertRestaurant])
-
-  const updateDeliveryFee = useCallback((barangay: string, fee: number) => {
-    void upsertDeliveryFee({ barangay, fee })
-  }, [upsertDeliveryFee])
-
-  const bulkUpdateDeliveryFees = useCallback((fees: { barangay: string; fee: number }[]) => {
-    void bulkUpsertDeliveryFees({ fees })
-  }, [bulkUpsertDeliveryFees])
-
-  const removeDeliveryFee = useCallback((barangay: string) => {
-    void removeDeliveryFeeMut({ barangay })
-  }, [removeDeliveryFeeMut])
 
   const addMenuItem = useCallback((item: Omit<MenuItem, "_id">) => {
     void createMenuItem({
@@ -758,6 +734,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       items: order.items,
       subtotal: order.subtotal,
       platformFee: order.platformFee,
+      deliveryFee: order.deliveryFee,
       discount: order.discount,
       total: order.total,
       orderType: order.orderType,
@@ -929,10 +906,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     currentUser,
     restaurant,
     updateRestaurant,
-    deliveryFees,
-    updateDeliveryFee,
-    bulkUpdateDeliveryFees,
-    removeDeliveryFee,
     categories,
     menuItems,
     addMenuItem,

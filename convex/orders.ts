@@ -141,6 +141,7 @@ export const create = mutation({
     ),
     subtotal: v.number(),
     platformFee: v.number(),
+    deliveryFee: v.optional(v.number()), // Delivery fee calculated based on distance
     discount: v.number(),
     total: v.number(),
     orderType: v.union(
@@ -645,8 +646,9 @@ export const updateOrderItems = mutation({
     // Calculate new totals
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const platformFee = existing.platformFee || 0;
+    const deliveryFee = existing.deliveryFee || 0; // Preserve delivery fee when recalculating
     const discount = existing.discount || 0;
-    const total = subtotal + platformFee - discount;
+    const total = subtotal + platformFee + deliveryFee - discount;
 
     // Store previous state for audit log
     const previousValue = JSON.stringify({

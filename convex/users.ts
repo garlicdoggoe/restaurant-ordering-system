@@ -1,5 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 // Get current user profile
 export const getCurrentUser = query({
@@ -134,6 +135,7 @@ export const updateUserProfile = mutation({
       })
     ),
     gcashNumber: v.optional(v.string()),
+    distance: v.optional(v.union(v.number(), v.null())), // Distance in meters (calculated client-side via action)
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -159,6 +161,18 @@ export const updateUserProfile = mutation({
       const gcashNumber = args.gcashNumber ?? user.gcashNumber;
       updatedData.profileComplete = !!(phone && address && gcashNumber);
     }
+
+    // Distance is calculated client-side and passed as parameter
+    // If distance is provided, use it (could be number or null)
+    // If coordinates are being updated but distance not provided, set to null
+    if (args.distance !== undefined) {
+      updatedData.distance = args.distance;
+    } else if (args.coordinates !== undefined) {
+      // Coordinates are being updated but distance wasn't calculated
+      // This shouldn't happen in normal flow, but handle it gracefully
+      updatedData.distance = null;
+    }
+    // If neither coordinates nor distance are being updated, don't modify distance field
 
     await ctx.db.patch(user._id, updatedData);
     return user._id;
@@ -216,6 +230,33 @@ export const validateOwnerCode = mutation({
   },
 });
 
+// Debug query to check distance calculation status
+export const debugDistanceCalculation = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    const restaurant = await ctx.db.query("restaurant").collect();
+    
+    return {
+      userHasCoordinates: !!user?.coordinates,
+      userCoordinates: user?.coordinates,
+      userDistance: user?.distance,
+      restaurantExists: restaurant.length > 0,
+      restaurantHasCoordinates: !!restaurant[0]?.coordinates,
+      restaurantCoordinates: restaurant[0]?.coordinates,
+      mapboxTokenSet: !!process.env.MAPBOX_ACCESS_TOKEN,
+    };
+  },
+});
+
 // List all users (admin only)
 export const listUsers = query({
   args: {},
@@ -235,5 +276,79 @@ export const listUsers = query({
     }
 
     return await ctx.db.query("users").collect();
+  },
+});
+
+/**
+ * Calculate distance between customer coordinates and restaurant coordinates
+ * using Mapbox Directions API. Returns distance in meters.
+ * 
+ * @param customerCoordinates - Customer location as {lng, lat}
+ * @param restaurantCoordinates - Restaurant location as {lng, lat}
+ * @returns Distance in meters, or null if route not found or API error
+ */
+export const calculateDistance = action({
+  args: {
+    customerCoordinates: v.object({
+      lng: v.number(),
+      lat: v.number(),
+    }),
+    restaurantCoordinates: v.object({
+      lng: v.number(),
+      lat: v.number(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    // Get Mapbox access token from environment variables
+    const accessToken = process.env.MAPBOX_ACCESS_TOKEN;
+    
+    if (!accessToken) {
+      console.error("MAPBOX_ACCESS_TOKEN environment variable is not set in Convex. Please set it in Settings > Environment Variables.");
+      return null;
+    }
+
+    try {
+      // Format coordinates for Mapbox Directions API
+      // Format: {lng},{lat};{lng},{lat} (semicolon-separated)
+      // Start from restaurant, end at customer (or vice versa - doesn't matter for distance)
+      const coordinates = `${args.restaurantCoordinates.lng},${args.restaurantCoordinates.lat};${args.customerCoordinates.lng},${args.customerCoordinates.lat}`;
+      
+      // Use driving profile for route calculation
+      const profile = "mapbox/driving";
+      
+      // Build API URL
+      const url = `https://api.mapbox.com/directions/v5/${profile}/${coordinates}?access_token=${accessToken}`;
+      
+      // Call Mapbox Directions API
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Unknown error");
+        console.error(`Mapbox Directions API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+        return null;
+      }
+      
+      const data = await response.json();
+      
+      // Check if route was found
+      if (data.code === "NoRoute" || !data.routes || data.routes.length === 0) {
+        console.warn(`No route found between coordinates. Restaurant: [${args.restaurantCoordinates.lng}, ${args.restaurantCoordinates.lat}], Customer: [${args.customerCoordinates.lng}, ${args.customerCoordinates.lat}]`);
+        return null;
+      }
+      
+      // Extract distance from first route (in meters)
+      const distance = data.routes[0]?.distance;
+      
+      if (typeof distance !== "number") {
+        console.error("Invalid distance in API response:", data);
+        return null;
+      }
+      
+      console.log(`Distance calculated successfully: ${distance} meters (${(distance / 1000).toFixed(2)} km)`);
+      return distance;
+    } catch (error) {
+      console.error("Error calculating distance via Mapbox Directions API:", error);
+      return null;
+    }
   },
 });

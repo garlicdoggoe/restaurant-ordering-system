@@ -6,10 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { MessageSquare, Ban, ChevronDown, ChevronUp, FileText, Upload} from "lucide-react"
-import { type Order, type DeliveryFee } from "@/lib/data-context"
+import { type Order } from "@/lib/data-context"
 import { PaymentProofUploadDialog } from "@/components/ui/payment-proof-upload-dialog"
 import {
-  getDeliveryFeeFromAddress,
   isDeliveryOrder as isDeliveryOrderUtil,
   getOrderTypePrefix,
   calculateFullOrderTotal,
@@ -26,7 +25,6 @@ interface OrderCardProps {
   onNavigateToInbox?: (orderId: string) => void
   onCancelClick?: () => void
   canCancel?: boolean
-  deliveryFees: DeliveryFee[]
   showCancelButton?: boolean
   cancellationNotice?: string | null
 }
@@ -39,7 +37,6 @@ export function OrderCard({
   onNavigateToInbox,
   onCancelClick,
   canCancel = false,
-  deliveryFees,
   showCancelButton = false,
   cancellationNotice,
 }: OrderCardProps) {
@@ -56,9 +53,9 @@ export function OrderCard({
   // Determine order type prefix
   const orderTypePrefix = getOrderTypePrefix(order.orderType)
   
-  // Calculate delivery fee for delivery orders
+  // Get delivery fee from order (already calculated and stored)
   const isDeliveryOrder = isDeliveryOrderUtil(order)
-  const deliveryFee = isDeliveryOrder ? getDeliveryFeeFromAddress(order.customerAddress, deliveryFees) : 0
+  const deliveryFee = order.deliveryFee || 0
   
   // Calculate full order total (subtotal + platformFee + deliveryFee - discount)
   const fullOrderTotal = calculateFullOrderTotal(

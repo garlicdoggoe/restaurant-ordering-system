@@ -4,7 +4,7 @@
  */
 
 import { Clock, CheckCircle, XCircle, Truck, Package, CircleCheck, Ban } from "lucide-react"
-import type { Order, DeliveryFee, OrderStatus } from "@/lib/data-context"
+import type { Order, OrderStatus } from "@/lib/data-context"
 import React from "react"
 
 /**
@@ -38,26 +38,37 @@ export function getOrderTypePrefix(orderType: Order["orderType"]): string {
 }
 
 /**
- * Get delivery fee from address by matching barangay names
- * Tries to match barangay names from deliveryFees array against the address string
+ * Calculate delivery fee based on distance in meters
+ * Fee structure:
+ * - 0-0.5km (0-500m): 0 pesos (free)
+ * - 0.5-1km (500-1000m): 20 pesos
+ * - >1km: 20 pesos + (distanceInKm - 1) * feePerKilometer
+ * 
+ * @param distanceInMeters - Distance in meters between restaurant and customer
+ * @param feePerKilometer - Fee per kilometer for distances over 1km (default 15)
+ * @returns Delivery fee in pesos
  */
-export function getDeliveryFeeFromAddress(address: string | undefined, deliveryFees: DeliveryFee[]): number {
-  if (!address) return 0
-  
-  const addressLower = address.toLowerCase()
-  
-  // Try to find matching barangay in address
-  for (const df of deliveryFees) {
-    const barangayLower = df.barangay.toLowerCase()
-    // Check if barangay name appears in address (handles "Puro-Batia" vs "Puro Batia" variations)
-    if (addressLower.includes(barangayLower) || 
-        addressLower.includes(barangayLower.replace(/-/g, " ")) || 
-        addressLower.includes(barangayLower.replace(/ /g, "-"))) {
-      return df.fee
-    }
+export function calculateDeliveryFee(distanceInMeters: number | null | undefined, feePerKilometer: number = 15): number {
+  // If distance is not available or invalid, return 0
+  if (distanceInMeters === null || distanceInMeters === undefined || distanceInMeters < 0) {
+    return 0
   }
-  
-  return 0
+
+  // Convert meters to kilometers
+  const distanceInKm = distanceInMeters / 1000
+
+  // 0-0.5km: free
+  if (distanceInKm <= 0.5) {
+    return 0
+  }
+
+  // 0.5-1km: 20 pesos
+  if (distanceInKm <= 1) {
+    return 20
+  }
+
+  // >1km: 20 pesos + (distance - 1) * feePerKilometer
+  return 20 + (distanceInKm - 1) * feePerKilometer
 }
 
 /**

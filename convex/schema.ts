@@ -17,6 +17,7 @@ export default defineSchema({
       })
     ),
     gcashNumber: v.optional(v.string()), // GCash payment method number
+    distance: v.optional(v.union(v.number(), v.null())), // Distance from restaurant in meters (calculated via Mapbox Directions API), null if calculation failed
     profileComplete: v.boolean(), // Whether customer has completed profile
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -36,6 +37,7 @@ export default defineSchema({
     averageDeliveryTime: v.number(),
     platformFee: v.optional(v.number()), // Platform service fee
     platformFeeEnabled: v.optional(v.boolean()), // Whether platform fee is enabled
+    feePerKilometer: v.optional(v.number()), // Delivery fee per kilometer (default 15)
     preorderSchedule: v.optional(
       v.object({
         restrictionsEnabled: v.boolean(),
@@ -102,6 +104,7 @@ export default defineSchema({
     ),
     subtotal: v.number(),
     platformFee: v.number(),
+    deliveryFee: v.optional(v.number()), // Delivery fee calculated based on distance
     discount: v.number(),
     total: v.number(),
     orderType: v.union(

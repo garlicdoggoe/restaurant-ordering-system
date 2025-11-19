@@ -20,7 +20,7 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
   // Track expanded state for each order (for mobile collapse/expand)
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
 
-  const { ordersByStatus, deliveryFees } = useData()
+  const { ordersByStatus } = useData()
 
   // Helper function to check if a timestamp is from today (local time)
   // Compares the date portion only, ignoring time
@@ -235,7 +235,6 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
             }}
             onDenyClick={(orderId) => setDenyOrderId(orderId)}
             onAcceptClick={(orderId) => setAcceptOrderId(orderId)}
-            deliveryFees={deliveryFees}
           />
         ))}
       </div>
@@ -256,7 +255,6 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
                 }}
                 onDenyClick={(orderId) => setDenyOrderId(orderId)}
                 onAcceptClick={(orderId) => setAcceptOrderId(orderId)}
-                deliveryFees={deliveryFees}
               />
             ))}
           </div>

@@ -106,9 +106,10 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
   const calculateTotals = (items: OrderItem[]) => {
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
     const platformFee = order?.platformFee || 0
+    const deliveryFee = order?.deliveryFee || 0
     const discount = order?.discount || 0
-    const total = subtotal + platformFee - discount
-    return { subtotal, platformFee, discount, total }
+    const total = subtotal + platformFee + deliveryFee - discount
+    return { subtotal, platformFee, deliveryFee, discount, total }
   }
 
   const currentItems = isEditMode ? editedItems : (order?.items || [])
@@ -337,6 +338,12 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                   <span className="text-muted-foreground">Platform fee</span>
                   <span>₱{totals.platformFee.toFixed(2)}</span>
                 </div>
+                {totals.deliveryFee > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Delivery fee</span>
+                    <span>₱{totals.deliveryFee.toFixed(2)}</span>
+                  </div>
+                )}
                 {totals.discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>

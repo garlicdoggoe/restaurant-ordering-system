@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
-import { useMutation, useQuery } from "convex/react"
+import { useMutation, useQuery, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,6 +46,8 @@ function UserProfileSettingsContent() {
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
   const updateProfile = useMutation(api.users.updateUserProfile)
+  const calculateDistance = useAction(api.users.calculateDistance)
+  const restaurant = useQuery(api.restaurant.get)
 
   // Initialize and keep form data in sync with server state
   useEffect(() => {
@@ -95,6 +97,24 @@ function UserProfileSettingsContent() {
       const normalizedPhone = phone.trim() || ""
       const normalizedGcash = gcashNumber.trim() || ""
 
+      // Calculate distance if coordinates are provided and restaurant coordinates exist
+      let calculatedDistance: number | null | undefined = undefined
+      if (selectedLngLat && restaurant?.coordinates) {
+        try {
+          calculatedDistance = await calculateDistance({
+            customerCoordinates: { lng: selectedLngLat[0], lat: selectedLngLat[1] },
+            restaurantCoordinates: restaurant.coordinates,
+          })
+        } catch (error) {
+          console.error("Failed to calculate distance:", error)
+          // Set to null if calculation failed
+          calculatedDistance = null
+        }
+      } else if (!selectedLngLat) {
+        // No coordinates selected, distance should be null
+        calculatedDistance = null
+      }
+
       await updateProfile({
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
@@ -102,6 +122,7 @@ function UserProfileSettingsContent() {
         address: address.trim(),
         coordinates: selectedLngLat ? { lng: selectedLngLat[0], lat: selectedLngLat[1] } : undefined,
         gcashNumber: normalizedGcash,
+        distance: calculatedDistance, // Pass calculated distance to mutation (undefined if coordinates not changed)
       })
 
       toast.success("Profile updated successfully!")
@@ -288,6 +309,21 @@ function UserProfileSettingsContent() {
                     coordinates={selectedLngLat}
                     onCoordinatesChange={setSelectedLngLat}
                   />
+
+                  {/* Display distance from restaurant */}
+                  {currentUser?.distance !== undefined && currentUser.distance !== null ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span>
+                        Distance from restaurant: <span className="font-semibold">{(currentUser.distance / 1000).toFixed(2)} km</span>
+                      </span>
+                    </div>
+                  ) : currentUser?.coordinates ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span>Distance calculation unavailable</span>
+                    </div>
+                  ) : null}
 
                 </div>
 

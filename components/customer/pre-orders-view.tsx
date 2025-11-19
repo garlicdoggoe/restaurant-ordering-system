@@ -30,7 +30,7 @@ interface PreOrdersViewProps {
 }
 
 export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
-  const { orders, currentUser, deliveryFees } = useData()
+  const { orders, currentUser } = useData()
   const customerId = currentUser?._id || ""
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
@@ -201,7 +201,6 @@ export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
                 onNavigateToInbox={onNavigateToInbox}
                 onCancelClick={() => setCancelOrderId(order._id)}
                 canCancel={cancellationCheck.allowed}
-                deliveryFees={deliveryFees}
                 showCancelButton={cancellationCheck.allowed}
                 cancellationNotice={cancellationNotice}
               />

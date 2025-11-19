@@ -38,7 +38,6 @@ import {
   getStatusDescription,
   getOrderBorderClass,
   isDeliveryOrder,
-  getDeliveryFeeFromAddress,
   calculateFullOrderTotal,
   getOrderTypePrefix,
 } from "@/lib/order-utils"
@@ -48,7 +47,7 @@ interface OrderTrackingProps {
 }
 
 export function OrderTracking({ orderId }: OrderTrackingProps) {
-  const { getOrderById, updateOrder, deliveryFees } = useData()
+  const { getOrderById, updateOrder } = useData()
   const order = getOrderById(orderId)
   const [chatOpen, setChatOpen] = useState(false)
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null)
@@ -188,9 +187,9 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
     })
   }
 
-  // Calculate delivery fee and totals using utilities
+  // Get delivery fee from order (already calculated and stored)
   const isDelivery = isDeliveryOrder(order)
-  const deliveryFee = isDelivery ? getDeliveryFeeFromAddress(order.customerAddress, deliveryFees) : 0
+  const deliveryFee = order.deliveryFee || 0
   const fullOrderTotal = calculateFullOrderTotal(
     order.subtotal,
     order.platformFee,

@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Calendar, RefreshCcw, Clock4, Eye } from "lucide-react"
 import { OrderDetails } from "./order-details"
+import { calculateFullOrderTotal } from "@/lib/order-utils"
 
 type MonitoringMode = "aggregated" | "timeline"
 
@@ -107,6 +108,14 @@ export function TotalMonitoringView() {
       const timestamp = getOrderDate(order).getTime()
       const existing = byCustomer.get(order.customerId)
 
+      // Recalculate total using deliveryFee from order
+      const orderTotal = calculateFullOrderTotal(
+        order.subtotal,
+        order.platformFee,
+        order.deliveryFee || 0,
+        order.discount
+      )
+
       if (!existing) {
         byCustomer.set(order.customerId, {
           id: `${order.customerId}-${timestamp}`,
@@ -115,7 +124,7 @@ export function TotalMonitoringView() {
           customerName: order.customerName,
           fulfillment: order.preOrderFulfillment,
           items: [...order.items],
-          total: order.total,
+          total: orderTotal,
           primaryOrderId: order._id,
           orderIds: [order._id],
         })
@@ -132,7 +141,7 @@ export function TotalMonitoringView() {
 
       // Append every item so staff can see the complete haul per customer
       existing.items = [...existing.items, ...order.items]
-      existing.total += order.total
+      existing.total += orderTotal
       existing.orderIds = [...existing.orderIds, order._id]
     })
 
@@ -146,7 +155,16 @@ export function TotalMonitoringView() {
       (acc, order) => acc + order.items.reduce((sum, item) => sum + item.quantity, 0),
       0,
     )
-    const revenue = preOrdersForDate.reduce((acc, order) => acc + order.total, 0)
+    // Recalculate revenue using deliveryFee from each order
+    const revenue = preOrdersForDate.reduce((acc, order) => {
+      const orderTotal = calculateFullOrderTotal(
+        order.subtotal,
+        order.platformFee,
+        order.deliveryFee || 0,
+        order.discount
+      )
+      return acc + orderTotal
+    }, 0)
     const uniqueCustomers = new Set(preOrdersForDate.map((order) => order.customerId)).size
     return { totalOrders, totalItems, revenue, uniqueCustomers }
   }, [preOrdersForDate])

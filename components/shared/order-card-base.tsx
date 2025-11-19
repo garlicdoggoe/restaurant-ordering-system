@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronDown, ChevronUp, MapPin, ShoppingBag, Edit, Plus, Minus, Trash2, Check, X } from "lucide-react"
-import { type Order, type DeliveryFee, type OrderItem, useData } from "@/lib/data-context"
+import { type Order, type OrderItem, useData } from "@/lib/data-context"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
@@ -18,7 +18,6 @@ import { PaymentModal } from "@/components/ui/payment-modal"
 import { AddOrderItemDialog } from "@/components/owner/add-order-item-dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
-  getDeliveryFeeFromAddress,
   isDeliveryOrder as isDeliveryOrderUtil,
   getOrderTypePrefix,
   getStatusIcon,
@@ -30,7 +29,6 @@ interface OrderCardBaseProps {
   order: Order
   isExpanded: boolean
   onToggleExpand: () => void
-  deliveryFees: DeliveryFee[]
   // Optional cancellation notice to display
   cancellationNotice?: string | null
   // Optional delivery coordinates for map display [lng, lat]
@@ -47,7 +45,6 @@ export function OrderCardBase({
   order,
   isExpanded,
   onToggleExpand,
-  deliveryFees,
   cancellationNotice,
   deliveryCoordinates,
   actionButtons,
@@ -60,9 +57,8 @@ export function OrderCardBase({
   // Determine order type prefix
   const orderTypePrefix = getOrderTypePrefix(order.orderType)
   
-  // Calculate delivery fee for delivery orders
+  // Get delivery fee from order (already calculated and stored)
   const isDeliveryOrder = isDeliveryOrderUtil(order)
-  const deliveryFee = isDeliveryOrder ? getDeliveryFeeFromAddress(order.customerAddress, deliveryFees) : 0
 
   // Determine coordinates for map: use provided coordinates > order's stored coordinates > null
   // Order's customerCoordinates are stored at order creation time (isolated per order)
@@ -326,9 +322,10 @@ export function OrderCardBase({
   const calculateTotals = (items: OrderItem[]) => {
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
     const platformFee = order.platformFee || 0
+    const deliveryFee = order.deliveryFee || 0
     const discount = order.discount || 0
     const total = subtotal + platformFee + deliveryFee - discount
-    return { subtotal, platformFee, discount, total }
+    return { subtotal, platformFee, deliveryFee, discount, total }
   }
 
   // Use edited items when in edit mode, otherwise use original items
@@ -666,10 +663,10 @@ export function OrderCardBase({
                   <span>Platform fee</span>
                   <span>₱{totals.platformFee.toFixed(2)}</span>
                 </div>
-                {deliveryFee > 0 && (
+                {totals.deliveryFee > 0 && (
                   <div className="flex justify-between">
                     <span>Delivery fee</span>
-                    <span>₱{deliveryFee.toFixed(2)}</span>
+                    <span>₱{totals.deliveryFee.toFixed(2)}</span>
                   </div>
                 )}
                 {totals.discount > 0 && (

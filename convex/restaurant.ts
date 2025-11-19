@@ -24,6 +24,7 @@ export const upsert = mutation({
     averageDeliveryTime: v.number(),
     platformFee: v.optional(v.number()), // Platform service fee
     platformFeeEnabled: v.optional(v.boolean()), // Whether platform fee is enabled
+    feePerKilometer: v.optional(v.number()), // Delivery fee per kilometer (default 15)
     preorderSchedule: v.optional(
       v.object({
         restrictionsEnabled: v.boolean(),
@@ -67,9 +68,12 @@ export const upsert = mutation({
       };
     };
     const preorderSchedule = normalizeSchedule(args.preorderSchedule ?? existing[0]?.preorderSchedule);
+    // Default feePerKilometer to 15 if not provided
+    const feePerKilometer = args.feePerKilometer ?? existing[0]?.feePerKilometer ?? 15;
     if (existing[0]) {
       await ctx.db.patch(existing[0]._id, {
         ...args,
+        feePerKilometer,
         preorderSchedule,
         updatedAt: now,
       });
@@ -77,10 +81,35 @@ export const upsert = mutation({
     }
     return await ctx.db.insert("restaurant", {
       ...args,
+      feePerKilometer,
       preorderSchedule,
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
+
+// Set restaurant coordinates (helper mutation for easy setup)
+export const setCoordinates = mutation({
+  args: {
+    coordinates: v.object({
+      lng: v.number(),
+      lat: v.number(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.query("restaurant").collect();
+    const now = Date.now();
+    
+    if (existing[0]) {
+      await ctx.db.patch(existing[0]._id, {
+        coordinates: args.coordinates,
+        updatedAt: now,
+      });
+      return existing[0]._id;
+    } else {
+      throw new Error("Restaurant record does not exist. Please create restaurant first using upsert mutation.");
+    }
   },
 });
 

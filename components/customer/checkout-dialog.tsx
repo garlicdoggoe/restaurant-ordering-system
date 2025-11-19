@@ -14,9 +14,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Separator } from "@/components/ui/separator"
 import { useData, type PreOrderFulfillment, type PaymentPlan, type RemainingPaymentMethod, type PreorderSchedule, type PreorderScheduleDate } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
-import { useMutation } from "convex/react"
+import { useMutation, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
+import { calculateDeliveryFee } from "@/lib/order-utils"
 import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { isValidPhoneNumber } from "@/lib/phone-validation"
@@ -249,7 +250,7 @@ const TimePicker = ({ id, value, onChange, disabled }: TimePickerProps) => {
   )
 }
 
-export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, onSuccess, onOpenSettings, onNavigateToView }: CheckoutDialogProps) {
+export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSuccess, onOpenSettings, onNavigateToView }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("pre-order")
   const { addOrder, currentUser, restaurant } = useData()
   const { updateQuantity } = useCart()
@@ -277,7 +278,10 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
+  const calculateDistance = useAction(api.users.calculateDistance)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deliveryFee, setDeliveryFee] = useState<number>(0)
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false)
 
   // Pre-order fields
   const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery">("pickup")
@@ -325,6 +329,53 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       setCustomerAddress((prev) => prev || (currentUser.address as string))
     }
   }, [orderType, preOrderFulfillment, currentUser?.address])
+
+  // Calculate delivery fee when delivery is selected and coordinates are available
+  useEffect(() => {
+    const isDelivery = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
+    
+    if (!isDelivery) {
+      setDeliveryFee(0)
+      setIsCalculatingDistance(false)
+      return
+    }
+
+    // Need both restaurant and customer coordinates to calculate distance
+    if (!restaurant?.coordinates || !deliveryCoordinates) {
+      setDeliveryFee(0)
+      setIsCalculatingDistance(false)
+      return
+    }
+
+    // Calculate distance and delivery fee
+    const calculateFee = async () => {
+      setIsCalculatingDistance(true)
+      try {
+        if (!restaurant.coordinates) {
+          console.error("Restaurant coordinates not available")
+          setDeliveryFee(0)
+          setIsCalculatingDistance(false)
+          return
+        }
+        
+        const distanceInMeters = await calculateDistance({
+          customerCoordinates: { lng: deliveryCoordinates[0], lat: deliveryCoordinates[1] },
+          restaurantCoordinates: restaurant.coordinates,
+        })
+        
+        const feePerKm = restaurant.feePerKilometer ?? 15
+        const calculatedFee = calculateDeliveryFee(distanceInMeters, feePerKm)
+        setDeliveryFee(calculatedFee)
+      } catch (error) {
+        console.error("Failed to calculate delivery fee:", error)
+        setDeliveryFee(0)
+      } finally {
+        setIsCalculatingDistance(false)
+      }
+    }
+
+    void calculateFee()
+  }, [orderType, preOrderFulfillment, deliveryCoordinates, restaurant?.coordinates, restaurant?.feePerKilometer, calculateDistance])
 
   // Keep the date/time inputs synchronized with whatever the owner configured
   useEffect(() => {
@@ -601,6 +652,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       const normalizedPhone = currentUser.phone
       const customerName = `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim()
 
+      // Calculate final total including delivery fee
+      const finalTotal = subtotal + platformFee + deliveryFee
+
       addOrder({
         // Backend enforces and overrides customerId to the authenticated user; provide for types
         customerId: currentUser._id,
@@ -612,13 +666,14 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
         items: orderItems,
         subtotal,
         platformFee,
+        deliveryFee: (orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) ? deliveryFee : undefined,
         discount: 0,
-        total,
+        total: finalTotal,
         orderType,
         preOrderFulfillment: orderType === "pre-order" ? preOrderFulfillment : undefined,
         preOrderScheduledAt,
         paymentPlan: orderType === "pre-order" ? paymentPlan : undefined,
-        downpaymentAmount: orderType === "pre-order" && paymentPlan === "downpayment" ? total * 0.5 : undefined,
+        downpaymentAmount: orderType === "pre-order" && paymentPlan === "downpayment" ? finalTotal * 0.5 : undefined,
         downpaymentProofUrl: undefined,
         remainingPaymentMethod: orderType === "pre-order" && paymentPlan === "downpayment" ? (downpaymentMethod === "online" ? "online" : "cash") : undefined,
         status: orderType === "pre-order" ? "pre-order-pending" : "pending",
@@ -627,7 +682,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
       })
 
       toast.success("Order placed successfully!", {
-        description: `Your order for ₱${total.toFixed(2)} has been placed and is being processed.`,
+        description: `Your order for ₱${finalTotal.toFixed(2)} has been placed and is being processed.`,
         duration: 4000,
       })
 
@@ -1088,10 +1143,19 @@ export function CheckoutDialog({ items, subtotal, platformFee, total, onClose, o
                 <span>Platform fee</span>
                 <span>₱{platformFee.toFixed(2)}</span>
               </div>
+              {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
+                <div className="flex justify-between">
+                  <span>
+                    Delivery fee
+                    {isCalculatingDistance && <span className="text-xs text-muted-foreground ml-1">(calculating...)</span>}
+                  </span>
+                  <span>₱{deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between font-semibold text-base">
                 <span>Total</span>
-                <span>₱{total.toFixed(2)}</span>
+                <span>₱{(subtotal + platformFee + deliveryFee).toFixed(2)}</span>
               </div>
             </div>
 

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { formatPhoneForDisplay } from "@/lib/phone-validation"
 import { PaymentModal } from "@/components/ui/payment-modal"
 import { StatusBadge } from "@/lib/status-badge"
+import { calculateFullOrderTotal } from "@/lib/order-utils"
 
 // Historical orders list for owners.
 // Displays orders in a row-based layout with filters for order type and time range.
@@ -236,6 +237,13 @@ export function HistoricalOrdersView() {
         {filteredOrders.map((order) => {
           const createdTs = (order._creationTime ?? order.createdAt) || 0
           const idShort = order._id.slice(-6).toUpperCase()
+          // Recalculate total using deliveryFee from order
+          const orderTotal = calculateFullOrderTotal(
+            order.subtotal,
+            order.platformFee,
+            order.deliveryFee || 0,
+            order.discount
+          )
           return (
             <div
               key={order._id}
@@ -259,7 +267,7 @@ export function HistoricalOrdersView() {
                 )}
               </div>
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
+                <div className="text-sm font-semibold">₱{orderTotal.toFixed(2)}</div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
                     {order.orderType === 'dine-in' ? 'Dine In' : 
@@ -313,6 +321,13 @@ export function HistoricalOrdersView() {
           {filteredOrders.map((order) => {
             const createdTs = (order._creationTime ?? order.createdAt) || 0
             const idShort = order._id.slice(-6).toUpperCase()
+            // Recalculate total using deliveryFee from order
+            const orderTotal = calculateFullOrderTotal(
+              order.subtotal,
+              order.platformFee,
+              order.deliveryFee || 0,
+              order.discount
+            )
             return (
               <div
                 key={order._id}
@@ -335,7 +350,7 @@ export function HistoricalOrdersView() {
                 <div className="text-sm text-blue-600 font-medium">
                   {order.gcashNumber ? `(+63) ${order.gcashNumber}` : '-'}
                 </div>
-                <div className="text-sm font-semibold">₱{order.total.toFixed(2)}</div>
+                <div className="text-sm font-semibold">₱{orderTotal.toFixed(2)}</div>
                 <div>
                   <StatusBadge status={order.status} />
                 </div>

@@ -27,7 +27,7 @@ interface ActiveOrdersViewProps {
 }
 
 export function ActiveOrdersView({ onNavigateToInbox }: ActiveOrdersViewProps) {
-  const { orders, updateOrder, currentUser, deliveryFees } = useData()
+  const { orders, updateOrder, currentUser } = useData()
   const customerId = currentUser?._id || ""
   
   // State for expanded/collapsed order cards
@@ -110,7 +110,6 @@ export function ActiveOrdersView({ onNavigateToInbox }: ActiveOrdersViewProps) {
                 onNavigateToInbox={onNavigateToInbox}
                 onCancelClick={() => setCancelOrderId(order._id)}
                 canCancel={showCancelButton}
-                deliveryFees={deliveryFees}
                 showCancelButton={showCancelButton}
               />
             )

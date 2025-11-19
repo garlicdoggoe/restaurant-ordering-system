@@ -9,94 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { useData, type PreorderScheduleDate } from "@/lib/data-context"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { isValidPhoneNumber } from "@/lib/phone-validation"
 import Image from "next/image"
 
-// Source for barangay list: DILG Region V (Camarines Sur - Libmanan)
-const LIBMANAN_BARANGAYS = [
-  "Aslong",
-  "Awayan",
-  "Bagacay",
-  "Bagadion",
-  "Bagamelon",
-  "Bagumbayan",
-  "Bahao",
-  "Bahay",
-  "Beguito Nuevo",
-  "Beguito Viejo",
-  "Bigajo Norte",
-  "Bigajo Sur",
-  "Bikal",
-  "Busak",
-  "Caima",
-  "Calabnigan",
-  "Camambugan",
-  "Cambalidio",
-  "Candami",
-  "Candato",
-  "Cawayan",
-  "Concepcion",
-  "Cuyapi",
-  "Danawan",
-  "Duang Niog",
-  "Handong",
-  "Ibid",
-  "Inalahan",
-  "Labao",
-  "Libod I",
-  "Libod II",
-  "Loba-loba",
-  "Mabini",
-  "Malansad Nuevo",
-  "Malansad Viejo",
-  "Malbogon",
-  "Malinao",
-  "Mambalite",
-  "Mambayawas",
-  "Mambulo Nuevo",
-  "Mambulo Viejo",
-  "Mancawayan",
-  "Mandacanan",
-  "Mantalisay",
-  "Padlos",
-  "Pag-Oring Nuevo",
-  "Pag-Oring Viejo",
-  "Palangon",
-  "Palong",
-  "Patag",
-  "Planza",
-  "Poblacion",
-  "Potot",
-  "Puro-Batia",
-  "Rongos",
-  "Salvacion",
-  "San Isidro",
-  "San Juan",
-  "San Pablo",
-  "San Vicente",
-  "Sibujo",
-  "Sigamot",
-  "Station-Church Site",
-  "Taban-Fundado",
-  "Tampuhan",
-  "Tanag",
-  "Tarum",
-  "Tinalmud Nuevo",
-  "Tinalmud Viejo",
-  "Tinangkihan",
-  "Udoc",
-  "Umalo",
-  "Uson",
-  "Villasocorro",
-  "Villadima (Santa Cruz)",
-]
-
 export function RestaurantSettings() {
-  const { restaurant, updateRestaurant, deliveryFees: dbDeliveryFees, bulkUpdateDeliveryFees } = useData()
+  const { restaurant, updateRestaurant } = useData()
 
   const [status, setStatus] = useState<"open" | "closed" | "busy">(restaurant.status)
   const [formData, setFormData] = useState({
@@ -109,11 +29,11 @@ export function RestaurantSettings() {
     deliveryTime: restaurant.averageDeliveryTime.toString(),
     platformFee: restaurant.platformFee?.toString() || "10",
     platformFeeEnabled: restaurant.platformFeeEnabled ?? true, // Default to enabled
+    feePerKilometer: restaurant.feePerKilometer?.toString() || "15", // Default to 15
     logo: restaurant.logo || "",
     openingTime: restaurant.openingTime || "10:00",
     closingTime: restaurant.closingTime || "18:30",
   })
-  const [deliveryFees, setDeliveryFees] = useState<Record<string, string>>({})
   // Local state for the owner-managed pre-order calendar
   const [preorderRestrictionsEnabled, setPreorderRestrictionsEnabled] = useState(
     restaurant.preorderSchedule?.restrictionsEnabled ?? false,
@@ -141,6 +61,7 @@ export function RestaurantSettings() {
       deliveryTime: restaurant.averageDeliveryTime?.toString() || "0",
       platformFee: restaurant.platformFee?.toString() || "10",
       platformFeeEnabled: restaurant.platformFeeEnabled ?? true, // Default to enabled if not set
+      feePerKilometer: restaurant.feePerKilometer?.toString() || "15", // Default to 15 if not set
       logo: restaurant.logo || "",
       openingTime: restaurant.openingTime || "10:00",
       closingTime: restaurant.closingTime || "18:30",
@@ -149,27 +70,13 @@ export function RestaurantSettings() {
     // Update status when restaurant data changes
     setStatus(restaurant.status || "open")
 
-    // Initialize delivery fees state from DB, ensure all barangays exist in the map
-    const initialFees: Record<string, string> = {}
-    const feesFromDb: Record<string, number> = {}
-    dbDeliveryFees.forEach((f) => {
-      if (f && typeof f.barangay === "string" && typeof f.fee === "number") {
-        feesFromDb[f.barangay] = f.fee
-      }
-    })
-    LIBMANAN_BARANGAYS.forEach((b) => {
-      const value = feesFromDb[b]
-      initialFees[b] = typeof value === "number" ? String(value) : ""
-    })
-    setDeliveryFees(initialFees)
-
     const schedule = restaurant.preorderSchedule ?? { restrictionsEnabled: false, dates: [] }
     setPreorderRestrictionsEnabled(schedule.restrictionsEnabled)
     setPreorderDates((schedule.dates ?? []).map((entry) => ({
       ...entry,
       endTime: entry.endTime ?? entry.startTime,
     })))
-  }, [restaurant, dbDeliveryFees])
+  }, [restaurant])
   // Keep everything sorted so the UI and persistence stay predictable
   const sortedPreorderDates = [...preorderDates].sort((a, b) => a.date.localeCompare(b.date))
 
@@ -344,30 +251,10 @@ export function RestaurantSettings() {
       averageDeliveryTime: Number.parseInt(formData.deliveryTime),
       platformFee: Number.parseFloat(formData.platformFee),
       platformFeeEnabled: formData.platformFeeEnabled,
+      feePerKilometer: Number.parseFloat(formData.feePerKilometer),
     })
 
     alert("Restaurant profile updated successfully!")
-  }
-
-  const handleFeeChange = (barangay: string, value: string) => {
-    // Allow only numbers and one decimal point
-    const sanitized = value.replace(/[^0-9.]/g, "")
-    setDeliveryFees((prev) => ({ ...prev, [barangay]: sanitized }))
-  }
-
-  const saveDeliveryFees = () => {
-    const feesArray = LIBMANAN_BARANGAYS.reduce(
-      (acc, b) => {
-        const raw = deliveryFees[b]
-        if (raw === undefined || raw === null || raw.trim() === "") return acc
-        const num = Number.parseFloat(raw)
-        if (!Number.isNaN(num)) acc.push({ barangay: b, fee: num })
-        return acc
-      },
-      [] as { barangay: string; fee: number }[]
-    )
-    bulkUpdateDeliveryFees(feesArray)
-    alert("Delivery fees saved.")
   }
 
   // Display helper so owners instantly know which day they configured
@@ -772,6 +659,21 @@ export function RestaurantSettings() {
                   disabled={!formData.platformFeeEnabled}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fee-per-kilometer">Delivery Fee per Kilometer (₱)</Label>
+                <Input
+                  id="fee-per-kilometer"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.feePerKilometer}
+                  onChange={(e) => setFormData({ ...formData, feePerKilometer: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Fee charged per kilometer for distances over 1km. First 0.5km is free, 0.5-1km is ₱20.
+                </p>
+              </div>
             </div>
 
             <Button type="submit" className="w-full">
@@ -781,46 +683,6 @@ export function RestaurantSettings() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Delivery Fees by Barangay (Libmanan)</CardTitle>
-          <CardDescription>
-            Set a delivery fee per barangay. Leave blank to keep it unset.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 text-sm font-medium text-muted-foreground">
-            <div>Barangay</div>
-            <div>Delivery Fee</div>
-          </div>
-          <ScrollArea className="h-96 w-full rounded-md border p-2">
-            <div className="grid grid-cols-2 gap-3">
-              {LIBMANAN_BARANGAYS.map((b) => (
-                <div key={b} className="contents">
-                  <div className="py-1 flex items-center">
-                    <span className="text-sm">{b}</span>
-                  </div>
-                  <div>
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={(deliveryFees as Record<string, string>)[b] ?? ""}
-                      onChange={(e) => handleFeeChange(b, e.target.value)}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-          <div className="flex justify-end">
-            <Button type="button" onClick={saveDeliveryFees}>
-              Save Delivery Fees
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
