@@ -258,7 +258,7 @@ export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
 
 
   return (
-    <div className="space-y-8 xs:space-y-6">
+    <div id="onboarding-view-orders" className="space-y-8 xs:space-y-6">
       {/* Filter Component - Now includes sticky filter section with status tabs */}
       <OrderFilter
         fromDate={fromDate}

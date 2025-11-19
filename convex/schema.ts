@@ -19,6 +19,7 @@ export default defineSchema({
     gcashNumber: v.optional(v.string()), // GCash payment method number
     distance: v.optional(v.union(v.number(), v.null())), // Distance from restaurant in meters (calculated via Mapbox Directions API), null if calculation failed
     profileComplete: v.boolean(), // Whether customer has completed profile
+    onboardingCompleted: v.optional(v.boolean()), // Whether customer has completed the onboarding tour
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_clerkId", ["clerkId"]).index("by_email", ["email"]),

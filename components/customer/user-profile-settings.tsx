@@ -16,6 +16,8 @@ import { toast } from "sonner"
 import { SignupCallback } from "@/components/signup-callback"
 import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
 import { isValidPhoneNumber, formatPhoneForDisplay } from "@/lib/phone-validation"
+import { useStartOnboarding } from "@/components/customer/onboarding-trigger"
+import { Play } from "lucide-react"
 import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 
@@ -142,7 +144,7 @@ function UserProfileSettingsContent() {
   const initials = `${displayFirstName?.[0] || ''}${displayLastName?.[0] || ''}`.toUpperCase()
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 xs:space-y-6">
+    <div id="onboarding-view-settings" className="max-w-4xl mx-auto space-y-4 xs:space-y-6">
       {/* Section Navigation */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {[
@@ -392,9 +394,49 @@ function UserProfileSettingsContent() {
               <p className="text-xs text-gray-500">Customize your experience</p>
             </div>
           </div>
-          <p className="text-gray-500">Preferences coming soon...</p>
+          
+          {/* Onboarding Tour Section */}
+          <div className="space-y-4">
+            <div className="border rounded-lg p-4">
+              <h4 className="font-medium text-sm mb-2">Onboarding Tour</h4>
+              <p className="text-xs text-gray-600 mb-4">
+                Restart the interactive tour to learn how to use the application features.
+              </p>
+              <RestartOnboardingButton />
+            </div>
+          </div>
         </div>
       )}
     </div>
+  )
+}
+// Component to restart onboarding tour
+function RestartOnboardingButton() {
+  const startOnboarding = useStartOnboarding()
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleRestart = async () => {
+    setIsLoading(true)
+    try {
+      await startOnboarding()
+    } catch (error) {
+      toast.error("Failed to start onboarding tour", {
+        description: error instanceof Error ? error.message : "Please try again later.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <Button
+      onClick={handleRestart}
+      disabled={isLoading}
+      variant="outline"
+      className="w-full gap-2"
+    >
+      <Play className="h-4 w-4" />
+      <span>{isLoading ? "Starting..." : "Restart Onboarding Tour"}</span>
+    </Button>
   )
 }

@@ -114,6 +114,7 @@ export const upsertUser = mutation({
         coordinates: args.coordinates,
         gcashNumber: args.gcashNumber,
         profileComplete: args.role === "owner" || !!(args.phone && args.address && args.gcashNumber), // Owner is always complete, customer needs phone+address+gcashNumber
+        onboardingCompleted: args.role === "customer" ? false : undefined, // Only customers need onboarding, owners don't
         createdAt: now,
         updatedAt: now,
       });
@@ -352,3 +353,56 @@ export const calculateDistance = action({
     }
   },
 });
+// Mark onboarding as completed
+export const markOnboardingCompleted = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    await ctx.db.patch(user._id, {
+      onboardingCompleted: true,
+      updatedAt: Date.now(),
+    });
+
+    return user._id;
+  },
+});
+
+// Reset onboarding to allow restarting the tour
+export const resetOnboarding = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    // Only allow reset for customers
+    if (user.role !== "customer") {
+      throw new Error("Only customers can reset onboarding");
+    }
+
+    await ctx.db.patch(user._id, {
+      onboardingCompleted: false,
+      updatedAt: Date.now(),
+    });
+
+    return user._id;
+  },
+});
+

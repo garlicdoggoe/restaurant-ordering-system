@@ -142,7 +142,9 @@ export function CustomerSidebar({
       )}
 
       {/* Sidebar */}
-      <div className={`
+      <div 
+        id="onboarding-sidebar-menu"
+        className={`
         fixed left-0 top-0 h-full w-72 xs:w-80 bg-background border-r
         transform transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0 z-[50]' : '-translate-x-full z-40'}
@@ -175,6 +177,7 @@ export function CustomerSidebar({
               return (
                 <Button
                   key={item.id}
+                  id={`onboarding-nav-${item.id}`}
                   variant={item.active ? "default" : "ghost"}
                   className={`
                     w-full justify-start gap-3 h-12 cursor-pointer touch-target

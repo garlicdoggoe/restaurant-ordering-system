@@ -5,6 +5,8 @@ import "./globals.css"
 import { Providers } from "./providers"
 import { ClerkProvider } from '@clerk/nextjs'
 import { Analytics } from "@vercel/analytics/next"
+import { NextStepProvider, NextStep } from "nextstepjs"
+import { customerOnboardingSteps } from "@/lib/onboarding-steps"
 
 // Configure Gilroy font family with all weights and styles
 const gilroy = localFont({
@@ -128,7 +130,11 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className={`${gilroy.variable} antialiased`}>
-          <Providers>{children}</Providers>
+          <NextStepProvider>
+            <NextStep steps={customerOnboardingSteps}>
+              <Providers>{children}</Providers>
+            </NextStep>
+          </NextStepProvider>
           <Analytics />
         </body>
       </html>

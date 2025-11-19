@@ -51,7 +51,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings, onN
 
   return (
     <>
-      <Card className="h-fit">
+      <Card id="onboarding-cart-desktop" className="h-fit">
         <CardHeader className="p-4 xs:p-6">
           <CardTitle className="flex items-center justify-between text-fluid-lg">
             <span>Your Order</span>

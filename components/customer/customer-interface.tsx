@@ -13,6 +13,8 @@ import { InboxView } from "./inbox-view"
 import { OrderTracking } from "./order-tracking"
 import { StickyOrderStatus } from "./sticky-order-status"
 import { WebsiteInquiryView } from "./website-inquiry-view"
+import { OnboardingTrigger } from "./onboarding-trigger"
+import { OnboardingHelper } from "./onboarding-helper"
 import { useData } from "@/lib/data-context"
 import { useCart, type CartItem } from "@/lib/cart-context"
 import { toast } from "sonner"
@@ -127,6 +129,19 @@ export function CustomerInterface() {
 
   return (
     <div className="min-h-screen bg-background flex">
+      {/* Onboarding Trigger - Auto-starts tour for new customers */}
+      <OnboardingTrigger />
+      
+      {/* Onboarding Helper - Manages visibility and navigation during tour */}
+      <OnboardingHelper
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+        isCartOpen={isCartOpen}
+        setIsCartOpen={setIsCartOpen}
+      />
+      
       {/* Top Navigation Bar - Mobile Only */}
       <CustomerTopNav
         currentView={currentView}
@@ -235,7 +250,9 @@ export function CustomerInterface() {
       )}
 
       {/* Mobile Cart Drawer */}
-      <div className={`
+      <div 
+        id="onboarding-cart-mobile"
+        className={`
         lg:hidden fixed right-0 top-0 h-full w-80 xs:w-96 bg-background border-l z-50
         transform transition-transform duration-300 ease-in-out
         ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}

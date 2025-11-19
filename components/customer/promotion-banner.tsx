@@ -135,7 +135,7 @@ export function PromotionBanner() {
   if (promotionsToShow.length === 1) {
     const single = promotionsToShow[0]
     return (
-      <Card className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 min-h-[180px] lg:min-h-0">
+      <Card id="onboarding-promotion-banner" className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 min-h-[180px] lg:min-h-0">
         <div className="p-3 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4 min-h-[180px] lg:min-h-0">
           <div className="flex-1 min-w-0 w-full max-w-full overflow-hidden">
             <Badge className="mb-1.5 lg:mb-2 gap-1 whitespace-normal shrink lg:whitespace-nowrap lg:shrink-0 text-[10px] lg:text-xs max-w-full">
@@ -198,11 +198,12 @@ export function PromotionBanner() {
 
   return (
     <Card 
+      id="onboarding-promotion-banner"
       className="overflow-hidden bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20 relative min-h-[180px] lg:min-h-0"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-    >
+    > 
       <div className="p-3 lg:p-6 flex flex-col lg:flex-row items-start lg:items-center gap-2 lg:gap-4 min-h-[180px] lg:min-h-0">
         <div className="flex-1 min-w-0 w-full max-w-full overflow-hidden">
           <div className="flex items-center gap-1.5 mb-1.5 lg:mb-2 flex-wrap">

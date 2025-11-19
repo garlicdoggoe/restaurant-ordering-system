@@ -154,7 +154,7 @@ export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
 
 
   return (
-    <div className="space-y-8 xs:space-y-6">
+    <div id="onboarding-view-preorders" className="space-y-8 xs:space-y-6">
       {/* Filter Component */}
       <OrderFilter
         fromDate={fromDate}

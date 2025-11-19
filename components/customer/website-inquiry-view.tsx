@@ -143,7 +143,7 @@ export function WebsiteInquiryView() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-6">
+    <div id="onboarding-view-inquiry" className="max-w-2xl mx-auto py-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-fluid-2xl font-bold text-foreground">

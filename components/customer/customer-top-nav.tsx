@@ -105,6 +105,7 @@ export function CustomerTopNav({
         <div className="flex items-center justify-between h-14 px-4">
           {/* Left: Burger menu button */}
           <Button
+            id="onboarding-burger-menu-button"
             variant="ghost"
             size="icon"
             className="cursor-pointer hover:bg-yellow-100"
@@ -120,6 +121,7 @@ export function CustomerTopNav({
 
           {/* Right: Cart button with badge */}
           <Button
+            id="onboarding-cart-mobile-button"
             variant="ghost"
             size="icon"
             className="relative cursor-pointer hover:bg-yellow-100"

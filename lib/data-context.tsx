@@ -43,6 +43,7 @@ export interface User {
   }
   gcashNumber?: string // GCash payment method number
   profileComplete: boolean
+  onboardingCompleted?: boolean // Whether customer has completed the onboarding tour
   createdAt: number
   updatedAt: number
 }

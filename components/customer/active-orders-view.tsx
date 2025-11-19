@@ -79,7 +79,7 @@ export function ActiveOrdersView({ onNavigateToInbox }: ActiveOrdersViewProps) {
 
 
   return (
-    <div className="space-y-8 xs:space-y-6">
+    <div id="onboarding-view-activeorders" className="space-y-8 xs:space-y-6">
       {/* Active Orders List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {activeOrders.length === 0 ? (

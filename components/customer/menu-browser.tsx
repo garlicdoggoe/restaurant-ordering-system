@@ -132,12 +132,13 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
   }
 
   return (
-    <div className="space-y-4 lg:space-y-6">
+    <div id="onboarding-view-menu" className="space-y-4 lg:space-y-6">
       <PromotionBanner />
 
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-yellow-500" />
         <Input
+          id="onboarding-search-input"
           placeholder="What do you want to eat today?"
           className="pl-12 pr-4 py-3 lg:py-4 rounded-full border-0 bg-white shadow-sm focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500/30 text-[clamp(1rem,1.5vw,1.125rem)] touch-target"
           value={searchQuery}
@@ -145,14 +146,16 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
         />
       </div>
 
-      <CategoryFilter
-        categories={categories}
-        selectedCategories={selectedCategories}
-        onToggleCategory={handleToggleCategory}
-        mode="buttons"
-        title="Category"
-        allowMultiple={true}
-      />
+      <div id="onboarding-category-filter">
+        <CategoryFilter
+          categories={categories}
+          selectedCategories={selectedCategories}
+          onToggleCategory={handleToggleCategory}
+          mode="buttons"
+          title="Category"
+          allowMultiple={true}
+        />
+      </div>
 
       {/* Filter summary */}
       <div className="text-fluid-sm text-muted-foreground">
@@ -171,7 +174,9 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
           {Object.keys(groupedItems).length > 1 && (
             <h2 className="text-fluid-xl font-bold text-foreground">{categoryName}</h2>
           )}
-          <MenuItemGrid items={items} onAddToCart={onAddToCart} />
+          <div id="onboarding-menu-grid">
+            <MenuItemGrid items={items} onAddToCart={onAddToCart} />
+          </div>
         </div>
       ))}
     </div>

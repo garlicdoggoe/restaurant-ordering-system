@@ -154,7 +154,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   }
 
   return (
-    <div className="space-y-6">
+    <div id="onboarding-view-inbox" className="space-y-6">
       {/* Filters */}
       <OrderFilter
         fromDate={fromDateDraft}
