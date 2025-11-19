@@ -19,6 +19,7 @@ export function OnboardingTrigger() {
   const completionMarkedRef = useRef(false)
 
   // Check if user needs onboarding
+  // The Convex flag flips to true after the user completes/skips onboarding, so this only runs once per signup.
   const needsOnboarding = 
     currentUser?.role === "customer" && 
     currentUser.onboardingCompleted === false

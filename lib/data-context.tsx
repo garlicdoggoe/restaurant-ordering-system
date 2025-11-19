@@ -335,6 +335,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     coordinates: currentUserDoc.coordinates,
     gcashNumber: currentUserDoc.gcashNumber,
     profileComplete: currentUserDoc.profileComplete,
+    // Surface Convex onboarding flag so UI can auto-start the tour exactly once after signup.
+    onboardingCompleted: currentUserDoc.onboardingCompleted,
     createdAt: currentUserDoc.createdAt,
     updatedAt: currentUserDoc.updatedAt,
   } : null
