@@ -426,10 +426,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Order modifications - backend handles authorization by returning empty array for non-owners
   const orderModificationsDocs = useQuery(api.order_modifications.listAll) ?? []
 
-  // Debug logging for data context
-  console.log("Data Context - Categories:", categoriesDocs)
-  console.log("Data Context - Menu Items:", menuDocs)
-  console.log("Data Context - Promotions:", promotionsDocs)
+  // NOTE: Intentionally avoid console logging large datasets here to keep the production console noise-free.
 
   // Mutations
   const upsertRestaurant = useMutation(api.restaurant.upsert)

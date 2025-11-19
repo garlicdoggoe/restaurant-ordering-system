@@ -11,22 +11,17 @@ export function SignupCallback() {
   const upsertUser = useMutation(api.users.upsertUser)
 
   useEffect(() => {
-    console.log("SignupCallback useEffect - isLoaded:", isLoaded, "user:", user, "currentUser:", currentUser)
-    
+    // NOTE: Previously logged effect state here; keeping console silent in production to prevent noise.
     // Wait until Clerk is loaded and Convex user query has resolved (undefined -> loading, null -> not found)
     if (!isLoaded || !user || currentUser === undefined) {
-      console.log("SignupCallback - Skipping: not loaded or no user")
       return
     }
 
     // If a user doc exists (not null), do nothing to avoid overwriting fields on reload
     if (currentUser !== null) {
-      console.log("SignupCallback - Skipping: user already exists with role:", currentUser.role)
       return
     }
 
-    console.log("SignupCallback - Proceeding with user creation")
-    
     // Create user in Convex when they first sign up
     const createUser = async () => {
       try {
@@ -60,6 +55,7 @@ export function SignupCallback() {
       }
     }
 
+    // NOTE: Fire-and-forget mutation; rely on Clerk/Convex dashboards for debugging instead of console logs.
     createUser()
   }, [isLoaded, user, currentUser, upsertUser])
 

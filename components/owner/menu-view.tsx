@@ -17,9 +17,7 @@ export function MenuView() {
 
   const { categories, menuItems } = useData()
 
-  // Debug logging to help understand the data
-  console.log("Categories from database:", categories)
-  console.log("Menu items:", menuItems)
+  // NOTE: Skip console logging menu data to keep production console clean.
 
   // Reset dialog state when closing
   const handleCloseDialog = () => {

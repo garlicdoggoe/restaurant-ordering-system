@@ -51,9 +51,7 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
     return null
   }
 
-  // Debug logging
-  console.log("ProfileCompletion - currentUser:", currentUser)
-  console.log("ProfileCompletion - user:", user)
+  // NOTE: Avoid logging user data here; rely on Convex dashboard/Clerk dev tools for debugging.
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

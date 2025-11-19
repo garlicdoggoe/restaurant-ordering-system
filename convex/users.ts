@@ -345,7 +345,7 @@ export const calculateDistance = action({
         return null;
       }
       
-      console.log(`Distance calculated successfully: ${distance} meters (${(distance / 1000).toFixed(2)} km)`);
+      // NOTE: Avoid logging successful distance calculations to keep logs lean in production.
       return distance;
     } catch (error) {
       console.error("Error calculating distance via Mapbox Directions API:", error);

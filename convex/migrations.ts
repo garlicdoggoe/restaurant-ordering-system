@@ -25,7 +25,7 @@ export const migrateOrdersToPlatformFee = mutation({
       }
     }
     
-    console.log(`Migrated ${migratedCount} orders from donation/tax to platformFee`);
+    // NOTE: Return the count so callers can surface migration status without console noise.
     return { migratedCount };
   },
 });
