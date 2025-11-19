@@ -158,7 +158,7 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
       </div>
 
       {/* Filter summary */}
-      <div className="text-fluid-sm text-muted-foreground">
+      <div className="text-fluid-sm text-muted-foreground" id="onboarding-menu-grid">
         Showing {filteredItems.length} of {menuItems.length} menu items
         {!selectedCategories.includes("all") && selectedCategories.length > 0 && (
           <span> in {selectedCategories.map(id => categories.find(cat => cat.id === id)?.name).join(", ")}</span>
@@ -174,7 +174,7 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
           {Object.keys(groupedItems).length > 1 && (
             <h2 className="text-fluid-xl font-bold text-foreground">{categoryName}</h2>
           )}
-          <div id="onboarding-menu-grid">
+          <div>
             <MenuItemGrid items={items} onAddToCart={onAddToCart} />
           </div>
         </div>
