@@ -380,6 +380,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
   }, [orderType, preOrderFulfillment, deliveryCoordinates, restaurant?.coordinates, restaurant?.feePerKilometer, calculateDistance])
 
   // Keep the date/time inputs synchronized with whatever the owner configured
+  // Note: We intentionally exclude preOrderTime from dependencies to avoid resetting
+  // the time while the user is typing. We only validate/reset when date or schedule changes.
   useEffect(() => {
     if (restrictionsEnabledButEmpty) {
       if (preOrderDate !== "") {
@@ -395,19 +397,25 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
 
     if (restrictionsActive) {
       if (!selectedScheduleEntry) return
+      // Only update date if it doesn't match the selected entry
       if (preOrderDate !== selectedScheduleEntry.date) {
         setPreOrderDate(selectedScheduleEntry.date)
+        // When date changes, also reset time to the start time of the new date
+        setPreOrderTime(selectedScheduleEntry.startTime)
+        return
       }
+      // Only validate and reset time if it's outside the allowed window
+      // This check runs when schedule changes, but not on every time change
       const startMinutes = timeToMinutes(selectedScheduleEntry.startTime)
       const endMinutes = timeToMinutes(selectedScheduleEntry.endTime)
       const currentMinutes = timeToMinutes(preOrderTime)
       if (
-        currentMinutes === null ||
-        startMinutes === null ||
-        endMinutes === null ||
-        currentMinutes < startMinutes ||
-        currentMinutes > endMinutes
+        startMinutes !== null &&
+        endMinutes !== null &&
+        currentMinutes !== null &&
+        (currentMinutes < startMinutes || currentMinutes > endMinutes)
       ) {
+        // Only reset if time is invalid - don't reset if user is typing a valid time
         setPreOrderTime(selectedScheduleEntry.startTime)
       }
       setDateError("")
@@ -426,7 +434,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     restrictionsEnabledButEmpty,
     scheduledDates,
     preOrderDate,
-    preOrderTime,
+    // Removed preOrderTime from dependencies to prevent resetting while user types
     selectedScheduleEntry,
   ])
 
