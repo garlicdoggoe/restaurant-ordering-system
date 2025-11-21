@@ -35,7 +35,6 @@ function ChoiceGroupEditor({
   isBundle,
   bundleItems,
   availableMenuItems,
-  variantsByMenuItem
 }: { 
   group: MenuItemChoiceGroup
   onUpdate: (groupId: string, data: Partial<MenuItemChoiceGroup>) => void
@@ -46,7 +45,6 @@ function ChoiceGroupEditor({
   isBundle?: boolean
   bundleItems?: Array<{ menuItemId: string; order: number }>
   availableMenuItems?: MenuItem[]
-  variantsByMenuItem?: Record<string, MenuItemVariant[]>
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editingData, setEditingData] = useState({ name: group.name, order: group.order })
@@ -428,17 +426,10 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
 
   // Choice groups state
   const [choiceGroups, setChoiceGroups] = useState<MenuItemChoiceGroup[]>([])
-  const [editingChoiceGroup, setEditingChoiceGroup] = useState<MenuItemChoiceGroup | null>(null)
   const [newChoiceGroup, setNewChoiceGroup] = useState({
     name: "",
     order: 0,
   })
-  // Map of choiceGroupId -> choices array
-  const [choicesByGroup, setChoicesByGroup] = useState<Record<string, MenuItemChoice[]>>({})
-  // Map of choiceGroupId -> editing choice
-  const [editingChoices, setEditingChoices] = useState<Record<string, MenuItemChoice | null>>({})
-  // Map of choiceGroupId -> new choice
-  const [newChoices, setNewChoices] = useState<Record<string, { name: string; price: string; available: boolean; order: number }>>({})
   
   // Bundle items state
   const [bundleItems, setBundleItems] = useState<Array<{ menuItemId: string; order: number }>>(item?.bundleItems || [])
@@ -518,7 +509,6 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
         },
       })
       toast.success("Choice group updated successfully")
-      setEditingChoiceGroup(null)
     } catch (error) {
       console.error("Error updating choice group:", error)
       toast.error("Failed to update choice group. Please try again.")
@@ -587,8 +577,6 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
         },
       })
       toast.success("Choice updated successfully")
-      // Clear editing state for all groups
-      setEditingChoices({})
     } catch (error) {
       console.error("Error updating choice:", error)
       toast.error("Failed to update choice. Please try again.")
@@ -1051,7 +1039,7 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
                   <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
                     {bundleItems
                       .sort((a, b) => a.order - b.order)
-                      .map((bundleItem, index) => {
+                      .map((bundleItem) => {
                         const menuItem = availableMenuItemsQuery?.find(m => m._id === bundleItem.menuItemId)
                         const sortedItems = [...bundleItems].sort((a, b) => a.order - b.order)
                         const actualIndex = sortedItems.findIndex(bi => bi.menuItemId === bundleItem.menuItemId)
@@ -1345,7 +1333,6 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
                       isBundle={formData.isBundle}
                       bundleItems={bundleItems}
                       availableMenuItems={availableMenuItemsQuery || []}
-                      variantsByMenuItem={{}}
                     />
                   ))}
                 </div>

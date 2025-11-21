@@ -197,19 +197,6 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
   const choiceGroupsQuery = useQuery(api.menu.getChoiceGroupsByMenuItem, item?.id ? { menuItemId: item.id as Id<"menu_items"> } : "skip")
   const choiceGroups = useMemo(() => (choiceGroupsQuery || []) as MenuItemChoiceGroup[], [choiceGroupsQuery])
   
-  // Get all unique menuItemIds from choice groups (for bundle items)
-  const choiceMenuItemIds = useMemo(() => {
-    const ids = new Set<string>()
-    choiceGroups.forEach(group => {
-      group.choices.forEach(choice => {
-        if (choice.menuItemId) {
-          ids.add(choice.menuItemId)
-        }
-      })
-    })
-    return Array.from(ids)
-  }, [choiceGroups])
-
   // Fetch variants for main menu item
   const variantsQuery = useQuery(api.menu.getVariantsByMenuItem, item?.id ? { menuItemId: item.id as Id<"menu_items"> } : "skip")
   const variants = useMemo(() => variantsQuery || [], [variantsQuery])
@@ -292,7 +279,7 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
       
       // Add selected choice items (with variants if selected) - COMMENTED OUT variant handling
       // We need to find the choice group ID for each selected choice to get the variant
-      Object.entries(selectedChoices).forEach(([groupId, choice]) => {
+      Object.values(selectedChoices).forEach((choice) => {
         if (choice.menuItemId) {
           const menuItem = allMenuItems.find(m => m._id === choice.menuItemId)
           if (menuItem) {

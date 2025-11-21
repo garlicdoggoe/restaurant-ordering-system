@@ -16,7 +16,7 @@ interface MenuBrowserProps {
 export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["all"])
   const [searchQuery, setSearchQuery] = useState("")
-  const { categories: ctxCategories, menuItems: ctxMenuItems, promotions } = useData()
+  const { categories: ctxCategories, menuItems: ctxMenuItems } = useData()
 
   // Build categories with fallback data (same logic as menu-view.tsx) - memoized to prevent dependency changes
   const availableCategories = useMemo(() => ctxCategories.length > 0 ? ctxCategories : [

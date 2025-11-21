@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react"
 import { useNextStep } from "nextstepjs"
-import { customerOnboardingSteps } from "@/lib/onboarding-steps"
 import type { CustomerView } from "./customer-interface"
 
 interface OnboardingHelperProps {
@@ -73,7 +72,7 @@ export function OnboardingHelper({
     
     // Update ref to track previous state
     prevIsActiveRef.current = isNextStepVisible
-  }, [isNextStepVisible, currentView, onViewChange])
+  }, [isNextStepVisible, currentView, onViewChange, setIsMobileMenuOpen, setIsCartOpen])
 
   useEffect(() => {
     if (!isNextStepVisible) return

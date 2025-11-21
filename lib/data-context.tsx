@@ -695,7 +695,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       image: item.image,
       available: item.available,
       isBundle: item.isBundle,
-      bundleItems: item.bundleItems,
+      // Transform bundleItems to convert menuItemId from string to Id<"menu_items">
+      bundleItems: item.bundleItems?.map(bundleItem => ({
+        menuItemId: bundleItem.menuItemId as Id<"menu_items">,
+        order: bundleItem.order,
+      })),
     })
   }, [createMenuItem])
 
@@ -708,7 +712,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       image: data.image,
       available: data.available,
       isBundle: data.isBundle,
-      bundleItems: data.bundleItems,
+      // Transform bundleItems to convert menuItemId from string to Id<"menu_items">
+      bundleItems: data.bundleItems?.map(bundleItem => ({
+        menuItemId: bundleItem.menuItemId as Id<"menu_items">,
+        order: bundleItem.order,
+      })),
     }})
   }, [patchMenuItem])
 
