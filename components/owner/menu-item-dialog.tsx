@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import { Plus, Trash2, Edit, Upload } from "lucide-react"
+import { Plus, Trash2, Edit, Upload, ArrowUp, ArrowDown } from "lucide-react"
 import { compressImage } from "@/lib/image-compression"
 
 interface MenuItemDialogProps {
@@ -31,20 +31,36 @@ function ChoiceGroupEditor({
   onDelete, 
   onAddChoice, 
   onUpdateChoice, 
-  onDeleteChoice 
+  onDeleteChoice,
+  isBundle,
+  bundleItems,
+  availableMenuItems,
+  variantsByMenuItem
 }: { 
   group: MenuItemChoiceGroup
   onUpdate: (groupId: string, data: Partial<MenuItemChoiceGroup>) => void
   onDelete: (groupId: string) => void
-  onAddChoice: (groupId: string, choiceData: { name: string; price: string; available: boolean }, currentChoicesCount: number) => void
+  onAddChoice: (groupId: string, choiceData: { name: string; price: string; available: boolean; menuItemId?: string; variantId?: string }, currentChoicesCount: number) => void
   onUpdateChoice: (groupId: string, choiceIndex: number, data: Partial<MenuItemChoice>) => void
   onDeleteChoice: (groupId: string, choiceIndex: number) => void
+  isBundle?: boolean
+  bundleItems?: Array<{ menuItemId: string; order: number }>
+  availableMenuItems?: MenuItem[]
+  variantsByMenuItem?: Record<string, MenuItemVariant[]>
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editingData, setEditingData] = useState({ name: group.name, order: group.order })
   const [editingChoiceIndex, setEditingChoiceIndex] = useState<number | null>(null)
   const [editingChoiceData, setEditingChoiceData] = useState<MenuItemChoice | null>(null)
-  const [newChoice, setNewChoice] = useState({ name: "", price: "", available: true, order: 0 })
+  const [newChoice, setNewChoice] = useState({ name: "", price: "", available: true, order: 0, menuItemId: "", variantId: "" })
+  const [selectedMenuItemId, setSelectedMenuItemId] = useState<string>("")
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("")
+
+  // Fetch variants for selected menu item (for bundle choices)
+  const selectedMenuItemVariants = useQuery(
+    api.menu.getVariantsByMenuItem,
+    selectedMenuItemId ? { menuItemId: selectedMenuItemId as Id<"menu_items"> } : "skip"
+  )
 
   // Choices are now stored directly in the group
   const choices = useMemo(() => (group.choices || []).sort((a, b) => a.order - b.order), [group.choices])
@@ -192,10 +208,22 @@ function ChoiceGroupEditor({
                       <div className="flex-1">
                         <div className="font-medium text-sm">{choice.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {choice.price !== 0 
-                            ? `${choice.price >= 0 ? '+' : ''}₱${choice.price.toFixed(2)} • ${choice.available ? "Available" : "Unavailable"}`
-                            : `No price adjustment • ${choice.available ? "Available" : "Unavailable"}`
-                          }
+                          {choice.menuItemId ? (
+                            // Bundle choice: show menu item info
+                            <>
+                              {availableMenuItems?.find(m => m._id === choice.menuItemId)?.name || choice.name}
+                              {" • "}
+                              {choice.available ? "Available" : "Unavailable"}
+                            </>
+                          ) : (
+                            // Regular choice
+                            <>
+                              {choice.price !== 0 
+                                ? `${choice.price >= 0 ? '+' : ''}₱${choice.price.toFixed(2)} • ${choice.available ? "Available" : "Unavailable"}`
+                                : `No price adjustment • ${choice.available ? "Available" : "Unavailable"}`
+                              }
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-1">
@@ -232,40 +260,139 @@ function ChoiceGroupEditor({
       {/* Add new choice */}
       <div className="space-y-2 p-2 border rounded bg-muted/50">
         <Label className="text-sm">Add Choice</Label>
-        <div className="grid grid-cols-2 gap-2">
-          <Input
-            placeholder="Choice name"
-            value={newChoice.name}
-            onChange={(e) => setNewChoice({ ...newChoice, name: e.target.value })}
-          />
-          <Input
-            placeholder="Price adjustment (optional, 0 = no change)"
-            type="number"
-            step="0.01"
-            value={newChoice.price}
-            onChange={(e) => setNewChoice({ ...newChoice, price: e.target.value })}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={newChoice.available}
-            onCheckedChange={(checked) => setNewChoice({ ...newChoice, available: checked })}
-          />
-          <Label className="text-sm">Available</Label>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            onAddChoice(group._id, newChoice, choices.length)
-            setNewChoice({ name: "", price: "", available: true, order: 0 })
-          }}
-          disabled={!newChoice.name.trim()}
-          className="w-full"
-        >
-          <Plus className="w-3 h-3 mr-1" />
-          Add Choice
-        </Button>
+        {isBundle && bundleItems && bundleItems.length > 0 ? (
+          // Bundle choice: select from bundle items
+          <div className="space-y-2">
+            <Select
+              value={selectedMenuItemId}
+              onValueChange={(value) => {
+                setSelectedMenuItemId(value)
+                const menuItem = availableMenuItems?.find(m => m._id === value)
+                if (menuItem) {
+                  setNewChoice({ 
+                    ...newChoice, 
+                    name: menuItem.name, 
+                    price: "0", 
+                    menuItemId: value,
+                    variantId: ""
+                  })
+                  setSelectedVariantId("")
+                }
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a bundle item" />
+              </SelectTrigger>
+              <SelectContent>
+                {bundleItems
+                  .map(bi => bi.menuItemId)
+                  .filter(menuItemId => {
+                    // Filter out items already in this choice group
+                    const alreadyInGroup = choices.some(c => c.menuItemId === menuItemId)
+                    return !alreadyInGroup
+                  })
+                  .map(menuItemId => {
+                    const menuItem = availableMenuItems?.find(m => m._id === menuItemId)
+                    return menuItem ? (
+                      <SelectItem key={menuItemId} value={menuItemId}>
+                        {menuItem.name} - ₱{menuItem.price.toFixed(2)}
+                      </SelectItem>
+                    ) : null
+                  })
+                  .filter(Boolean)}
+              </SelectContent>
+            </Select>
+            
+            {/* Variant selection for bundle item */}
+            {selectedMenuItemId && selectedMenuItemVariants && selectedMenuItemVariants.length > 0 && (
+              <Select
+                value={selectedVariantId || "base"}
+                onValueChange={(value) => {
+                  const variantId = value === "base" ? "" : value
+                  setSelectedVariantId(variantId)
+                  setNewChoice({ ...newChoice, variantId: variantId })
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select variant (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="base">Base Price</SelectItem>
+                  {selectedMenuItemVariants.map((variant) => (
+                    <SelectItem key={variant._id} value={variant._id}>
+                      {variant.name} - ₱{variant.price.toFixed(2)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={newChoice.available}
+                onCheckedChange={(checked) => setNewChoice({ ...newChoice, available: checked })}
+              />
+              <Label className="text-sm">Available</Label>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                onAddChoice(group._id, {
+                  ...newChoice,
+                  menuItemId: selectedMenuItemId || undefined,
+                  variantId: selectedVariantId || undefined
+                }, choices.length)
+                setNewChoice({ name: "", price: "", available: true, order: 0, menuItemId: "", variantId: "" })
+                setSelectedMenuItemId("")
+                setSelectedVariantId("")
+              }}
+              disabled={!selectedMenuItemId}
+              className="w-full"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Add Choice
+            </Button>
+          </div>
+        ) : (
+          // Regular choice: manual entry
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder="Choice name"
+                value={newChoice.name}
+                onChange={(e) => setNewChoice({ ...newChoice, name: e.target.value })}
+              />
+              <Input
+                placeholder="Price adjustment (optional, 0 = no change)"
+                type="number"
+                step="0.01"
+                value={newChoice.price}
+                onChange={(e) => setNewChoice({ ...newChoice, price: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={newChoice.available}
+                onCheckedChange={(checked) => setNewChoice({ ...newChoice, available: checked })}
+              />
+              <Label className="text-sm">Available</Label>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                onAddChoice(group._id, newChoice, choices.length)
+                setNewChoice({ name: "", price: "", available: true, order: 0, menuItemId: "", variantId: "" })
+              }}
+              disabled={!newChoice.name.trim()}
+              className="w-full"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Add Choice
+            </Button>
+          </>
+        )}
       </div>
     </div>
   )
@@ -281,6 +408,7 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
     category: item?.category || "pizza",
     image: item?.image || "",
     available: item?.available ?? true,
+    isBundle: item?.isBundle ?? false,
   })
 
   // Image upload state management
@@ -311,6 +439,15 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
   const [editingChoices, setEditingChoices] = useState<Record<string, MenuItemChoice | null>>({})
   // Map of choiceGroupId -> new choice
   const [newChoices, setNewChoices] = useState<Record<string, { name: string; price: string; available: boolean; order: number }>>({})
+  
+  // Bundle items state
+  const [bundleItems, setBundleItems] = useState<Array<{ menuItemId: string; order: number }>>(item?.bundleItems || [])
+  
+  // Query to get menu items for bundle selection
+  const availableMenuItemsQuery = useQuery(
+    api.menu.getMenuItemsForBundle,
+    formData.isBundle ? { excludeMenuItemId: item?._id as Id<"menu_items"> } : "skip"
+  )
 
   // Fetch variants when editing existing item
   const variantsQuery = useQuery(api.menu.getVariantsByMenuItem, 
@@ -322,6 +459,7 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
       setVariants(variantsQuery)
     }
   }, [variantsQuery])
+
 
   // Fetch choice groups when editing existing item
   const choiceGroupsQuery = useQuery(api.menu.getChoiceGroupsByMenuItem,
@@ -397,20 +535,26 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
     }
   }
 
-  const handleAddChoice = async (groupId: string, choiceData: { name: string; price: string; available: boolean }, currentChoicesCount: number) => {
-    if (!choiceData.name.trim()) {
-      toast.error("Please fill in choice name")
+  // Fetch variants for bundle items - we'll query them when needed in the component
+
+  const handleAddChoice = async (groupId: string, choiceData: { name: string; price: string; available: boolean; menuItemId?: string; variantId?: string }, currentChoicesCount: number) => {
+    if (!choiceData.name.trim() && !choiceData.menuItemId) {
+      toast.error("Please fill in choice name or select a menu item")
       return
     }
 
-    // Price is optional - default to 0 if empty or invalid
-    const price = choiceData.price && choiceData.price.trim() !== "" 
-      ? parseFloat(choiceData.price.toString()) 
-      : 0
-    
-    if (choiceData.price && choiceData.price.trim() !== "" && isNaN(price)) {
-      toast.error("Please enter a valid price")
-      return
+    // For bundle choices with menuItemId, price is always 0 (we use menu item price)
+    // For regular choices, price is optional - default to 0 if empty or invalid
+    let price = 0
+    if (!choiceData.menuItemId) {
+      price = choiceData.price && choiceData.price.trim() !== "" 
+        ? parseFloat(choiceData.price.toString()) 
+        : 0
+      
+      if (choiceData.price && choiceData.price.trim() !== "" && isNaN(price)) {
+        toast.error("Please enter a valid price")
+        return
+      }
     }
 
     try {
@@ -420,6 +564,8 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
         price: price,
         available: choiceData.available,
         order: currentChoicesCount, // Use current count as order
+        menuItemId: choiceData.menuItemId ? (choiceData.menuItemId as Id<"menu_items">) : undefined,
+        variantId: choiceData.variantId ? (choiceData.variantId as Id<"menu_item_variants">) : undefined,
       })
       toast.success("Choice added successfully")
     } catch (error) {
@@ -694,6 +840,12 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
         category: formData.category,
         image: imageStorageId || formData.image.trim() || undefined,
         available: formData.available,
+        isBundle: formData.isBundle || undefined,
+        bundleItems: formData.isBundle 
+          ? (bundleItems.length > 0 
+            ? bundleItems.map(bi => ({ menuItemId: bi.menuItemId as Id<"menu_items">, order: bi.order }))
+            : undefined)
+          : undefined,
       }
 
       if (item) {
@@ -868,6 +1020,137 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
               </div>
             </div>
           </div>
+
+          {/* Bundle toggle */}
+          <div className="space-y-2">
+            <Label htmlFor="isBundle">Bundle Item</Label>
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-sm">This item is a bundle</span>
+              <Switch
+                id="isBundle"
+                checked={formData.isBundle}
+                onCheckedChange={(checked) => setFormData({ ...formData, isBundle: checked })}
+              />
+            </div>
+          </div>
+
+          {/* Bundle Items Section - only show when bundle is enabled */}
+          {formData.isBundle && (
+            <div className="space-y-4 pt-6 border-t">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Bundle Items</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Add menu items to this bundle. Items can then be organized into choice groups or remain as fixed items.
+              </p>
+              
+              {/* Bundle items list */}
+              {bundleItems.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Bundle Items ({bundleItems.length})</Label>
+                  <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                    {bundleItems
+                      .sort((a, b) => a.order - b.order)
+                      .map((bundleItem, index) => {
+                        const menuItem = availableMenuItemsQuery?.find(m => m._id === bundleItem.menuItemId)
+                        const sortedItems = [...bundleItems].sort((a, b) => a.order - b.order)
+                        const actualIndex = sortedItems.findIndex(bi => bi.menuItemId === bundleItem.menuItemId)
+                        return (
+                          <div key={`${bundleItem.menuItemId}-${bundleItem.order}`} className="p-3 border rounded-md flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{menuItem?.name || `Item ${actualIndex + 1}`}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {menuItem ? `₱${menuItem.price.toFixed(2)}` : "Item not found"}
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const newItems = [...bundleItems]
+                                  const sorted = [...newItems].sort((a, b) => a.order - b.order)
+                                  if (actualIndex > 0) {
+                                    // Swap with previous
+                                    const prevItem = sorted[actualIndex - 1]
+                                    const currentItem = sorted[actualIndex]
+                                    const tempOrder = currentItem.order
+                                    currentItem.order = prevItem.order
+                                    prevItem.order = tempOrder
+                                    setBundleItems(newItems)
+                                  }
+                                }}
+                                disabled={actualIndex === 0}
+                              >
+                                <ArrowUp className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const newItems = [...bundleItems]
+                                  const sorted = [...newItems].sort((a, b) => a.order - b.order)
+                                  if (actualIndex < sorted.length - 1) {
+                                    // Swap with next
+                                    const nextItem = sorted[actualIndex + 1]
+                                    const currentItem = sorted[actualIndex]
+                                    const tempOrder = currentItem.order
+                                    currentItem.order = nextItem.order
+                                    nextItem.order = tempOrder
+                                    setBundleItems(newItems)
+                                  }
+                                }}
+                                disabled={actualIndex === sortedItems.length - 1}
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setBundleItems(bundleItems.filter(bi => bi.menuItemId !== bundleItem.menuItemId))
+                                }}
+                                className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Add bundle item */}
+              <div className="space-y-3 p-4 border rounded-md bg-muted/50">
+                <Label>Add Item to Bundle</Label>
+                <Select
+                  value=""
+                  onValueChange={(value) => {
+                    if (value && !bundleItems.some(bi => bi.menuItemId === value)) {
+                      const maxOrder = bundleItems.length > 0 ? Math.max(...bundleItems.map(bi => bi.order)) : -1
+                      setBundleItems([...bundleItems, { menuItemId: value, order: maxOrder + 1 }])
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a menu item to add" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMenuItemsQuery?.filter(m => !bundleItems.some(bi => bi.menuItemId === m._id)).map((menuItem) => (
+                      <SelectItem key={menuItem._id} value={menuItem._id}>
+                        {menuItem.name} - ₱{menuItem.price.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {/* Variants section - only show when editing existing item */}
           {item && (
@@ -1059,6 +1342,10 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
                       onAddChoice={handleAddChoice}
                       onUpdateChoice={handleUpdateChoice}
                       onDeleteChoice={handleDeleteChoice}
+                      isBundle={formData.isBundle}
+                      bundleItems={bundleItems}
+                      availableMenuItems={availableMenuItemsQuery || []}
+                      variantsByMenuItem={{}}
                     />
                   ))}
                 </div>

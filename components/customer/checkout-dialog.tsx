@@ -24,6 +24,7 @@ import { isValidPhoneNumber } from "@/lib/phone-validation"
 import { PaymentModal } from "@/components/ui/payment-modal"
 import { compressImage } from "@/lib/image-compression"
 import Image from "next/image"
+import { BundleItemsList } from "@/components/shared/bundle-items-list"
 
 interface CartItem {
   id: string
@@ -32,6 +33,7 @@ interface CartItem {
   price: number
   quantity: number
   size?: string
+  bundleItems?: Array<{ menuItemId: string; variantId?: string; name: string; price: number }>
 }
 
 interface CheckoutDialogProps {
@@ -599,8 +601,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         price: item.price,
         quantity: item.quantity,
         variantName: item.size || undefined,
-        variantId: item.variantId || undefined,
-        selectedChoices: item.selectedChoices || undefined,
+        bundleItems: item.bundleItems || undefined,
       }))
 
       // Upload image only now (on submit). We pass storageId; server resolves to URL.
@@ -1094,10 +1095,19 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
             
             <div className="space-y-3 md:space-y-4">
               {items.map((item, index) => (
-                <div key={`${item.id}-${index}`} className="flex items-center justify-between py-2 md:py-3">
+                <div key={`${item.id}-${index}`} className="space-y-2">
+                  <div className="flex items-center justify-between py-2 md:py-3">
                   <div className="flex-1">
-                    <div className="font-medium text-sm md:text-base">{item.name}</div>
+                      <div className="font-medium text-sm md:text-base">
+                        {item.name}
+                      </div>
                     {item.size && <div className="text-xs md:text-sm text-gray-600">{item.size}</div>}
+                      {/* Bundle items list */}
+                      {item.bundleItems && item.bundleItems.length > 0 && (
+                        <div className="mt-2">
+                          <BundleItemsList bundleItems={item.bundleItems} />
+                        </div>
+                      )}
                   </div>
                   <div className="flex items-center space-x-1 md:space-x-2">
                     <Button
@@ -1129,6 +1139,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                     <span className="ml-1 md:ml-3 text-xs md:text-sm">
                       ₱{(item.price * item.quantity).toFixed(2)}
                     </span>
+                    </div>
                   </div>
                 </div>
               ))}

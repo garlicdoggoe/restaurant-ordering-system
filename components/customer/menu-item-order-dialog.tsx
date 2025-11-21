@@ -11,7 +11,7 @@ import { MenuItemImage } from "@/components/ui/menu-item-image"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import type { MenuItemVariant, MenuItemChoiceGroup, MenuItemChoice } from "@/lib/data-context"
+import { useData, type MenuItem, MenuItemVariant, MenuItemChoiceGroup, MenuItemChoice } from "@/lib/data-context"
 
 interface ItemSummary {
   id: string
@@ -33,6 +33,7 @@ interface MenuItemOrderDialogProps {
       size?: string
       variantId?: string
       selectedChoices?: Record<string, { name: string; price: number }>
+      bundleItems?: Array<{ menuItemId: string; variantId?: string; name: string; price: number }>
     },
     quantity: number,
   ) => void
@@ -42,11 +43,19 @@ interface MenuItemOrderDialogProps {
 function ChoiceGroupSelector({ 
   group, 
   selectedChoiceIndex, 
-  onSelect
+  onSelect,
+  // onVariantSelect, // COMMENTED OUT - variant handling
+  // selectedVariantId, // COMMENTED OUT - variant handling
+  isBundle,
+  allMenuItems
 }: { 
   group: MenuItemChoiceGroup
   selectedChoiceIndex: number | undefined
-  onSelect: (choiceIndex: number, choiceData: { name: string; price: number }) => void
+  onSelect: (choiceIndex: number, choiceData: { name: string; price: number; menuItemId?: string; variantId?: string }) => void
+  // onVariantSelect?: (choiceIndex: number, variantId: string) => void // COMMENTED OUT - variant handling
+  // selectedVariantId?: string // COMMENTED OUT - variant handling
+  isBundle?: boolean
+  allMenuItems?: MenuItem[]
 }) {
   // Choices are now stored directly in the group
   const choices = useMemo(() => (group.choices || []) as MenuItemChoice[], [group.choices])
@@ -61,33 +70,109 @@ function ChoiceGroupSelector({
     const choiceIndex = parseInt(value, 10)
     const selectedChoice = availableChoices.find(c => c.originalIndex === choiceIndex)
     if (selectedChoice) {
-      onSelect(choiceIndex, { name: selectedChoice.name, price: selectedChoice.price })
+      // For bundle choices, get menu item name and price
+      if (isBundle && selectedChoice.menuItemId) {
+        const menuItem = allMenuItems?.find(m => m._id === selectedChoice.menuItemId)
+        if (menuItem) {
+          onSelect(choiceIndex, { 
+            name: menuItem.name, 
+            price: menuItem.price,
+            menuItemId: selectedChoice.menuItemId,
+            variantId: selectedChoice.variantId
+          })
+        }
+      } else {
+        onSelect(choiceIndex, { name: selectedChoice.name, price: selectedChoice.price })
+      }
     }
   }
 
   if (availableChoices.length === 0) return null
+
+  // Get selected choice for variant selection
+  // const selectedChoice = selectedChoiceIndex !== undefined 
+  //   ? availableChoices.find(c => c.originalIndex === selectedChoiceIndex)
+  //   : null
+  
+  // const selectedMenuItemId = selectedChoice?.menuItemId
+  
+  // Fetch variants for selected menu item (for bundle choices)
+  // const selectedMenuItemVariantsQuery = useQuery(
+  //   api.menu.getVariantsByMenuItem,
+  //   selectedMenuItemId ? { menuItemId: selectedMenuItemId as Id<"menu_items"> } : "skip"
+  // )
+  // const selectedMenuItemVariants = useMemo(() => {
+  //   if (!selectedMenuItemVariantsQuery) return []
+  //   return (selectedMenuItemVariantsQuery as MenuItemVariant[]).filter((v) => v.available !== false)
+  // }, [selectedMenuItemVariantsQuery])
 
   return (
     <div className="space-y-2">
       <Label className="text-xs md:text-fluid-sm text-muted-foreground">{group.name} *</Label>
       <RadioGroup value={selectedChoiceIndex !== undefined ? String(selectedChoiceIndex) : ""} onValueChange={handleSelect}>
         <div className="space-y-2">
-          {availableChoices.map((choice) => (
-            <div key={`${choice.originalIndex}-${choice.name}`} className="flex items-center space-x-2">
-              <RadioGroupItem value={String(choice.originalIndex)} id={`choice-${group._id}-${choice.originalIndex}`} />
-              <Label 
-                htmlFor={`choice-${group._id}-${choice.originalIndex}`} 
-                className="flex-1 cursor-pointer text-xs md:text-fluid-sm font-normal"
-              >
-                <span>{choice.name}</span>
-                {choice.price !== 0 && (
-                  <span className="ml-2 text-muted-foreground">
-                    ({choice.price >= 0 ? '+' : ''}₱{choice.price.toFixed(2)})
-                  </span>
-                )}
-              </Label>
-            </div>
-          ))}
+          {availableChoices.map((choice) => {
+            // For bundle choices, show menu item name and price
+            const displayName = isBundle && choice.menuItemId
+              ? allMenuItems?.find(m => m._id === choice.menuItemId)?.name || choice.name
+              : choice.name
+            
+            // const displayPrice = isBundle && choice.menuItemId
+            //   ? allMenuItems?.find(m => m._id === choice.menuItemId)?.price || choice.price
+            //   : choice.price
+            
+            return (
+              <div key={`${choice.originalIndex}-${choice.name}`} className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value={String(choice.originalIndex)} id={`choice-${group._id}-${choice.originalIndex}`} />
+                  <Label 
+                    htmlFor={`choice-${group._id}-${choice.originalIndex}`} 
+                    className="flex-1 cursor-pointer text-xs md:text-fluid-sm font-normal"
+                  >
+                    <span>{displayName}</span>
+                    {!isBundle && choice.price !== 0 && (
+                      <span className="ml-2 text-muted-foreground">
+                        ({choice.price >= 0 ? '+' : ''}₱{choice.price.toFixed(2)})
+                      </span>
+                    )}
+                    {/* Price display for bundle choices - COMMENTED OUT */}
+                    {/* {isBundle && (
+                      <span className="ml-2 text-muted-foreground">
+                        ₱{displayPrice.toFixed(2)}
+                      </span>
+                    )} */}
+                  </Label>
+                </div>
+                {/* Variant selection for bundle choice item - COMMENTED OUT */}
+                {/* {isBundle && selectedChoiceIndex === choice.originalIndex && selectedMenuItemVariants.length > 0 && (
+                  <div className="ml-6">
+                    <Select
+                      value={selectedVariantId || "base"}
+                      onValueChange={(value) => {
+                        if (onVariantSelect) {
+                          // Convert "base" back to empty string for storage
+                          const variantId = value === "base" ? "" : value
+                          onVariantSelect(choice.originalIndex, variantId)
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full text-xs h-8">
+                        <SelectValue placeholder="Select variant (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="base">Base Price</SelectItem>
+                        {selectedMenuItemVariants.map((variant) => (
+                          <SelectItem key={variant._id} value={variant._id}>
+                            {variant.name} - ₱{variant.price.toFixed(2)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )} */}
+              </div>
+            )
+          })}
         </div>
       </RadioGroup>
     </div>
@@ -95,33 +180,68 @@ function ChoiceGroupSelector({
 }
 
 export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderDialogProps) {
-  const variantsQuery = useQuery(api.menu.getVariantsByMenuItem, item?.id ? { menuItemId: item.id as Id<"menu_items"> } : "skip")
-  const variants = useMemo(() => variantsQuery || [], [variantsQuery])
-  const availableVariants = useMemo(() => (variants as MenuItemVariant[]).filter((v) => v.available !== false), [variants])
+  // Get full menu item from context to check if it's a bundle
+  const { menuItems } = useData()
+  const fullMenuItem = useMemo(() => {
+    if (!item?.id) return null
+    return menuItems.find((mi: MenuItem) => mi._id === item.id) || null
+  }, [menuItems, item?.id])
+  
+  const isBundle = fullMenuItem?.isBundle === true
+  const bundleItems = fullMenuItem?.bundleItems || []
+  
+  // Get all menu items for bundle item pricing
+  const allMenuItems = menuItems
 
   // Fetch choice groups
   const choiceGroupsQuery = useQuery(api.menu.getChoiceGroupsByMenuItem, item?.id ? { menuItemId: item.id as Id<"menu_items"> } : "skip")
   const choiceGroups = useMemo(() => (choiceGroupsQuery || []) as MenuItemChoiceGroup[], [choiceGroupsQuery])
+  
+  // Get all unique menuItemIds from choice groups (for bundle items)
+  const choiceMenuItemIds = useMemo(() => {
+    const ids = new Set<string>()
+    choiceGroups.forEach(group => {
+      group.choices.forEach(choice => {
+        if (choice.menuItemId) {
+          ids.add(choice.menuItemId)
+        }
+      })
+    })
+    return Array.from(ids)
+  }, [choiceGroups])
+
+  // Fetch variants for main menu item
+  const variantsQuery = useQuery(api.menu.getVariantsByMenuItem, item?.id ? { menuItemId: item.id as Id<"menu_items"> } : "skip")
+  const variants = useMemo(() => variantsQuery || [], [variantsQuery])
+  const availableVariants = useMemo(() => (variants as MenuItemVariant[]).filter((v) => v.available !== false), [variants])
 
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
   const [quantity, setQuantity] = useState<number>(1)
-  // Map of choiceGroupId -> { name, price } (for order storage)
-  const [selectedChoices, setSelectedChoices] = useState<Record<string, { name: string; price: number }>>({})
+  // Map of choiceGroupId -> { name, price, menuItemId?, variantId? } (for order storage)
+  const [selectedChoices, setSelectedChoices] = useState<Record<string, { name: string; price: number; menuItemId?: string; variantId?: string }>>({})
   // Map of choiceGroupId -> choiceIndex (for UI selection tracking)
   const [selectedChoiceIndices, setSelectedChoiceIndices] = useState<Record<string, number>>({})
+  // Map of choiceGroupId -> selected variantId for bundle choice items - COMMENTED OUT
+  // const [selectedVariantsForChoices, setSelectedVariantsForChoices] = useState<Record<string, string>>({})
 
   const selectedVariant = useMemo(() => availableVariants.find((v) => v._id === selectedVariantId) || null, [availableVariants, selectedVariantId])
   
-  // Calculate unit price: base price + variant price + sum of selected choice price adjustments
-  const baseUnitPrice = selectedVariant ? selectedVariant.price : item.price
-  
-  // Calculate total unit price including all adjustments
+  // For bundles, use the fixed price from the menu item's price column
+  // For regular items, use base price + variant price + choice adjustments
   const unitPrice = useMemo(() => {
-    const totalAdjustments = Object.values(selectedChoices).reduce((sum, choice) => {
-      return sum + (choice.price || 0)
-    }, 0)
-    return baseUnitPrice + totalAdjustments
-  }, [baseUnitPrice, selectedChoices])
+    if (isBundle) {
+      // Bundle pricing: use the fixed price from the menu item's price column
+      // Customer's choice selection doesn't affect the bundle price
+      return item.price
+    } else {
+      // Regular item pricing: base price + variant price + choice adjustments
+      const baseUnitPrice = selectedVariant ? selectedVariant.price : item.price
+      const totalAdjustments = Object.values(selectedChoices).reduce((sum, choice) => {
+        return sum + (choice.price || 0)
+      }, 0)
+      return baseUnitPrice + totalAdjustments
+    }
+  }, [isBundle, item.price, selectedChoices, selectedVariant])
 
 
   const handleConfirm = () => {
@@ -138,6 +258,61 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
 
     const variantName = selectedVariant?.name
     const variantId = selectedVariant?._id
+    
+    // For bundles, build bundleItems array (selected items + fixed items)
+    let bundleItemsArray: Array<{ menuItemId: string; variantId?: string; name: string; price: number }> | undefined = undefined
+    
+    if (isBundle && bundleItems.length > 0) {
+      bundleItemsArray = []
+      
+      // Get all menuItemIds from choice groups (all possible choices)
+      const choiceGroupMenuItemIds = new Set<string>()
+      choiceGroups.forEach(group => {
+        group.choices.forEach(choice => {
+          if (choice.menuItemId) {
+            choiceGroupMenuItemIds.add(choice.menuItemId)
+          }
+        })
+      })
+      
+      // Fixed items = bundle items NOT in any choice group
+      const fixedItems = bundleItems.filter(bi => !choiceGroupMenuItemIds.has(bi.menuItemId))
+      
+      // Add fixed items
+      fixedItems.forEach(bi => {
+        const menuItem = allMenuItems.find(m => m._id === bi.menuItemId)
+        if (menuItem) {
+          bundleItemsArray!.push({
+            menuItemId: bi.menuItemId,
+            name: menuItem.name,
+            price: menuItem.price,
+          })
+        }
+      })
+      
+      // Add selected choice items (with variants if selected) - COMMENTED OUT variant handling
+      // We need to find the choice group ID for each selected choice to get the variant
+      Object.entries(selectedChoices).forEach(([groupId, choice]) => {
+        if (choice.menuItemId) {
+          const menuItem = allMenuItems.find(m => m._id === choice.menuItemId)
+          if (menuItem) {
+            // Get variant ID from selectedVariantsForChoices using groupId - COMMENTED OUT
+            // const variantId = selectedVariantsForChoices[groupId] || choice.variantId
+            
+            // For bundle items, we'll use base price for now
+            // Variant prices will be calculated when we have the variant data
+            // The variant ID is stored so we can look up the price later if needed
+            bundleItemsArray!.push({
+              menuItemId: choice.menuItemId,
+              // variantId: variantId, // COMMENTED OUT - variant handling
+              name: menuItem.name,
+              price: menuItem.price, // Base price - variant pricing handled separately
+            })
+          }
+        }
+      })
+    }
+    
     // Include selected choices in cart ID to make unique combinations
     const choicesKey = Object.keys(selectedChoices).sort().map(k => `${k}:${selectedChoices[k].name}`).join('|')
     const cartId = variantId 
@@ -153,6 +328,7 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
         size: variantName,
         variantId: variantId,
         selectedChoices: Object.keys(selectedChoices).length > 0 ? selectedChoices : undefined,
+        bundleItems: bundleItemsArray,
       },
       quantity,
     )
@@ -232,11 +408,14 @@ export function MenuItemOrderDialog({ item, onClose, onConfirm }: MenuItemOrderD
           {/* Choice Groups Selection */}
           {choiceGroups.length > 0 && (
             <div className="space-y-4">
+              {/* onVariantSelect and selectedVariantId props - COMMENTED OUT - variant handling */}
               {choiceGroups.map((group) => (
                 <ChoiceGroupSelector
                   key={group._id}
                   group={group}
                   selectedChoiceIndex={selectedChoiceIndices[group._id]}
+                  isBundle={isBundle}
+                  allMenuItems={allMenuItems}
                   onSelect={(choiceIndex, choiceData) => {
                     setSelectedChoiceIndices((prev) => ({ ...prev, [group._id]: choiceIndex }))
                     setSelectedChoices((prev) => ({ 

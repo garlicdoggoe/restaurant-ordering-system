@@ -74,6 +74,11 @@ export default defineSchema({
     category: v.string(),
     image: v.optional(v.string()),
     available: v.boolean(),
+    isBundle: v.optional(v.boolean()), // Whether this item is a bundle
+    bundleItems: v.optional(v.array(v.object({
+      menuItemId: v.id("menu_items"),
+      order: v.number(),
+    }))), // Items that make up the bundle (explicit list)
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_category", ["category"]),
@@ -103,6 +108,13 @@ export default defineSchema({
         unitPrice: v.optional(v.number()),
         // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
         selectedChoices: v.optional(v.record(v.string(), v.object({
+          name: v.string(),
+          price: v.number(),
+        }))),
+        // Bundle items - for bundle menu items, stores the actual items included (selected from choice groups + fixed items)
+        bundleItems: v.optional(v.array(v.object({
+          menuItemId: v.string(),
+          variantId: v.optional(v.string()),
           name: v.string(),
           price: v.number(),
         }))),
@@ -232,6 +244,9 @@ export default defineSchema({
       price: v.number(), // Price adjustment for this choice (can be 0 or positive/negative)
       available: v.boolean(),
       order: v.number(), // Display order within group
+      // For bundle items: reference to menu item instead of just name/price
+      menuItemId: v.optional(v.id("menu_items")), // Reference to menu item for bundle choices
+      variantId: v.optional(v.id("menu_item_variants")), // Default variant for bundle choice item
     })),
     createdAt: v.number(),
     updatedAt: v.number(),

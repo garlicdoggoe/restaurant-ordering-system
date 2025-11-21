@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
+import { BundleItemsList } from "@/components/shared/bundle-items-list"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -277,6 +278,12 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                       {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
                         <div key={groupId}>• {choice.name}</div>
                       ))}
+                    </div>
+                  )}
+                  {/* Display bundle items if available */}
+                  {item.bundleItems && item.bundleItems.length > 0 && (
+                    <div className="ml-2 mt-0.5">
+                      <BundleItemsList bundleItems={item.bundleItems} showPrices={true} className="text-gray-500" />
                     </div>
                   )}
                 </div>

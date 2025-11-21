@@ -14,6 +14,8 @@ export interface CartItem {
   variantId?: string
   // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
   selectedChoices?: Record<string, { name: string; price: number }>
+  // Bundle items - for bundle menu items, stores the actual items included (selected from choice groups + fixed items)
+  bundleItems?: Array<{ menuItemId: string; variantId?: string; name: string; price: number }>
 }
 
 // Cart context interface

@@ -16,6 +16,7 @@ import { PaymentModal } from "@/components/ui/payment-modal"
 import { ChangeStatusDialog } from "./change-status-dialog"
 import { DeliveryMap } from "@/components/ui/delivery-map"
 import { isDeliveryOrder as isDeliveryOrderUtil } from "@/lib/order-utils"
+import { BundleItemsList } from "@/components/shared/bundle-items-list"
 
 interface OrderDetailsProps {
   orderId: string
@@ -273,6 +274,11 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                             ))}
                           </div>
                         )}
+                        {item.bundleItems && item.bundleItems.length > 0 && (
+                          <div className="mt-1">
+                            <BundleItemsList bundleItems={item.bundleItems} showPrices={true} />
+                          </div>
+                        )}
                         <div className="text-sm text-muted-foreground">₱{item.price.toFixed(2)} each</div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -336,6 +342,17 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                         <div className="text-xs text-muted-foreground ml-4">
                           {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
                             <div key={groupId}>• {choice.name}</div>
+                          ))}
+                        </div>
+                      )}
+                      {item.bundleItems && item.bundleItems.length > 0 && (
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          {item.bundleItems.map((bundleItem, biIndex) => (
+                            <div key={biIndex} className="ml-2">
+                              • {bundleItem.name}
+                              {/* {bundleItem.variantId && <span className="text-muted-foreground"> (variant)</span>}
+                              <span className="text-muted-foreground"> - ₱{bundleItem.price.toFixed(2)}</span> */}
+                            </div>
                           ))}
                         </div>
                       )}

@@ -142,6 +142,13 @@ export const create = mutation({
           name: v.string(),
           price: v.number(),
         }))),
+        // Bundle items - for bundle menu items, stores the actual items included (selected from choice groups + fixed items)
+        bundleItems: v.optional(v.array(v.object({
+          menuItemId: v.string(),
+          variantId: v.optional(v.string()),
+          name: v.string(),
+          price: v.number(),
+        }))),
       })
     ),
     subtotal: v.number(),
@@ -291,6 +298,12 @@ export const update = mutation({
           variantName: v.optional(v.string()),
           attributes: v.optional(v.record(v.string(), v.string())),
           unitPrice: v.optional(v.number()),
+          bundleItems: v.optional(v.array(v.object({
+            menuItemId: v.string(),
+            variantId: v.optional(v.string()),
+            name: v.string(),
+            price: v.number(),
+          }))),
         })
       )),
       // Toggle if customer can send images in chat for this order
@@ -612,6 +625,12 @@ export const updateOrderItems = mutation({
         attributes: v.optional(v.record(v.string(), v.string())),
         unitPrice: v.optional(v.number()),
         selectedChoices: v.optional(v.record(v.string(), v.object({
+          name: v.string(),
+          price: v.number(),
+        }))),
+        bundleItems: v.optional(v.array(v.object({
+          menuItemId: v.string(),
+          variantId: v.optional(v.string()),
           name: v.string(),
           price: v.number(),
         }))),

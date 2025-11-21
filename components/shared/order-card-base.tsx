@@ -17,6 +17,7 @@ import { DeliveryMapModal } from "@/components/ui/delivery-map-modal"
 import { PaymentModal } from "@/components/ui/payment-modal"
 import { AddOrderItemDialog } from "@/components/owner/add-order-item-dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { BundleItemsList } from "@/components/shared/bundle-items-list"
 import {
   isDeliveryOrder as isDeliveryOrderUtil,
   getOrderTypePrefix,
@@ -417,6 +418,9 @@ export function OrderCardBase({
                         ))}
                       </div>
                     )}
+                    {item.bundleItems && item.bundleItems.length > 0 && (
+                      <BundleItemsList bundleItems={item.bundleItems} compact={true} showPrices={true} />
+                    )}
                     <div className="text-xs text-muted-foreground">₱{item.price.toFixed(2)} each</div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -513,6 +517,9 @@ export function OrderCardBase({
                           <div key={groupId}>• {choice.name}</div>
                         ))}
                       </div>
+                    )}
+                    {item.bundleItems && item.bundleItems.length > 0 && (
+                      <BundleItemsList bundleItems={item.bundleItems} compact={true} showPrices={true} />
                     )}
                   </div>
                   <div className="flex items-center gap-2">

@@ -29,6 +29,11 @@ export const addMenuItem = mutation({
     category: v.string(),
     image: v.optional(v.string()),
     available: v.boolean(),
+    isBundle: v.optional(v.boolean()),
+    bundleItems: v.optional(v.array(v.object({
+      menuItemId: v.id("menu_items"),
+      order: v.number(),
+    }))),
   },
   handler: async (ctx, args) => {
     // If client sent a Convex storageId instead of a URL for image, resolve it to a URL
@@ -64,6 +69,11 @@ export const updateMenuItem = mutation({
       category: v.optional(v.string()),
       image: v.optional(v.string()),
       available: v.optional(v.boolean()),
+      isBundle: v.optional(v.boolean()),
+      bundleItems: v.optional(v.array(v.object({
+        menuItemId: v.id("menu_items"),
+        order: v.number(),
+      }))),
     }),
   },
   handler: async (ctx, { id, data }) => {
@@ -80,11 +90,26 @@ export const updateMenuItem = mutation({
       }
     }
 
-    await ctx.db.patch(id, { 
-      ...data, 
+    // Build patch data, excluding undefined fields (but allow explicit null/empty array for clearing)
+    const patchData: any = {
+      ...data,
       image: resolvedImage,
-      updatedAt: Date.now() 
+      updatedAt: Date.now(),
+    };
+    
+    // If isBundle is explicitly set to false, clear bundleItems
+    if (data.isBundle === false) {
+      patchData.bundleItems = undefined;
+    }
+    
+    // Remove undefined fields from patch data (except those we want to clear)
+    Object.keys(patchData).forEach(key => {
+      if (patchData[key] === undefined && key !== 'bundleItems') {
+        delete patchData[key];
+      }
     });
+    
+    await ctx.db.patch(id, patchData);
     return id;
   },
 });
@@ -372,6 +397,8 @@ export const addChoice = mutation({
     price: v.number(),
     available: v.boolean(),
     order: v.number(),
+    menuItemId: v.optional(v.id("menu_items")), // For bundle choices: reference to menu item
+    variantId: v.optional(v.id("menu_item_variants")), // For bundle choices: default variant
   },
   handler: async (ctx, args) => {
     const group = await ctx.db.get(args.choiceGroupId);
@@ -382,6 +409,8 @@ export const addChoice = mutation({
       price: args.price,
       available: args.available,
       order: args.order,
+      menuItemId: args.menuItemId,
+      variantId: args.variantId,
     };
     
     const updatedChoices = [...(group.choices || []), newChoice];
@@ -403,6 +432,8 @@ export const updateChoice = mutation({
       price: v.optional(v.number()),
       available: v.optional(v.boolean()),
       order: v.optional(v.number()),
+      menuItemId: v.optional(v.id("menu_items")), // For bundle choices: reference to menu item
+      variantId: v.optional(v.id("menu_item_variants")), // For bundle choices: default variant
     }),
   },
   handler: async (ctx, { choiceGroupId, choiceIndex, data }) => {
@@ -447,6 +478,25 @@ export const deleteChoice = mutation({
     });
     
     return choiceGroupId;
+  },
+});
+
+// Query to get menu items for bundle selection (exclude current item and existing bundles)
+export const getMenuItemsForBundle = query({
+  args: { 
+    excludeMenuItemId: v.optional(v.id("menu_items")), // Current menu item to exclude
+  },
+  handler: async (ctx, { excludeMenuItemId }) => {
+    let items = await ctx.db.query("menu_items").collect();
+    
+    // Filter out bundles and the current item
+    items = items.filter(item => {
+      if (excludeMenuItemId && item._id === excludeMenuItemId) return false;
+      if (item.isBundle === true) return false; // Exclude other bundles
+      return true;
+    });
+    
+    return items;
   },
 });
 

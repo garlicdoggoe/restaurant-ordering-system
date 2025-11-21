@@ -94,6 +94,8 @@ export interface MenuItem {
   category: string
   image?: string
   available: boolean
+  isBundle?: boolean // Whether this item is a bundle
+  bundleItems?: Array<{ menuItemId: string; order: number }> // Items that make up the bundle
 }
 
 export interface MenuItemVariant {
@@ -123,6 +125,8 @@ export interface MenuItemChoice {
   price: number
   available: boolean
   order: number
+  menuItemId?: string // For bundle choices: reference to menu item
+  variantId?: string // For bundle choices: default variant
 }
 
 export interface Attribute {
@@ -157,6 +161,8 @@ export interface OrderItem {
   unitPrice?: number
   // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
   selectedChoices?: Record<string, { name: string; price: number }>
+  // Bundle items - for bundle menu items, stores the actual items included (selected from choice groups + fixed items)
+  bundleItems?: Array<{ menuItemId: string; variantId?: string; name: string; price: number }>
 }
 
 export interface Order {
@@ -526,7 +532,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       } as Restaurant), [restaurantDoc])
 
   const categories: Category[] = categoriesDocs.map((c) => ({ _id: c._id as string, name: c.name, icon: c.icon, order: c.order }))
-  const menuItems: MenuItem[] = menuDocs.map((m) => ({ _id: m._id as string, name: m.name, description: m.description, price: m.price, category: m.category, image: m.image, available: m.available }))
+  const menuItems: MenuItem[] = menuDocs.map((m) => ({ 
+    _id: m._id as string, 
+    name: m.name, 
+    description: m.description, 
+    price: m.price, 
+    category: m.category, 
+    image: m.image, 
+    available: m.available,
+    isBundle: (m as { isBundle?: boolean }).isBundle,
+    bundleItems: (m as { bundleItems?: Array<{ menuItemId: string; order: number }> }).bundleItems,
+  }))
   const orders: Order[] = ordersDocs.map((o) => ({
     _id: o._id as string,
     _creationTime: o._creationTime as number,
@@ -678,6 +694,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       category: item.category,
       image: item.image,
       available: item.available,
+      isBundle: item.isBundle,
+      bundleItems: item.bundleItems,
     })
   }, [createMenuItem])
 
@@ -689,6 +707,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       category: data.category,
       image: data.image,
       available: data.available,
+      isBundle: data.isBundle,
+      bundleItems: data.bundleItems,
     }})
   }, [patchMenuItem])
 
