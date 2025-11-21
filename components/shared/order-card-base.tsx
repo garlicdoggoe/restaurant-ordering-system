@@ -343,8 +343,12 @@ export function OrderCardBase({
         <div className="flex flex-col mt-[-15px] mb-[-20px] lg:mt-0 lg:mb-0">
           {/* Top Section: Order ID/Name, Status, and Date */}
           <div className="flex items-start justify-between mb-2">
-            {/* Left: Order name and ID */}
+            {/* Left: Customer name, Order ID, and Date */}
             <div className="flex-1">
+              {/* Customer name above order ID */}
+              <p className="text-xs font-medium text-foreground mb-0.5">
+                {order.customerName}
+              </p>
               <CardTitle className="text-sm font-semibold mb-1">
                 {orderTypePrefix} #{order._id.slice(-6).toUpperCase()}
               </CardTitle>

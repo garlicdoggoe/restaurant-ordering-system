@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import { useData, type Order } from "@/lib/data-context"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { OrderCard } from "./order-card"
 import { DenyOrderDialog } from "./deny-order-dialog"
 import { AcceptOrderDialog } from "./accept-order-dialog"
@@ -19,6 +20,14 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
   const [acceptOrderId, setAcceptOrderId] = useState<string | null>(null)
   // Track expanded state for each order (for mobile collapse/expand)
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
+  // Search state for customer name search
+  const [searchQuery, setSearchQuery] = useState<string>("")
+  // Search matches state - stores all matching orders with their status
+  const [searchMatches, setSearchMatches] = useState<Array<{ order: Order; status: OrderStatus }>>([])
+  // Current match index for navigation
+  const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(-1)
+  // Track if we're searching by order ID only (to filter displayed orders)
+  const [isSearchingByOrderId, setIsSearchingByOrderId] = useState<boolean>(false)
 
   const { ordersByStatus } = useData()
 
@@ -68,7 +77,16 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
     return filterByToday(orders)
   }
 
-  const filteredOrders = getFilteredOrders()
+  let filteredOrders = getFilteredOrders()
+
+  // When searching by order ID only, show only the matched order(s) across all statuses
+  // This ensures only matched orders are displayed, not all orders from the selected status
+  if (isSearchingByOrderId && searchMatches.length > 0 && currentMatchIndex >= 0) {
+    // Get all matched orders from all statuses
+    const matchedOrders = searchMatches.map(m => m.order)
+    // Replace filtered orders with only matched orders
+    filteredOrders = matchedOrders
+  }
 
   // Calculate counts based on filtered orders (today's orders only, except pre-orders)
   // This ensures the badge counts match what's actually displayed
@@ -97,6 +115,135 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
       })
     }
   }, [initialOrderId])
+
+  // Map from actual order status to UI status
+  const statusMap: Record<string, OrderStatus> = {
+    "pending": "pending",
+    "accepted": "preparing",
+    "ready": "ready",
+    "completed": "completed",
+    "cancelled": "cancelled",
+    "denied": "denied",
+    "in-transit": "in-transit",
+    "delivered": "delivered",
+    "pre-order-pending": "pre-order-pending",
+  }
+
+  // Function to navigate to a specific match
+  const navigateToMatch = (matchIndex: number) => {
+    if (matchIndex < 0 || matchIndex >= searchMatches.length) return
+    
+    const match = searchMatches[matchIndex]
+    // match.status is already the UI status (mapped in handleSearch)
+    
+    // Redirect to the correct status tab
+    setSelectedStatus(match.status)
+    // Auto-expand the found order
+    setExpandedOrders(prev => {
+      const next = new Set(prev)
+      next.add(match.order._id)
+      return next
+    })
+    // Scroll to top to ensure the order is visible
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  // Navigate to previous match
+  const handlePreviousMatch = () => {
+    if (searchMatches.length === 0) return
+    const prevIndex = currentMatchIndex > 0 ? currentMatchIndex - 1 : searchMatches.length - 1
+    setCurrentMatchIndex(prevIndex)
+    navigateToMatch(prevIndex)
+  }
+
+  // Navigate to next match
+  const handleNextMatch = () => {
+    if (searchMatches.length === 0) return
+    const nextIndex = currentMatchIndex < searchMatches.length - 1 ? currentMatchIndex + 1 : 0
+    setCurrentMatchIndex(nextIndex)
+    navigateToMatch(nextIndex)
+  }
+
+  // Search function: searches across all statuses by customer name or order ID
+  // Collects all matching orders and navigates to the first one
+  // Searches only within orders that would be displayed (respects today filter for regular orders)
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    
+    // If search is empty, clear matches and reset
+    if (!query.trim()) {
+      setSearchMatches([])
+      setCurrentMatchIndex(-1)
+      setIsSearchingByOrderId(false)
+      return
+    }
+
+    // Search across all statuses - normalize query for case-insensitive search
+    const normalizedQuery = query.trim().toLowerCase()
+    
+    // Check each status group for matching orders
+    // Apply the same today filter that's used for display, so we only find orders that would be visible
+    const allStatusGroups = [
+      { status: "pending", orders: filterByToday(ordersByStatus.pending) },
+      { status: "accepted", orders: filterByToday(ordersByStatus.accepted) },
+      { status: "ready", orders: filterByToday(ordersByStatus.ready) },
+      { status: "completed", orders: filterByToday(ordersByStatus.completed) },
+      { status: "cancelled", orders: filterByToday(ordersByStatus.cancelled) },
+      { status: "denied", orders: filterByToday(ordersByStatus.denied) },
+      { status: "in-transit", orders: filterByToday(ordersByStatus["in-transit"]) },
+      { status: "delivered", orders: filterByToday(ordersByStatus.delivered) },
+      { status: "pre-order-pending", orders: ordersByStatus["pre-order-pending"] || [] }, // Pre-orders always shown
+    ]
+
+    // Collect all matching orders across all statuses
+    // Match by customer name OR order ID (full ID or last 6 characters)
+    const matches: Array<{ order: Order; status: OrderStatus }> = []
+    let hasOrderIdMatches = false
+    let hasCustomerNameMatches = false
+    
+    for (const group of allStatusGroups) {
+      const matchingOrders = group.orders.filter((order) => {
+        // Match by customer name (case-insensitive)
+        const matchesCustomerName = order.customerName.toLowerCase().includes(normalizedQuery)
+        
+        // Match by order ID - check full ID (case-insensitive)
+        // This will match both full IDs and the last 6 characters (display format)
+        const orderIdLower = order._id.toLowerCase()
+        const matchesOrderId = orderIdLower.includes(normalizedQuery)
+        
+        // Track what type of matches we have
+        if (matchesCustomerName) hasCustomerNameMatches = true
+        if (matchesOrderId) hasOrderIdMatches = true
+        
+        // Return true if either customer name or order ID matches
+        return matchesCustomerName || matchesOrderId
+      })
+      
+      // Map actual status to UI status
+      const uiStatus = statusMap[group.status] || group.status
+      
+      // Add all matches from this status group
+      matchingOrders.forEach(order => {
+        matches.push({ order, status: uiStatus })
+      })
+    }
+
+    // Determine if search is by order ID only (has order ID matches but no customer name matches)
+    // This means we should filter the displayed orders to only show matched ones
+    setIsSearchingByOrderId(hasOrderIdMatches && !hasCustomerNameMatches)
+
+    // Update matches state
+    setSearchMatches(matches)
+    
+    // If matches found, navigate to the first one
+    if (matches.length > 0) {
+      setCurrentMatchIndex(0)
+      navigateToMatch(0)
+    } else {
+      setCurrentMatchIndex(-1)
+      setIsSearchingByOrderId(false)
+    }
+  }
 
   const nonPreOrders = filteredOrders.filter((o) => o.orderType !== "pre-order")
   const preOrders = filteredOrders.filter((o) => o.orderType === "pre-order")
@@ -130,6 +277,48 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-fluid-2xl font-bold">Order Line</h1>
+      </div>
+
+      {/* Search Input - Search by customer name across all statuses */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            type="text"
+            placeholder="Search by customer name or order ID..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {/* Navigation buttons - show only when there are matches */}
+        {searchMatches.length > 0 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handlePreviousMatch}
+              disabled={searchMatches.length === 0}
+              className="h-10 w-10"
+              aria-label="Previous match"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground min-w-[60px] text-center">
+              {currentMatchIndex + 1} / {searchMatches.length}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleNextMatch}
+              disabled={searchMatches.length === 0}
+              className="h-10 w-10"
+              aria-label="Next match"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Mobile Select - Sticky */}
