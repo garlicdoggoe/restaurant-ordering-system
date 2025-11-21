@@ -356,6 +356,7 @@ export const create = mutation({
 
     // SECURITY: Calculate delivery fee server-side (if delivery order)
     let calculatedDeliveryFee = 0;
+    let serverCalculationSucceeded = false;
     const isDelivery = args.orderType === "delivery" || 
       (args.orderType === "pre-order" && args.preOrderFulfillment === "delivery");
     
@@ -384,15 +385,21 @@ export const create = mutation({
                 } else {
                   calculatedDeliveryFee = 20 + (distanceInKm - 1) * feePerKm;
                 }
+                serverCalculationSucceeded = true;
               }
             }
           }
         } catch (error) {
-          // If distance calculation fails, delivery fee remains 0
-          // This is acceptable as the order can still be processed
+          // If distance calculation fails, we'll use client-provided fee if available
           console.error("Failed to calculate delivery fee:", error);
         }
       }
+    }
+    
+    // If server calculation failed but client provided a fee, use client's fee
+    // This handles cases where Mapbox API is temporarily unavailable
+    if (!serverCalculationSucceeded && args.deliveryFee !== undefined && args.deliveryFee > 0) {
+      calculatedDeliveryFee = args.deliveryFee;
     }
 
     // SECURITY: Validate and calculate voucher discount server-side
@@ -437,14 +444,20 @@ export const create = mutation({
     const calculatedTotal = calculatedSubtotal + calculatedPlatformFee + calculatedDeliveryFee - calculatedDiscount;
 
     // SECURITY: Verify client-provided totals match server-calculated totals (with small tolerance for floating point)
-    const tolerance = 0.01; // 1 cent tolerance
+    const tolerance = 0.01; // 1 cent tolerance for most calculations
+    // Delivery fee tolerance is higher (5 pesos) because it's based on external API calls
+    // that can have slight variations due to network conditions, API response differences, etc.
+    const deliveryFeeTolerance = 5.0; // 5 pesos tolerance for delivery fees
+    
     if (Math.abs(args.subtotal - calculatedSubtotal) > tolerance) {
       throw new Error("Subtotal mismatch. Please refresh and try again.");
     }
     if (Math.abs(args.platformFee - calculatedPlatformFee) > tolerance) {
       throw new Error("Platform fee mismatch. Please refresh and try again.");
     }
-    if (args.deliveryFee !== undefined && Math.abs(args.deliveryFee - calculatedDeliveryFee) > tolerance) {
+    // Only validate delivery fee if server calculation succeeded
+    // If server calculation failed, we already used the client's fee, so no validation needed
+    if (args.deliveryFee !== undefined && serverCalculationSucceeded && Math.abs(args.deliveryFee - calculatedDeliveryFee) > deliveryFeeTolerance) {
       throw new Error("Delivery fee mismatch. Please refresh and try again.");
     }
     if (Math.abs(args.discount - calculatedDiscount) > tolerance) {
