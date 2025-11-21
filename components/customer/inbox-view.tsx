@@ -50,7 +50,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
     { id: "cancelled", label: "Cancelled", icon: Ban },
   ], [])
 
-  const activeStatuses = new Set(["pre-order-pending", "pending", "accepted", "ready", "in-transit"])
+  const activeStatuses = new Set(["pre-order-pending", "pending", "accepted", "ready", "in-transit", "denied"])
 
   // Note: Date range filtering is now handled by filterAndSortOrders utility
 

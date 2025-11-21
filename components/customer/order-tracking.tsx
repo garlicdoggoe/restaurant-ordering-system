@@ -613,15 +613,19 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
             )}
 
             {order.status === "denied" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCancelOrderId(order._id)}
-                className="flex-1 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-              >
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Confirm & Clear
-              </Button>
+              <div className="flex-1 space-y-2">
+                <Button
+                  size="sm"
+                  onClick={() => setCancelOrderId(order._id)}
+                  className="w-full !bg-red-600 hover:!bg-red-700 !text-white border-red-600"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Confirm Denied Order
+                </Button>
+                <p className="text-xs text-yellow-600 font-medium text-center">
+                  Refund can take 1-3 business days to process. You can still reach out to the restaurant using chat.
+                </p>
+              </div>
             )}
           </div>
         </CardContent>

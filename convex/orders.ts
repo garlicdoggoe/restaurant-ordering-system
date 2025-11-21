@@ -738,7 +738,7 @@ export const update = mutation({
           senderId: currentUser._id as unknown as string,
           senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
           senderRole: "owner",
-          message: `Order denied. Reason: ${reason}`,
+          message: `Your order was not approved. Please wait while a representative reviews it and assists with the resolution. Reason: ${reason}`,
           timestamp: Date.now(),
         });
         chatMessageSent = true;

@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { MessageSquare, Ban, ChevronDown, ChevronUp, FileText, Upload} from "lucide-react"
-import { type Order } from "@/lib/data-context"
+import { MessageSquare, Ban, ChevronDown, ChevronUp, FileText, Upload, CheckCircle} from "lucide-react"
+import { type Order, useData } from "@/lib/data-context"
 import { PaymentProofUploadDialog } from "@/components/ui/payment-proof-upload-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import {
   isDeliveryOrder as isDeliveryOrderUtil,
   getOrderTypePrefix,
@@ -42,6 +43,19 @@ export function OrderCard({
 }: OrderCardProps) {
   // State for payment proof upload dialog
   const [isPaymentProofDialogOpen, setIsPaymentProofDialogOpen] = useState(false)
+  // State for confirming denial
+  const [confirmDenialId, setConfirmDenialId] = useState<string | null>(null)
+  const { updateOrder } = useData()
+  
+  // Handle confirming denial - this will cancel the order and clear it
+  const handleConfirmDenial = async (orderId: string) => {
+    try {
+      await updateOrder(orderId, { status: "cancelled" })
+      setConfirmDenialId(null)
+    } catch (error) {
+      console.error("Failed to confirm denial:", error)
+    }
+  }
   
   // Calculate total item count by quantity
   const totalItemCount = order.items.reduce((sum: number, item) => sum + item.quantity, 0)
@@ -375,7 +389,25 @@ export function OrderCard({
           )}
           
           {/* Third row: Cancel button (full width on mobile, conditional) */}
-          {showCancelButton && canCancel && onCancelClick && (
+          {/* Show confirm denial button for denied orders */}
+          {order.status === "denied" && (
+            <Button
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                setConfirmDenialId(order._id)
+              }}
+              className="w-full touch-target text-xs !bg-red-600 hover:!bg-red-700 !text-white border-red-600"
+            >
+              <CheckCircle className="w-3 h-3 mr-1" />
+              <span>Confirm Denied Order</span>
+            </Button>
+          )}
+          <p className="text-xs text-yellow-600 font-medium text-center">
+            Refund can take 1-3 business days to process. You can still reach out to the restaurant using chat.
+          </p>
+          {/* Show regular cancel button for other statuses */}
+          {order.status !== "denied" && showCancelButton && canCancel && onCancelClick && (
             <Button
               size="sm"
               onClick={onCancelClick}
@@ -400,6 +432,28 @@ export function OrderCard({
           }}
         />
       )}
+      
+      {/* Confirm Denial Dialog */}
+      <AlertDialog open={!!confirmDenialId} onOpenChange={() => setConfirmDenialId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Order Denial</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to confirm this order denial? <br /> Refund can take 1-3 business days to process. You can still reach out to the restaurant using chat.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, keep order</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (confirmDenialId) {
+                handleConfirmDenial(confirmDenialId)
+              }
+            }}>
+              Yes, confirm denial
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }
