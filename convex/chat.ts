@@ -20,7 +20,60 @@ export const send = mutation({
     message: v.string(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("chat_messages", { ...args, timestamp: Date.now() });
+    // SECURITY: Verify user is authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    // SECURITY: Verify senderId matches authenticated user's ID (prevent impersonation)
+    if (args.senderId !== (user._id as unknown as string)) {
+      throw new Error("Unauthorized: senderId must match authenticated user");
+    }
+
+    // SECURITY: Verify senderRole matches user's actual role
+    if (args.senderRole !== user.role) {
+      throw new Error("Unauthorized: senderRole must match user's role");
+    }
+
+    // SECURITY: Verify user has access to this order
+    const order = await ctx.db.get(args.orderId as any);
+    if (!order) throw new Error("Order not found");
+
+    // Customer can only access their own orders, owner can access all orders
+    if (user.role === "customer" && (order as any).customerId !== (user._id as unknown as string)) {
+      throw new Error("Unauthorized: You don't have access to this order");
+    }
+
+    // SECURITY: Derive senderName from authenticated user (don't trust client)
+    const senderName = user.role === "owner" 
+      ? (await ctx.db.query("restaurant").first())?.name || `${user.firstName} ${user.lastName}`
+      : `${user.firstName} ${user.lastName}`;
+
+    // SECURITY: Validate and sanitize message
+    if (!args.message || args.message.trim().length === 0) {
+      throw new Error("Message cannot be empty");
+    }
+    if (args.message.length > 2000) {
+      throw new Error("Message must be 2000 characters or less");
+    }
+    // Basic sanitization: remove potential script tags (simple approach)
+    const sanitizedMessage = args.message.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+
+    return await ctx.db.insert("chat_messages", { 
+      orderId: args.orderId,
+      senderId: args.senderId,
+      senderName: senderName,
+      senderRole: args.senderRole,
+      message: sanitizedMessage,
+      timestamp: Date.now() 
+    });
   },
 });
 

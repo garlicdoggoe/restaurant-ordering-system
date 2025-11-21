@@ -1,5 +1,23 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
+
+// Helper function to verify user is authenticated and is an owner
+async function verifyOwner(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  const clerkId = identity?.subject;
+  if (!clerkId) throw new Error("Not authenticated");
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_clerkId", (q: any) => q.eq("clerkId", clerkId))
+    .first();
+
+  if (!user) throw new Error("User not found");
+  if (user.role !== "owner") throw new Error("Unauthorized: Only owners can perform this action");
+
+  return user;
+}
 
 export const getCategories = query({
   args: {},
@@ -36,6 +54,13 @@ export const addMenuItem = mutation({
     }))),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
+    // SECURITY: Validate input lengths
+    if (args.name.length > 200) throw new Error("Menu item name must be 200 characters or less");
+    if (args.description.length > 2000) throw new Error("Description must be 2000 characters or less");
+
     // If client sent a Convex storageId instead of a URL for image, resolve it to a URL
     let resolvedImage = args.image;
     if (
@@ -43,9 +68,15 @@ export const addMenuItem = mutation({
       resolvedImage.length > 0 &&
       !resolvedImage.startsWith("http")
     ) {
-      const url = await ctx.storage.getUrl(resolvedImage as any);
-      if (url) {
+      // SECURITY: Validate storageId exists and get URL
+      try {
+        const url = await ctx.storage.getUrl(resolvedImage as Id<"_storage">);
+        if (!url) {
+          throw new Error("Invalid image file. Please upload a valid image.");
+        }
         resolvedImage = url;
+      } catch (error) {
+        throw new Error("Invalid image file. Please upload a valid image.");
       }
     }
 
@@ -77,6 +108,13 @@ export const updateMenuItem = mutation({
     }),
   },
   handler: async (ctx, { id, data }) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
+    // SECURITY: Validate input lengths
+    if (data.name && data.name.length > 200) throw new Error("Menu item name must be 200 characters or less");
+    if (data.description && data.description.length > 2000) throw new Error("Description must be 2000 characters or less");
+
     // If client sent a Convex storageId instead of a URL for image, resolve it to a URL
     let resolvedImage = data.image;
     if (
@@ -84,9 +122,15 @@ export const updateMenuItem = mutation({
       resolvedImage.length > 0 &&
       !resolvedImage.startsWith("http")
     ) {
-      const url = await ctx.storage.getUrl(resolvedImage as any);
-      if (url) {
+      // SECURITY: Validate storageId exists and get URL
+      try {
+        const url = await ctx.storage.getUrl(resolvedImage as Id<"_storage">);
+        if (!url) {
+          throw new Error("Invalid image file. Please upload a valid image.");
+        }
         resolvedImage = url;
+      } catch (error) {
+        throw new Error("Invalid image file. Please upload a valid image.");
       }
     }
 
@@ -117,6 +161,9 @@ export const updateMenuItem = mutation({
 export const deleteMenuItem = mutation({
   args: { id: v.id("menu_items") },
   handler: async (ctx, { id }) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     await ctx.db.delete(id);
   },
 });
@@ -129,6 +176,13 @@ export const addCategory = mutation({
     order: v.number(),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
+    // SECURITY: Validate input lengths
+    if (args.name.length > 100) throw new Error("Category name must be 100 characters or less");
+    if (args.icon.length > 10) throw new Error("Icon must be 10 characters or less");
+
     const now = Date.now();
     return await ctx.db.insert("categories", args);
   },
@@ -138,6 +192,9 @@ export const addCategory = mutation({
 export const seedDefaultCategories = mutation({
   args: {},
   handler: async (ctx) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const existingCategories = await ctx.db.query("categories").collect();
     
     // Only seed if no categories exist
@@ -181,6 +238,9 @@ export const addVariant = mutation({
     sku: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const now = Date.now();
     return await ctx.db.insert("menu_item_variants", { 
       ...args, 
@@ -201,6 +261,9 @@ export const updateVariant = mutation({
     }),
   },
   handler: async (ctx, { id, data }) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
     return id;
   },
@@ -209,6 +272,9 @@ export const updateVariant = mutation({
 export const deleteVariant = mutation({
   args: { id: v.id("menu_item_variants") },
   handler: async (ctx, { id }) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     // Also delete associated variant attributes
     const variantAttributes = await ctx.db
       .query("variant_attributes")
@@ -243,6 +309,9 @@ export const upsertAttribute = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const existing = await ctx.db
       .query("attributes")
       .withIndex("by_key", (q) => q.eq("key", args.key))
@@ -272,6 +341,9 @@ export const setVariantAttribute = mutation({
     value: v.string(),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const existing = await ctx.db
       .query("variant_attributes")
       .withIndex("by_variantId_attributeId", (q) => 
@@ -354,6 +426,9 @@ export const addChoiceGroup = mutation({
     required: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const now = Date.now();
     return await ctx.db.insert("menu_item_choice_groups", {
       menuItemId: args.menuItemId,
@@ -377,6 +452,9 @@ export const updateChoiceGroup = mutation({
     }),
   },
   handler: async (ctx, { id, data }) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
     return id;
   },
@@ -385,6 +463,9 @@ export const updateChoiceGroup = mutation({
 export const deleteChoiceGroup = mutation({
   args: { id: v.id("menu_item_choice_groups") },
   handler: async (ctx, { id }) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     // Choices are stored in the group, so just delete the group
     await ctx.db.delete(id);
   },
@@ -401,6 +482,9 @@ export const addChoice = mutation({
     variantId: v.optional(v.id("menu_item_variants")), // For bundle choices: default variant
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const group = await ctx.db.get(args.choiceGroupId);
     if (!group) throw new Error("Choice group not found");
     
@@ -437,6 +521,9 @@ export const updateChoice = mutation({
     }),
   },
   handler: async (ctx, { choiceGroupId, choiceIndex, data }) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const group = await ctx.db.get(choiceGroupId);
     if (!group) throw new Error("Choice group not found");
     
@@ -462,6 +549,9 @@ export const deleteChoice = mutation({
     choiceIndex: v.number(), // Index of the choice in the choices array
   },
   handler: async (ctx, { choiceGroupId, choiceIndex }) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const group = await ctx.db.get(choiceGroupId);
     if (!group) throw new Error("Choice group not found");
     

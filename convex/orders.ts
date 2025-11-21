@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 
 // Separate user role lookup with better caching - eliminates user dependency from order queries
 export const getCurrentUserRole = query({
@@ -203,6 +204,256 @@ export const create = mutation({
       throw new Error("Landmark/Special instructions must be 100 characters or less");
     }
 
+    // SECURITY: Validate and recalculate all prices server-side to prevent price manipulation
+    const restaurant = await ctx.db.query("restaurant").first();
+    if (!restaurant) throw new Error("Restaurant configuration not found");
+
+    // Validate and recalculate each order item
+    const validatedItems = [];
+    let calculatedSubtotal = 0;
+
+    for (const item of args.items) {
+      // Validate menu item exists and is available
+      const menuItem = await ctx.db.get(item.menuItemId as Id<"menu_items">);
+      if (!menuItem) {
+        throw new Error("One or more menu items are no longer available. Please refresh and try again.");
+      }
+      // Type guard: ensure this is a menu_item (not another table type)
+      if (!("available" in menuItem) || !menuItem.available) {
+        throw new Error("One or more menu items are currently unavailable. Please remove them from your cart.");
+      }
+
+      // Validate quantity is positive
+      if (item.quantity <= 0 || !Number.isInteger(item.quantity)) {
+        throw new Error("Invalid quantity. Please enter a positive whole number.");
+      }
+
+      // Type assertion: we know this is a menu_item from the check above
+      const menuItemTyped = menuItem as { _id: Id<"menu_items">; price: number; available: boolean; isBundle?: boolean };
+      let itemUnitPrice = menuItemTyped.price; // Start with base price
+
+      // If variant is specified, validate and use variant price
+      if (item.variantId) {
+        const variant = await ctx.db.get(item.variantId as Id<"menu_item_variants">);
+        if (!variant) {
+          throw new Error("Selected variant is no longer available. Please refresh and try again.");
+        }
+        // Type guard: ensure this is a variant
+        if (!("menuItemId" in variant) || variant.menuItemId !== menuItemTyped._id) {
+          throw new Error("Invalid variant selection. Please refresh and try again.");
+        }
+        const variantTyped = variant as { menuItemId: Id<"menu_items">; available: boolean; price: number };
+        if (!variantTyped.available) {
+          throw new Error("Selected variant is currently unavailable. Please choose a different option.");
+        }
+        itemUnitPrice = variantTyped.price;
+      }
+
+      // Validate and calculate choice prices
+      let choicePriceAdjustment = 0;
+      let validatedSelectedChoices = undefined;
+      if (item.selectedChoices) {
+        // Get all choice groups for this menu item
+        const choiceGroups = await ctx.db
+          .query("menu_item_choice_groups")
+          .withIndex("by_menuItemId", (q: any) => q.eq("menuItemId", menuItemTyped._id))
+          .collect();
+
+        validatedSelectedChoices = {} as Record<string, { name: string; price: number }>;
+
+        // Validate each selected choice
+        for (const [choiceGroupId, selectedChoice] of Object.entries(item.selectedChoices)) {
+          const choiceGroup = choiceGroups.find(g => g._id === choiceGroupId as any);
+          if (!choiceGroup) {
+            throw new Error("Invalid choice selection. Please refresh and try again.");
+          }
+
+          // Find the choice in the group
+          const choice = choiceGroup.choices?.find(c => c.name === selectedChoice.name);
+          if (!choice) {
+            throw new Error("Selected choice is no longer available. Please refresh and try again.");
+          }
+          if (!choice.available) {
+            throw new Error("Selected choice is currently unavailable. Please choose a different option.");
+          }
+
+          // Use server-side price, not client-provided price
+          choicePriceAdjustment += choice.price;
+          
+          // Store validated choice with server-calculated price
+          validatedSelectedChoices[choiceGroupId] = {
+            name: choice.name,
+            price: choice.price,
+          };
+        }
+      }
+
+      // Calculate final unit price (base/variant price + choice adjustments)
+      const finalUnitPrice = itemUnitPrice + choicePriceAdjustment;
+
+      // Validate bundle items if this is a bundle
+      let validatedBundleItems = undefined;
+      if (menuItemTyped.isBundle && item.bundleItems) {
+        validatedBundleItems = [];
+        for (const bundleItem of item.bundleItems) {
+          const bundleMenuItem = await ctx.db.get(bundleItem.menuItemId as Id<"menu_items">);
+          if (!bundleMenuItem) {
+            throw new Error("One or more bundle items are no longer available. Please refresh and try again.");
+          }
+          // Type guard: ensure this is a menu_item
+          if (!("available" in bundleMenuItem) || !bundleMenuItem.available) {
+            throw new Error("One or more bundle items are currently unavailable. Please refresh and try again.");
+          }
+          const bundleMenuItemTyped = bundleMenuItem as { _id: Id<"menu_items">; price: number; available: boolean };
+
+          let bundleItemPrice = bundleMenuItemTyped.price;
+          if (bundleItem.variantId) {
+            const bundleVariant = await ctx.db.get(bundleItem.variantId as Id<"menu_item_variants">);
+            if (!bundleVariant) {
+              throw new Error("Invalid bundle item configuration. Please refresh and try again.");
+            }
+            // Type guard: ensure this is a variant
+            if (!("menuItemId" in bundleVariant) || bundleVariant.menuItemId !== bundleMenuItemTyped._id) {
+              throw new Error("Invalid bundle item configuration. Please refresh and try again.");
+            }
+            const bundleVariantTyped = bundleVariant as { menuItemId: Id<"menu_items">; price: number };
+            bundleItemPrice = bundleVariantTyped.price;
+          }
+
+          validatedBundleItems.push({
+            menuItemId: bundleItem.menuItemId,
+            variantId: bundleItem.variantId,
+            name: bundleItem.name,
+            price: bundleItemPrice, // Use server-calculated price
+          });
+        }
+      }
+
+      // Calculate item total price
+      const itemTotalPrice = finalUnitPrice * item.quantity;
+      calculatedSubtotal += itemTotalPrice;
+
+      // Store validated item with server-calculated prices
+      validatedItems.push({
+        menuItemId: item.menuItemId,
+        name: item.name,
+        price: itemTotalPrice, // Total price for this item (unit price * quantity)
+        quantity: item.quantity,
+        variantId: item.variantId,
+        variantName: item.variantName,
+        attributes: item.attributes,
+        unitPrice: finalUnitPrice, // Store unit price for reference
+        selectedChoices: validatedSelectedChoices,
+        bundleItems: validatedBundleItems,
+      });
+    }
+
+    // SECURITY: Calculate platform fee server-side
+    let calculatedPlatformFee = 0;
+    if (restaurant.platformFeeEnabled && restaurant.platformFee) {
+      calculatedPlatformFee = restaurant.platformFee;
+    }
+
+    // SECURITY: Calculate delivery fee server-side (if delivery order)
+    let calculatedDeliveryFee = 0;
+    const isDelivery = args.orderType === "delivery" || 
+      (args.orderType === "pre-order" && args.preOrderFulfillment === "delivery");
+    
+    if (isDelivery && args.customerCoordinates && restaurant.coordinates) {
+      // SECURITY: Calculate distance server-side using Mapbox API
+      const accessToken = process.env.MAPBOX_ACCESS_TOKEN;
+      if (accessToken) {
+        try {
+          const coordinates = `${restaurant.coordinates.lng},${restaurant.coordinates.lat};${args.customerCoordinates.lng},${args.customerCoordinates.lat}`;
+          const profile = "mapbox/driving";
+          const url = `https://api.mapbox.com/directions/v5/${profile}/${coordinates}?access_token=${accessToken}`;
+          
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.routes && data.routes.length > 0) {
+              const distanceInMeters = data.routes[0]?.distance;
+              if (typeof distanceInMeters === "number" && distanceInMeters > 0) {
+                const feePerKm = restaurant.feePerKilometer ?? 15;
+                const distanceInKm = distanceInMeters / 1000;
+                
+                if (distanceInKm <= 0.5) {
+                  calculatedDeliveryFee = 0;
+                } else if (distanceInKm <= 1) {
+                  calculatedDeliveryFee = 20;
+                } else {
+                  calculatedDeliveryFee = 20 + (distanceInKm - 1) * feePerKm;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          // If distance calculation fails, delivery fee remains 0
+          // This is acceptable as the order can still be processed
+          console.error("Failed to calculate delivery fee:", error);
+        }
+      }
+    }
+
+    // SECURITY: Validate and calculate voucher discount server-side
+    let calculatedDiscount = 0;
+    if (args.voucherCode) {
+      const voucher = await ctx.db
+        .query("vouchers")
+        .withIndex("by_code", (q) => q.eq("code", args.voucherCode!))
+        .first();
+
+      if (!voucher || !voucher.active) {
+        throw new Error("Invalid voucher code");
+      }
+      if (voucher.expiresAt < Date.now()) {
+        throw new Error("Voucher has expired");
+      }
+      if (voucher.usageCount >= voucher.usageLimit) {
+        throw new Error("Voucher usage limit reached");
+      }
+      if (calculatedSubtotal < voucher.minOrderAmount) {
+        throw new Error(`Minimum order amount is ₱${voucher.minOrderAmount}`);
+      }
+
+      // Calculate discount based on voucher type
+      if (voucher.type === "fixed") {
+        calculatedDiscount = voucher.value;
+      } else {
+        calculatedDiscount = (calculatedSubtotal * voucher.value) / 100;
+        if (voucher.maxDiscount && calculatedDiscount > voucher.maxDiscount) {
+          calculatedDiscount = voucher.maxDiscount;
+        }
+      }
+
+      // Increment voucher usage count
+      await ctx.db.patch(voucher._id, {
+        usageCount: voucher.usageCount + 1,
+        updatedAt: Date.now(),
+      });
+    }
+
+    // SECURITY: Calculate total server-side
+    const calculatedTotal = calculatedSubtotal + calculatedPlatformFee + calculatedDeliveryFee - calculatedDiscount;
+
+    // SECURITY: Verify client-provided totals match server-calculated totals (with small tolerance for floating point)
+    const tolerance = 0.01; // 1 cent tolerance
+    if (Math.abs(args.subtotal - calculatedSubtotal) > tolerance) {
+      throw new Error("Subtotal mismatch. Please refresh and try again.");
+    }
+    if (Math.abs(args.platformFee - calculatedPlatformFee) > tolerance) {
+      throw new Error("Platform fee mismatch. Please refresh and try again.");
+    }
+    if (args.deliveryFee !== undefined && Math.abs(args.deliveryFee - calculatedDeliveryFee) > tolerance) {
+      throw new Error("Delivery fee mismatch. Please refresh and try again.");
+    }
+    if (Math.abs(args.discount - calculatedDiscount) > tolerance) {
+      throw new Error("Discount mismatch. Please refresh and try again.");
+    }
+    if (Math.abs(args.total - calculatedTotal) > tolerance) {
+      throw new Error("Total mismatch. Please refresh and try again.");
+    }
+
     // If client sent a Convex storageId instead of a URL for payment screenshot, resolve it to a URL
     // This allows clients to pass a storage reference without extra round trips for URL resolution
     let resolvedPaymentScreenshot = args.paymentScreenshot;
@@ -211,17 +462,44 @@ export const create = mutation({
       resolvedPaymentScreenshot.length > 0 &&
       !resolvedPaymentScreenshot.startsWith("http")
     ) {
-      const url = await ctx.storage.getUrl(resolvedPaymentScreenshot as any);
-      if (url) {
+      // SECURITY: Validate storageId exists and get URL
+      try {
+        const url = await ctx.storage.getUrl(resolvedPaymentScreenshot as Id<"_storage">);
+        if (!url) {
+          throw new Error("Invalid payment screenshot. Please upload a valid image.");
+        }
         resolvedPaymentScreenshot = url;
+      } catch (error) {
+        throw new Error("Invalid payment screenshot. Please upload a valid image.");
       }
     }
 
     const now = Date.now();
     const orderId = await ctx.db.insert("orders", {
-      ...args,
-      paymentScreenshot: resolvedPaymentScreenshot,
       customerId: currentUser._id as unknown as string,
+      customerName: args.customerName,
+      customerPhone: args.customerPhone,
+      customerAddress: args.customerAddress,
+      customerCoordinates: args.customerCoordinates,
+      gcashNumber: args.gcashNumber,
+      items: validatedItems, // Use validated items with server-calculated prices
+      subtotal: calculatedSubtotal, // Use server-calculated subtotal
+      platformFee: calculatedPlatformFee, // Use server-calculated platform fee
+      deliveryFee: calculatedDeliveryFee, // Use server-calculated delivery fee
+      discount: calculatedDiscount, // Use server-calculated discount
+      total: calculatedTotal, // Use server-calculated total
+      orderType: args.orderType,
+      preOrderFulfillment: args.preOrderFulfillment,
+      preOrderScheduledAt: args.preOrderScheduledAt,
+      paymentPlan: args.paymentPlan,
+      downpaymentAmount: args.downpaymentAmount,
+      downpaymentProofUrl: args.downpaymentProofUrl,
+      remainingPaymentMethod: args.remainingPaymentMethod,
+      remainingPaymentProofUrl: args.remainingPaymentProofUrl,
+      status: args.status,
+      paymentScreenshot: resolvedPaymentScreenshot,
+      voucherCode: args.voucherCode,
+      specialInstructions: args.specialInstructions,
       // Default: customers cannot send images unless explicitly enabled by owner
       allowCustomerImages: false,
       createdAt: now,
@@ -232,7 +510,7 @@ export const create = mutation({
     // This allows customers and owners to chat about any order, regardless of status or orderType
     // Messages are created for all orders including: pending non-preorders, pending pre-orders,
     // and all other order types and statuses
-    const restaurant = await ctx.db.query("restaurant").first();
+    // Note: restaurant was already fetched above for price validation
     // Get the owner user to send the message with correct senderId
     const ownerUser = await ctx.db
       .query("users")
@@ -343,6 +621,9 @@ export const update = mutation({
       const wasAccepted = existing.status === "accepted";
       await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
 
+      // Fetch restaurant once for all chat messages (used multiple times below)
+      const restaurant = await ctx.db.query("restaurant").first();
+
       // Track if a chat message was already sent by specific handlers
       let chatMessageSent = false;
 
@@ -350,7 +631,6 @@ export const update = mutation({
       // Trigger condition: status transitions from "pre-order-pending" to "pending"
       // This informs both customer and owner in the shared chat thread.
       if (existing.status === "pre-order-pending" && data.status === "pending") {
-        const restaurant = await ctx.db.query("restaurant").first();
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
           senderId: currentUser._id as unknown as string,
@@ -365,8 +645,6 @@ export const update = mutation({
 
       // Seed chat message on first transition to accepted status
       if (!wasAccepted && data.status === "accepted") {
-        // Get restaurant name for the message sender
-        const restaurant = await ctx.db.query("restaurant").first();
         // Insert initial chat message announcing order acceptance
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
@@ -382,7 +660,6 @@ export const update = mutation({
       // Auto-chat when order is marked as ready
       // Check if order is transitioning to ready status (from any status except ready)
       if (existing.status !== "ready" && data.status === "ready") {
-        const restaurant = await ctx.db.query("restaurant").first();
         // Insert chat message announcing order is ready
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
@@ -398,7 +675,6 @@ export const update = mutation({
       // Auto-chat when order is marked as in-transit
       // Check if order is transitioning to in-transit status (from any status except in-transit)
       if (existing.status !== "in-transit" && data.status === "in-transit") {
-        const restaurant = await ctx.db.query("restaurant").first();
         // Insert chat message announcing order is in transit
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
@@ -414,7 +690,6 @@ export const update = mutation({
       // Auto-chat when order is marked as delivered
       // Check if order is transitioning to delivered status (from any status except delivered)
       if (existing.status !== "delivered" && data.status === "delivered") {
-        const restaurant = await ctx.db.query("restaurant").first();
         // Insert chat message announcing order is delivered
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
@@ -430,7 +705,6 @@ export const update = mutation({
       // Auto-chat when order is marked as completed
       // Check if order is transitioning to completed status (from any status except completed)
       if (existing.status !== "completed" && data.status === "completed") {
-        const restaurant = await ctx.db.query("restaurant").first();
         // Insert chat message announcing order is completed
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
@@ -445,7 +719,6 @@ export const update = mutation({
 
       // Auto-chat on denial with reason
       if (data.status === "denied") {
-        const restaurant = await ctx.db.query("restaurant").first();
         const reason = data.denialReason ?? existing.denialReason ?? "No reason provided";
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
@@ -461,7 +734,6 @@ export const update = mutation({
       // Handle status change: send chat message and create modification log
       // This runs for ALL status changes, including ones not handled above
       if (statusChanged && data.status !== undefined) {
-        const restaurant = await ctx.db.query("restaurant").first();
         const newStatus = data.status;
         
         // Human-readable status labels
@@ -598,9 +870,15 @@ export const update = mutation({
         remainingPaymentProofUrl.length > 0 &&
         !remainingPaymentProofUrl.startsWith("http")
       ) {
-        const resolvedUrl = await ctx.storage.getUrl(remainingPaymentProofUrl as any);
-        if (resolvedUrl) {
+        // SECURITY: Validate storageId exists and get URL
+        try {
+          const resolvedUrl = await ctx.storage.getUrl(remainingPaymentProofUrl as Id<"_storage">);
+          if (!resolvedUrl) {
+            throw new Error("Invalid payment proof. Please upload a valid image.");
+          }
           remainingPaymentProofUrl = resolvedUrl;
+        } catch (error) {
+          throw new Error("Invalid payment proof. Please upload a valid image.");
         }
       }
 

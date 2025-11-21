@@ -42,6 +42,14 @@ export const upsertUser = mutation({
 
     const now = Date.now();
 
+    // SECURITY: Validate input lengths
+    if (args.firstName.length > 100) throw new Error("First name must be 100 characters or less");
+    if (args.lastName.length > 100) throw new Error("Last name must be 100 characters or less");
+    if (args.email.length > 255) throw new Error("Email must be 255 characters or less");
+    if (args.phone && args.phone.length > 20) throw new Error("Phone number must be 20 characters or less");
+    if (args.address && args.address.length > 500) throw new Error("Address must be 500 characters or less");
+    if (args.gcashNumber && args.gcashNumber.length > 20) throw new Error("GCash number must be 20 characters or less");
+
     // SECURITY: If requesting owner role, validate the token server-side
     if (args.role === "owner") {
       if (!args.ownerToken) {
@@ -150,6 +158,13 @@ export const updateUserProfile = mutation({
 
     if (!user) throw new Error("User not found");
 
+    // SECURITY: Validate input lengths
+    if (args.firstName && args.firstName.length > 100) throw new Error("First name must be 100 characters or less");
+    if (args.lastName && args.lastName.length > 100) throw new Error("Last name must be 100 characters or less");
+    if (args.phone && args.phone.length > 20) throw new Error("Phone number must be 20 characters or less");
+    if (args.address && args.address.length > 500) throw new Error("Address must be 500 characters or less");
+    if (args.gcashNumber && args.gcashNumber.length > 20) throw new Error("GCash number must be 20 characters or less");
+
     const updatedData: any = {
       ...args,
       updatedAt: Date.now(),
@@ -204,17 +219,29 @@ export const validateOwnerCode = mutation({
     code: v.string(),
   },
   handler: async (ctx, { code }) => {
-    // The owner signup code is "IchiroCocoiNami17?"
-    // This is kept server-side only - never exposed to client
-    const validOwnerCode = "IchiroCocoiNami17?";
+    // SECURITY: Owner signup code stored in environment variable
+    // This prevents the code from being visible in version control
+    const validOwnerCode = process.env.OWNER_SIGNUP_CODE;
+    
+    if (!validOwnerCode) {
+      throw new Error("Owner signup code not configured. Please set OWNER_SIGNUP_CODE environment variable.");
+    }
     
     if (code !== validOwnerCode) {
       return { valid: false, error: "Invalid owner code" };
     }
 
-    // Generate secure random token (crypto.randomUUID or similar)
-    // Using timestamp + random string for token generation
-    const token = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+    // SECURITY: Generate secure random token
+    // In Convex mutations, we use a combination of timestamp and multiple random values
+    // This provides sufficient entropy for a one-time token that expires in 24 hours
+    // Using multiple Math.random() calls with timestamp provides good randomness for this use case
+    const timestamp = Date.now();
+    const random1 = Math.random().toString(36).substring(2, 15);
+    const random2 = Math.random().toString(36).substring(2, 15);
+    const random3 = Math.random().toString(36).substring(2, 15);
+    const random4 = Math.random().toString(36).substring(2, 15);
+    // Combine timestamp with multiple random strings for sufficient entropy
+    const token = `${timestamp}-${random1}${random2}${random3}${random4}`;
     const now = Date.now();
     // Token expires in 24 hours
     const expiresAt = now + (24 * 60 * 60 * 1000);

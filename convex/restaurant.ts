@@ -1,6 +1,23 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Helper function to verify user is authenticated and is an owner
+async function verifyOwner(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  const clerkId = identity?.subject;
+  if (!clerkId) throw new Error("Not authenticated");
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_clerkId", (q: any) => q.eq("clerkId", clerkId))
+    .first();
+
+  if (!user) throw new Error("User not found");
+  if (user.role !== "owner") throw new Error("Unauthorized: Only owners can perform this action");
+
+  return user;
+}
+
 export const get = query({
   args: {},
   handler: async (ctx) => {
@@ -45,6 +62,16 @@ export const upsert = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
+    // SECURITY: Validate input lengths
+    if (args.name.length > 200) throw new Error("Restaurant name must be 200 characters or less");
+    if (args.description.length > 2000) throw new Error("Description must be 2000 characters or less");
+    if (args.address.length > 500) throw new Error("Address must be 500 characters or less");
+    if (args.phone.length > 20) throw new Error("Phone number must be 20 characters or less");
+    if (args.email.length > 255) throw new Error("Email must be 255 characters or less");
+
     const now = Date.now();
     const existing = await ctx.db.query("restaurant").collect();
     const normalizeEntry = (entry: { date: string; startTime: string; endTime?: string }) => ({
@@ -98,6 +125,9 @@ export const setCoordinates = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify user is authenticated and is an owner
+    await verifyOwner(ctx);
+
     const existing = await ctx.db.query("restaurant").collect();
     const now = Date.now();
     
