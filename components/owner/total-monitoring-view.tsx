@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 
-import { useData, type Order, type OrderItem } from "@/lib/data-context"
+import { useData, type Order, type OrderItem, type OrderStatus } from "@/lib/data-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Calendar, RefreshCcw, Clock4, Eye } from "lucide-react"
+import { Calendar, RefreshCcw, Clock4, Eye, ChevronDown, ChevronRight } from "lucide-react"
 import { OrderDetails } from "./order-details"
 import { calculateFullOrderTotal } from "@/lib/order-utils"
 
@@ -34,6 +34,19 @@ interface TimelineEntry {
   primaryOrderId: string
   orderIds: string[]
 }
+
+const PREORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
+  { value: "pre-order-pending", label: "Pre-order Pending" },
+  { value: "pending", label: "Pending" },
+  { value: "accepted", label: "Accepted" },
+  { value: "ready", label: "Ready" },
+  { value: "in-transit", label: "In Transit" },
+  { value: "delivered", label: "Delivered" },
+  { value: "completed", label: "Completed" },
+  { value: "denied", label: "Denied" },
+  { value: "cancelled", label: "Cancelled" },
+]
+const ALL_PREORDER_STATUSES: OrderStatus[] = PREORDER_STATUS_OPTIONS.map((option) => option.value)
 
 /**
  * TotalMonitoringView
@@ -61,6 +74,9 @@ export function TotalMonitoringView() {
   const [selectedDate, setSelectedDate] = useState(() => formatInputDate(new Date()))
   const [mode, setMode] = useState<MonitoringMode>("aggregated")
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
+  const [selectedStatuses, setSelectedStatuses] = useState<OrderStatus[]>(() => [...ALL_PREORDER_STATUSES])
+  // Keep the checkbox matrix hidden by default so the controls stay tidy until owners need them.
+  const [showStateFilter, setShowStateFilter] = useState(false)
 
   // Work only with pre-orders – this view is intentionally scoped.
   const preOrdersForDate = useMemo(() => {
@@ -74,10 +90,42 @@ export function TotalMonitoringView() {
       })
   }, [orders, selectedDate])
 
+  // Pre-compute how many orders fall under each state so the checkbox list can display live counts.
+  const statusOptions = useMemo(() => {
+    return PREORDER_STATUS_OPTIONS.map((option) => ({
+      ...option,
+      count: preOrdersForDate.filter((order) => order.status === option.value).length,
+    }))
+  }, [preOrdersForDate])
+
+  // Apply the checkbox state filter before calculating any downstream metrics or UI sections.
+  const filteredPreOrders = useMemo(() => {
+    const allowedStatuses = new Set(selectedStatuses)
+    return preOrdersForDate.filter((order) => allowedStatuses.has(order.status))
+  }, [preOrdersForDate, selectedStatuses])
+
+  // Checkbox helpers stay tiny so we can easily reuse the same behavior if we relocate the component.
+  const toggleStatus = (status: OrderStatus) => {
+    setSelectedStatuses((prev) => {
+      if (prev.includes(status)) {
+        return prev.filter((entry) => entry !== status)
+      }
+      return [...prev, status]
+    })
+  }
+
+  const selectAllStatuses = () => {
+    setSelectedStatuses([...ALL_PREORDER_STATUSES])
+  }
+
+  const clearStatuses = () => {
+    setSelectedStatuses([])
+  }
+
   // Build aggregated item totals so the kitchen can prep by quantity.
   const aggregatedItems = useMemo<AggregatedItem[]>(() => {
     const map = new Map<string, AggregatedItem>()
-    preOrdersForDate.forEach((order) => {
+    filteredPreOrders.forEach((order) => {
       order.items.forEach((item) => {
         const key = buildItemKey(item)
         // Build item name with variant and choices
@@ -102,7 +150,7 @@ export function TotalMonitoringView() {
       })
     })
     return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity)
-  }, [preOrdersForDate])
+  }, [filteredPreOrders])
 
   // Build timeline entries so front-of-house knows the sequence.
   const timelineEntries = useMemo<TimelineEntry[]>(() => {
@@ -114,7 +162,7 @@ export function TotalMonitoringView() {
 
     const byCustomer = new Map<string, TimelineEntry>()
 
-    preOrdersForDate.forEach((order) => {
+    filteredPreOrders.forEach((order) => {
       const timestamp = getOrderDate(order).getTime()
       const existing = byCustomer.get(order.customerId)
 
@@ -156,17 +204,17 @@ export function TotalMonitoringView() {
     })
 
     return Array.from(byCustomer.values()).sort((a, b) => a.timestamp - b.timestamp)
-  }, [preOrdersForDate])
+  }, [filteredPreOrders])
 
   // High-level KPIs for the sticky summary pane.
   const kpis = useMemo(() => {
-    const totalOrders = preOrdersForDate.length
-    const totalItems = preOrdersForDate.reduce(
+    const totalOrders = filteredPreOrders.length
+    const totalItems = filteredPreOrders.reduce(
       (acc, order) => acc + order.items.reduce((sum, item) => sum + item.quantity, 0),
       0,
     )
     // Recalculate revenue using deliveryFee from each order
-    const revenue = preOrdersForDate.reduce((acc, order) => {
+    const revenue = filteredPreOrders.reduce((acc, order) => {
       const orderTotal = calculateFullOrderTotal(
         order.subtotal,
         order.platformFee,
@@ -175,9 +223,9 @@ export function TotalMonitoringView() {
       )
       return acc + orderTotal
     }, 0)
-    const uniqueCustomers = new Set(preOrdersForDate.map((order) => order.customerId)).size
+    const uniqueCustomers = new Set(filteredPreOrders.map((order) => order.customerId)).size
     return { totalOrders, totalItems, revenue, uniqueCustomers }
-  }, [preOrdersForDate])
+  }, [filteredPreOrders])
 
   return (
     <div className="space-y-6">
@@ -190,7 +238,7 @@ export function TotalMonitoringView() {
       </header>
 
       {/* Controls */}
-      <Card className="p-4">
+      <Card className="p-4 space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
           <div className="flex-1 space-y-2">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Date</Label>
@@ -228,6 +276,34 @@ export function TotalMonitoringView() {
               </TabsList>
             </Tabs>
           </div>
+        </div>
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowStateFilter((prev) => !prev)}
+            className="flex items-center gap-2 text-sm font-medium"
+          >
+            {showStateFilter ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+            {showStateFilter ? "Hide state filter" : "Show state filter"}
+            <span className="text-xs text-muted-foreground">
+              ({selectedStatuses.length}/{ALL_PREORDER_STATUSES.length} selected)
+            </span>
+          </Button>
+          {showStateFilter && (
+            <StateFilter
+              options={statusOptions}
+              selectedStatuses={selectedStatuses}
+              onToggleStatus={toggleStatus}
+              onSelectAll={selectAllStatuses}
+              onClearAll={clearStatuses}
+            />
+          )}
         </div>
       </Card>
 
@@ -377,6 +453,89 @@ export function TotalMonitoringView() {
       {selectedOrderId && (
         <OrderDetails orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />
       )}
+    </div>
+  )
+}
+
+interface StateFilterOption {
+  value: OrderStatus
+  label: string
+  count: number
+}
+
+interface StateFilterProps {
+  options: StateFilterOption[]
+  selectedStatuses: OrderStatus[]
+  onToggleStatus: (status: OrderStatus) => void
+  onSelectAll: () => void
+  onClearAll: () => void
+}
+
+/**
+ * Dedicated checkbox group so owners can zero in on only the states that matter for prep.
+ * The component stays generic so we can reuse it in future variants (e.g., customer monitoring).
+ */
+function StateFilter({
+  options,
+  selectedStatuses,
+  onToggleStatus,
+  onSelectAll,
+  onClearAll,
+}: StateFilterProps) {
+  const allSelected = selectedStatuses.length === options.length
+  const hasSelection = selectedStatuses.length > 0
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">States</Label>
+          <p className="text-xs text-muted-foreground">
+            Toggle the statuses you want to surface in the list and KPIs.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={onSelectAll}
+            className="text-primary hover:underline disabled:text-muted-foreground"
+            disabled={allSelected}
+          >
+            Select all
+          </button>
+          <span className="text-muted-foreground">•</span>
+          <button
+            type="button"
+            onClick={onClearAll}
+            className="text-primary hover:underline disabled:text-muted-foreground"
+            disabled={!hasSelection}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {options.map((option) => {
+          const isChecked = selectedStatuses.includes(option.value)
+          return (
+            <label
+              key={option.value}
+              className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm shadow-sm bg-muted/30"
+            >
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={() => onToggleStatus(option.value)}
+                className="h-4 w-4 rounded border border-input text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+              />
+              <span className="flex-1">{option.label}</span>
+              <Badge variant="outline" className="text-[11px]">
+                {option.count}
+              </Badge>
+            </label>
+          )
+        })}
+      </div>
     </div>
   )
 }
