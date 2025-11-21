@@ -80,9 +80,19 @@ export function TotalMonitoringView() {
     preOrdersForDate.forEach((order) => {
       order.items.forEach((item) => {
         const key = buildItemKey(item)
+        // Build item name with variant and choices
+        let itemDisplayName = item.name
+        if (item.variantName) {
+          itemDisplayName += ` · ${item.variantName}`
+        }
+        if (item.selectedChoices && Object.keys(item.selectedChoices).length > 0) {
+          const choicesText = Object.values(item.selectedChoices).map(c => c.name).join(", ")
+          itemDisplayName += ` (${choicesText})`
+        }
+        
         const current = map.get(key) ?? {
           key,
-          name: item.variantName ? `${item.name} · ${item.variantName}` : item.name,
+          name: itemDisplayName,
           quantity: 0,
           total: 0,
         }
@@ -296,6 +306,13 @@ export function TotalMonitoringView() {
                                 <span>
                                   {item.quantity}× {item.name}
                                   {item.variantName ? ` · ${item.variantName}` : ""}
+                                  {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                                    <span className="text-muted-foreground">
+                                      {" ("}
+                                      {Object.values(item.selectedChoices).map(c => c.name).join(", ")}
+                                      {")"}
+                                    </span>
+                                  )}
                                 </span>
                                 <span>₱{((item.unitPrice ?? item.price) * item.quantity).toFixed(2)}</span>
                               </li>

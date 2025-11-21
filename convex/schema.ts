@@ -101,6 +101,11 @@ export default defineSchema({
         variantName: v.optional(v.string()),
         attributes: v.optional(v.record(v.string(), v.string())),
         unitPrice: v.optional(v.number()),
+        // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
+        selectedChoices: v.optional(v.record(v.string(), v.object({
+          name: v.string(),
+          price: v.number(),
+        }))),
       })
     ),
     subtotal: v.number(),
@@ -211,6 +216,23 @@ export default defineSchema({
     price: v.number(),
     available: v.boolean(),
     sku: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_menuItemId", ["menuItemId"]),
+
+  // Menu item choice groups - groups of choices where customer must select one (e.g., "Pasta Type")
+  // Choices are stored directly in the group as an array
+  menu_item_choice_groups: defineTable({
+    menuItemId: v.id("menu_items"),
+    name: v.string(), // Group label (e.g., "Pasta Type")
+    order: v.number(), // Display order for multiple groups
+    required: v.boolean(), // Whether selection is required (always true per requirements)
+    choices: v.array(v.object({
+      name: v.string(), // Choice name (e.g., "Spaghetti", "Carbonara")
+      price: v.number(), // Price adjustment for this choice (can be 0 or positive/negative)
+      available: v.boolean(),
+      order: v.number(), // Display order within group
+    })),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_menuItemId", ["menuItemId"]),

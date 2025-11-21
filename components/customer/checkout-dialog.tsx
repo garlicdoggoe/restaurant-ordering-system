@@ -599,6 +599,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         price: item.price,
         quantity: item.quantity,
         variantName: item.size || undefined,
+        variantId: item.variantId || undefined,
+        selectedChoices: item.selectedChoices || undefined,
       }))
 
       // Upload image only now (on submit). We pass storageId; server resolves to URL.

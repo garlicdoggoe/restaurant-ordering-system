@@ -271,6 +271,14 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                       {item.variantName || item.size}
                     </div>
                   )}
+                  {/* Display selected choices if available */}
+                  {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                    <div className="text-xs text-gray-500 ml-2 mt-0.5">
+                      {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
+                        <div key={groupId}>• {choice.name}</div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
               </div>

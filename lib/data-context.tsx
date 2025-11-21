@@ -107,6 +107,24 @@ export interface MenuItemVariant {
   updatedAt: number
 }
 
+export interface MenuItemChoiceGroup {
+  _id: string
+  menuItemId: string
+  name: string
+  order: number
+  required: boolean
+  choices: MenuItemChoice[] // Choices are now stored directly in the group
+  createdAt: number
+  updatedAt: number
+}
+
+export interface MenuItemChoice {
+  name: string
+  price: number
+  available: boolean
+  order: number
+}
+
 export interface Attribute {
   _id: string
   key: string
@@ -137,6 +155,8 @@ export interface OrderItem {
   size?: string
   attributes?: Record<string, string>
   unitPrice?: number
+  // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
+  selectedChoices?: Record<string, { name: string; price: number }>
 }
 
 export interface Order {

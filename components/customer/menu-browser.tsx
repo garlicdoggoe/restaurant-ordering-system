@@ -18,8 +18,6 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const { categories: ctxCategories, menuItems: ctxMenuItems, promotions } = useData()
 
-  // NOTE: Avoid logging menu data here; rely on React DevTools or network tab for debugging.
-
   // Build categories with fallback data (same logic as menu-view.tsx) - memoized to prevent dependency changes
   const availableCategories = useMemo(() => ctxCategories.length > 0 ? ctxCategories : [
     { _id: "1", name: "Pasta", icon: "🍝", order: 1 },

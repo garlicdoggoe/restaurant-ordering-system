@@ -295,3 +295,158 @@ export const getVariantAttributes = query({
   },
 });
 
+// Choice group management functions
+export const getChoiceGroupsByMenuItem = query({
+  args: { menuItemId: v.id("menu_items") },
+  handler: async (ctx, { menuItemId }) => {
+    const groups = await ctx.db
+      .query("menu_item_choice_groups")
+      .withIndex("by_menuItemId", (q) => q.eq("menuItemId", menuItemId))
+      .collect();
+    
+    // Sort by order field
+    return groups.sort((a, b) => a.order - b.order);
+  },
+});
+
+// Choices are now stored directly in the choice group, so we just get the group
+export const getChoicesByGroup = query({
+  args: { choiceGroupId: v.id("menu_item_choice_groups") },
+  handler: async (ctx, { choiceGroupId }) => {
+    const group = await ctx.db.get(choiceGroupId);
+    if (!group) return [];
+    
+    // Return choices from the group, sorted by order
+    return (group.choices || []).sort((a, b) => a.order - b.order);
+  },
+});
+
+export const addChoiceGroup = mutation({
+  args: {
+    menuItemId: v.id("menu_items"),
+    name: v.string(),
+    order: v.number(),
+    required: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("menu_item_choice_groups", {
+      menuItemId: args.menuItemId,
+      name: args.name,
+      order: args.order,
+      required: args.required ?? true, // Default to required
+      choices: [], // Initialize with empty choices array
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const updateChoiceGroup = mutation({
+  args: {
+    id: v.id("menu_item_choice_groups"),
+    data: v.object({
+      name: v.optional(v.string()),
+      order: v.optional(v.number()),
+      required: v.optional(v.boolean()),
+    }),
+  },
+  handler: async (ctx, { id, data }) => {
+    await ctx.db.patch(id, { ...data, updatedAt: Date.now() });
+    return id;
+  },
+});
+
+export const deleteChoiceGroup = mutation({
+  args: { id: v.id("menu_item_choice_groups") },
+  handler: async (ctx, { id }) => {
+    // Choices are stored in the group, so just delete the group
+    await ctx.db.delete(id);
+  },
+});
+
+export const addChoice = mutation({
+  args: {
+    choiceGroupId: v.id("menu_item_choice_groups"),
+    name: v.string(),
+    price: v.number(),
+    available: v.boolean(),
+    order: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const group = await ctx.db.get(args.choiceGroupId);
+    if (!group) throw new Error("Choice group not found");
+    
+    const newChoice = {
+      name: args.name,
+      price: args.price,
+      available: args.available,
+      order: args.order,
+    };
+    
+    const updatedChoices = [...(group.choices || []), newChoice];
+    await ctx.db.patch(args.choiceGroupId, { 
+      choices: updatedChoices,
+      updatedAt: Date.now() 
+    });
+    
+    return args.choiceGroupId; // Return group ID since choices don't have separate IDs
+  },
+});
+
+export const updateChoice = mutation({
+  args: {
+    choiceGroupId: v.id("menu_item_choice_groups"),
+    choiceIndex: v.number(), // Index of the choice in the choices array
+    data: v.object({
+      name: v.optional(v.string()),
+      price: v.optional(v.number()),
+      available: v.optional(v.boolean()),
+      order: v.optional(v.number()),
+    }),
+  },
+  handler: async (ctx, { choiceGroupId, choiceIndex, data }) => {
+    const group = await ctx.db.get(choiceGroupId);
+    if (!group) throw new Error("Choice group not found");
+    
+    const choices = [...(group.choices || [])];
+    if (choiceIndex < 0 || choiceIndex >= choices.length) {
+      throw new Error("Invalid choice index");
+    }
+    
+    choices[choiceIndex] = { ...choices[choiceIndex], ...data };
+    
+    await ctx.db.patch(choiceGroupId, { 
+      choices,
+      updatedAt: Date.now() 
+    });
+    
+    return choiceGroupId;
+  },
+});
+
+export const deleteChoice = mutation({
+  args: { 
+    choiceGroupId: v.id("menu_item_choice_groups"),
+    choiceIndex: v.number(), // Index of the choice in the choices array
+  },
+  handler: async (ctx, { choiceGroupId, choiceIndex }) => {
+    const group = await ctx.db.get(choiceGroupId);
+    if (!group) throw new Error("Choice group not found");
+    
+    const choices = [...(group.choices || [])];
+    if (choiceIndex < 0 || choiceIndex >= choices.length) {
+      throw new Error("Invalid choice index");
+    }
+    
+    choices.splice(choiceIndex, 1);
+    
+    await ctx.db.patch(choiceGroupId, { 
+      choices,
+      updatedAt: Date.now() 
+    });
+    
+    return choiceGroupId;
+  },
+});
+

@@ -126,6 +126,13 @@ export function OrderCard({
                           {item.variantName || item.size}
                         </div>
                       )}
+                      {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
+                            <div key={groupId}>• {choice.name}</div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     {/* Right: Quantity and Price */}
                     <div className="flex items-center gap-2 ml-2 flex-shrink-0">
@@ -209,6 +216,13 @@ export function OrderCard({
                   {(item.variantName || item.size) && (
                     <div className="text-xs text-muted-foreground">
                       {item.variantName || item.size}
+                    </div>
+                  )}
+                  {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
+                        <div key={groupId}>• {choice.name}</div>
+                      ))}
                     </div>
                   )}
                 </div>

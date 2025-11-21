@@ -12,6 +12,8 @@ export interface CartItem {
   // Optional variant display info
   size?: string
   variantId?: string
+  // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
+  selectedChoices?: Record<string, { name: string; price: number }>
 }
 
 // Cart context interface

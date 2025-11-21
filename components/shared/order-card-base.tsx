@@ -407,6 +407,16 @@ export function OrderCardBase({
                 <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-xs">{item.name}</div>
+                    {item.variantName && (
+                      <div className="text-xs text-muted-foreground">Size: {item.variantName}</div>
+                    )}
+                    {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
+                          <div key={groupId}>• {choice.name}</div>
+                        ))}
+                      </div>
+                    )}
                     <div className="text-xs text-muted-foreground">₱{item.price.toFixed(2)} each</div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -495,6 +505,13 @@ export function OrderCardBase({
                     {(item.variantName || item.size) && (
                       <div className="text-xs text-muted-foreground">
                         {item.variantName || item.size}
+                      </div>
+                    )}
+                    {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
+                          <div key={groupId}>• {choice.name}</div>
+                        ))}
                       </div>
                     )}
                   </div>

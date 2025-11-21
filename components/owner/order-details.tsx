@@ -263,6 +263,16 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                     <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
                         <div className="font-medium">{item.name}</div>
+                        {item.variantName && (
+                          <div className="text-xs text-muted-foreground">Size: {item.variantName}</div>
+                        )}
+                        {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
+                              <div key={groupId}>• {choice.name}</div>
+                            ))}
+                          </div>
+                        )}
                         <div className="text-sm text-muted-foreground">₱{item.price.toFixed(2)} each</div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -312,11 +322,23 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
               ) : (
                 <div className="space-y-2">
                   {currentItems.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <span>
-                        {item.quantity}x {item.name}
-                      </span>
-                      <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                    <div key={index} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span>
+                          {item.quantity}x {item.name}
+                        </span>
+                        <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                      {item.variantName && (
+                        <div className="text-xs text-muted-foreground ml-4">Size: {item.variantName}</div>
+                      )}
+                      {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                        <div className="text-xs text-muted-foreground ml-4">
+                          {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
+                            <div key={groupId}>• {choice.name}</div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

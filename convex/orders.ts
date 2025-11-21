@@ -137,6 +137,11 @@ export const create = mutation({
         variantName: v.optional(v.string()),
         attributes: v.optional(v.record(v.string(), v.string())),
         unitPrice: v.optional(v.number()),
+        // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
+        selectedChoices: v.optional(v.record(v.string(), v.object({
+          name: v.string(),
+          price: v.number(),
+        }))),
       })
     ),
     subtotal: v.number(),
@@ -606,6 +611,10 @@ export const updateOrderItems = mutation({
         variantName: v.optional(v.string()),
         attributes: v.optional(v.record(v.string(), v.string())),
         unitPrice: v.optional(v.number()),
+        selectedChoices: v.optional(v.record(v.string(), v.object({
+          name: v.string(),
+          price: v.number(),
+        }))),
       })
     ),
     modificationType: v.string(),
