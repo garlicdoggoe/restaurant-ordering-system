@@ -11,6 +11,8 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { OrderCard } from "./order-card"
 import { DenyOrderDialog } from "./deny-order-dialog"
 import { AcceptOrderDialog } from "./accept-order-dialog"
+import { useMutation, useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 type OrderStatus = "pending" | "preparing" | "ready" | "completed" | "cancelled" | "denied" | "in-transit" | "delivered" | "pre-order-pending"
 
@@ -30,6 +32,12 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
   const [isSearchingByOrderId, setIsSearchingByOrderId] = useState<boolean>(false)
 
   const { ordersByStatus } = useData()
+  
+  // Query to get list of new order IDs (orders created after last view)
+  const newOrderIds = useQuery(api.orders.getNewOrderIds) ?? []
+  
+  // Create a Set for fast lookup of new order IDs
+  const newOrderIdsSet = new Set(newOrderIds)
 
   // Helper function to check if a timestamp is from today (local time)
   // Compares the date portion only, ignoring time
@@ -424,6 +432,7 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
             }}
             onDenyClick={(orderId) => setDenyOrderId(orderId)}
             onAcceptClick={(orderId) => setAcceptOrderId(orderId)}
+            isNew={newOrderIdsSet.has(order._id)}
           />
         ))}
       </div>
@@ -444,6 +453,7 @@ export function OrdersView({ initialOrderId, initialStatus }: { initialOrderId?:
                 }}
                 onDenyClick={(orderId) => setDenyOrderId(orderId)}
                 onAcceptClick={(orderId) => setAcceptOrderId(orderId)}
+                isNew={newOrderIdsSet.has(order._id)}
               />
             ))}
           </div>

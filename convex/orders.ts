@@ -138,10 +138,11 @@ export const create = mutation({
         variantName: v.optional(v.string()),
         attributes: v.optional(v.record(v.string(), v.string())),
         unitPrice: v.optional(v.number()),
-        // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
+        // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number, menuItemId?: string })
         selectedChoices: v.optional(v.record(v.string(), v.object({
           name: v.string(),
           price: v.number(),
+          menuItemId: v.optional(v.string()), // For bundle choices, reference to the menu item
         }))),
         // Bundle items - for bundle menu items, stores the actual items included (selected from choice groups + fixed items)
         bundleItems: v.optional(v.array(v.object({
@@ -354,51 +355,20 @@ export const create = mutation({
       calculatedPlatformFee = restaurant.platformFee;
     }
 
-    // SECURITY: Calculate delivery fee server-side (if delivery order)
+    // SECURITY: Delivery fee calculation
+    // NOTE: fetch() cannot be used in Convex mutations (only in actions)
+    // The client calculates delivery fee using the calculateDistance action and sends it here
+    // We validate that it's non-negative and use it directly
     let calculatedDeliveryFee = 0;
-    let serverCalculationSucceeded = false;
     const isDelivery = args.orderType === "delivery" || 
       (args.orderType === "pre-order" && args.preOrderFulfillment === "delivery");
     
-    if (isDelivery && args.customerCoordinates && restaurant.coordinates) {
-      // SECURITY: Calculate distance server-side using Mapbox API
-      const accessToken = process.env.MAPBOX_ACCESS_TOKEN;
-      if (accessToken) {
-        try {
-          const coordinates = `${restaurant.coordinates.lng},${restaurant.coordinates.lat};${args.customerCoordinates.lng},${args.customerCoordinates.lat}`;
-          const profile = "mapbox/driving";
-          const url = `https://api.mapbox.com/directions/v5/${profile}/${coordinates}?access_token=${accessToken}`;
-          
-          const response = await fetch(url);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.routes && data.routes.length > 0) {
-              const distanceInMeters = data.routes[0]?.distance;
-              if (typeof distanceInMeters === "number" && distanceInMeters > 0) {
-                const feePerKm = restaurant.feePerKilometer ?? 15;
-                const distanceInKm = distanceInMeters / 1000;
-                
-                if (distanceInKm <= 0.5) {
-                  calculatedDeliveryFee = 0;
-                } else if (distanceInKm <= 1) {
-                  calculatedDeliveryFee = 20;
-                } else {
-                  calculatedDeliveryFee = 20 + (distanceInKm - 1) * feePerKm;
-                }
-                serverCalculationSucceeded = true;
+    if (isDelivery && args.deliveryFee !== undefined) {
+      // Validate delivery fee is non-negative
+      if (args.deliveryFee < 0) {
+        throw new Error("Invalid delivery fee. Please refresh and try again.");
               }
-            }
-          }
-        } catch (error) {
-          // If distance calculation fails, we'll use client-provided fee if available
-          console.error("Failed to calculate delivery fee:", error);
-        }
-      }
-    }
-    
-    // If server calculation failed but client provided a fee, use client's fee
-    // This handles cases where Mapbox API is temporarily unavailable
-    if (!serverCalculationSucceeded && args.deliveryFee !== undefined && args.deliveryFee > 0) {
+      // Use client-provided delivery fee (calculated via action on client side)
       calculatedDeliveryFee = args.deliveryFee;
     }
 
@@ -449,15 +419,31 @@ export const create = mutation({
     // that can have slight variations due to network conditions, API response differences, etc.
     const deliveryFeeTolerance = 5.0; // 5 pesos tolerance for delivery fees
     
-    if (Math.abs(args.subtotal - calculatedSubtotal) > tolerance) {
-      throw new Error("Subtotal mismatch. Please refresh and try again.");
+    // Validate subtotal with better error logging for debugging
+    const subtotalDiff = Math.abs(args.subtotal - calculatedSubtotal);
+    if (subtotalDiff > tolerance) {
+      // Log detailed error information to help debug the mismatch
+      console.error("Subtotal validation failed:", {
+        clientSubtotal: args.subtotal,
+        serverSubtotal: calculatedSubtotal,
+        difference: subtotalDiff,
+        tolerance,
+        items: args.items.map(item => ({
+          menuItemId: item.menuItemId,
+          name: item.name,
+          clientPrice: item.price,
+          quantity: item.quantity,
+          variantId: item.variantId,
+          selectedChoices: item.selectedChoices,
+        })),
+      });
+      throw new Error(`Subtotal mismatch. Please refresh and try again. (Client: ₱${args.subtotal.toFixed(2)}, Server: ₱${calculatedSubtotal.toFixed(2)})`);
     }
     if (Math.abs(args.platformFee - calculatedPlatformFee) > tolerance) {
       throw new Error("Platform fee mismatch. Please refresh and try again.");
     }
-    // Only validate delivery fee if server calculation succeeded
-    // If server calculation failed, we already used the client's fee, so no validation needed
-    if (args.deliveryFee !== undefined && serverCalculationSucceeded && Math.abs(args.deliveryFee - calculatedDeliveryFee) > deliveryFeeTolerance) {
+    // Validate delivery fee with higher tolerance (since it's calculated via external API on client)
+    if (args.deliveryFee !== undefined && Math.abs(args.deliveryFee - calculatedDeliveryFee) > deliveryFeeTolerance) {
       throw new Error("Delivery fee mismatch. Please refresh and try again.");
     }
     if (Math.abs(args.discount - calculatedDiscount) > tolerance) {
@@ -1056,6 +1042,130 @@ export const updateOrderItems = mutation({
     });
 
     return orderId;
+  },
+});
+
+// Get count of new orders (orders created after owner last viewed orders page)
+export const getNewOrdersCount = query({
+  args: {},
+  handler: async (ctx) => {
+    // Get current user - only owners have new order notifications
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) return 0;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    // Only owners get new order notifications
+    if (!user || user.role !== "owner") return 0;
+
+    // Get the last viewed timestamp for this owner
+    const viewStatus = await ctx.db
+      .query("order_view_status")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .first();
+
+    // If owner has never viewed orders, count all orders as new
+    const lastViewedTimestamp = viewStatus?.lastViewedTimestamp ?? 0;
+
+    // Get all orders created after last view
+    const allOrders = await ctx.db.query("orders").collect();
+    
+    // Count orders created after last view
+    // Use createdAt if available, otherwise fall back to _creationTime
+    const newOrdersCount = allOrders.filter((order) => {
+      const orderCreatedAt = order.createdAt || (order as any)._creationTime || 0;
+      return orderCreatedAt > lastViewedTimestamp;
+    }).length;
+
+    return newOrdersCount;
+  },
+});
+
+// Get list of new order IDs (orders created after owner last viewed orders page)
+export const getNewOrderIds = query({
+  args: {},
+  handler: async (ctx) => {
+    // Get current user - only owners have new order notifications
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    // Only owners get new order notifications
+    if (!user || user.role !== "owner") return [];
+
+    // Get the last viewed timestamp for this owner
+    const viewStatus = await ctx.db
+      .query("order_view_status")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .first();
+
+    // If owner has never viewed orders, all orders are new
+    const lastViewedTimestamp = viewStatus?.lastViewedTimestamp ?? 0;
+
+    // Get all orders created after last view
+    const allOrders = await ctx.db.query("orders").collect();
+    
+    // Get order IDs created after last view
+    // Use createdAt if available, otherwise fall back to _creationTime
+    const newOrderIds = allOrders
+      .filter((order) => {
+        const orderCreatedAt = order.createdAt || (order as any)._creationTime || 0;
+        return orderCreatedAt > lastViewedTimestamp;
+      })
+      .map((order) => order._id as string);
+
+    return newOrderIds;
+  },
+});
+
+// Mark orders as viewed when owner opens the orders page
+export const markOrdersAsViewed = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get current user
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    // Only owners can mark orders as viewed
+    if (user.role !== "owner") throw new Error("Only owners can mark orders as viewed");
+
+    const now = Date.now();
+
+    // Check if view status already exists
+    const existingViewStatus = await ctx.db
+      .query("order_view_status")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .first();
+
+    if (existingViewStatus) {
+      // Update existing view status
+      await ctx.db.patch(existingViewStatus._id, {
+        lastViewedTimestamp: now,
+      });
+    } else {
+      // Create new view status
+      await ctx.db.insert("order_view_status", {
+        userId: user._id,
+        lastViewedTimestamp: now,
+      });
+    }
   },
 });
 

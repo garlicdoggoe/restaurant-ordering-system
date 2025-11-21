@@ -12,11 +12,12 @@ interface OwnerSidebarProps {
   isMobileMenuOpen: boolean
   onMobileMenuToggle: (open: boolean) => void
   unreadMessageCount?: number
+  newOrdersCount?: number
 }
 
-export function OwnerSidebar({ currentView, onViewChange, isMobileMenuOpen, onMobileMenuToggle, unreadMessageCount = 0 }: OwnerSidebarProps) {
+export function OwnerSidebar({ currentView, onViewChange, isMobileMenuOpen, onMobileMenuToggle, unreadMessageCount = 0, newOrdersCount = 0 }: OwnerSidebarProps) {
   const menuItems = [
-    { id: "orders" as OwnerView, icon: Home, label: "Orders" },
+    { id: "orders" as OwnerView, icon: Home, label: "Orders", badge: newOrdersCount > 0 ? newOrdersCount : undefined },
     { id: "history" as OwnerView, icon: History, label: "History" },
     { id: "menu" as OwnerView, icon: UtensilsCrossed, label: "Menu" },
     { id: "total-monitoring" as OwnerView, icon: BarChart3, label: "Total Monitoring" }, // Added total monitoring tab for pre-order aggregation

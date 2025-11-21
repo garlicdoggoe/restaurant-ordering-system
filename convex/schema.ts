@@ -106,10 +106,11 @@ export default defineSchema({
         variantName: v.optional(v.string()),
         attributes: v.optional(v.record(v.string(), v.string())),
         unitPrice: v.optional(v.number()),
-        // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number })
+        // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number, menuItemId?: string })
         selectedChoices: v.optional(v.record(v.string(), v.object({
           name: v.string(),
           price: v.number(),
+          menuItemId: v.optional(v.string()), // For bundle choices, reference to the menu item
         }))),
         // Bundle items - for bundle menu items, stores the actual items included (selected from choice groups + fixed items)
         bundleItems: v.optional(v.array(v.object({
@@ -213,6 +214,12 @@ export default defineSchema({
     userId: v.string(),
     lastReadTimestamp: v.number(), // Timestamp of the last message that was read
   }).index("by_orderId_userId", ["orderId", "userId"]),
+
+  // Order view status - tracks when the owner last viewed the orders page
+  order_view_status: defineTable({
+    userId: v.string(), // Owner user ID
+    lastViewedTimestamp: v.number(), // Timestamp when owner last viewed the orders page
+  }).index("by_userId", ["userId"]),
 
   delivery_fees: defineTable({
     barangay: v.string(),

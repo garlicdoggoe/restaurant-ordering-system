@@ -21,6 +21,7 @@ export function HistoricalOrdersView() {
   // Filters
   const [selectedOrderType, setSelectedOrderType] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
+  const [paymentStatus, setPaymentStatus] = useState<string>("all") // "all" | "remaining-balance" | "fully-paid"
   const [fromDate, setFromDate] = useState<string>("") // ISO string from <input type="datetime-local">
   const [toDate, setToDate] = useState<string>("")
   const [search, setSearch] = useState<string>("")
@@ -87,6 +88,16 @@ export function HistoricalOrdersView() {
       // Order status filter
       if (selectedStatus !== "all" && order.status !== selectedStatus) return false
 
+      // Payment status filter
+      if (paymentStatus !== "all") {
+        // Check if order has remaining balance
+        // An order has remaining balance if it has downpayment plan but no remaining payment proof
+        const hasRemainingBalance = order.paymentPlan === "downpayment" && !order.remainingPaymentProofUrl
+        
+        if (paymentStatus === "remaining-balance" && !hasRemainingBalance) return false
+        if (paymentStatus === "fully-paid" && hasRemainingBalance) return false
+      }
+
       return true
     })
 
@@ -96,7 +107,7 @@ export function HistoricalOrdersView() {
       const bTs = (b._creationTime ?? b.createdAt) || 0
       return dateSortOrder === "asc" ? aTs - bTs : bTs - aTs
     })
-  }, [historicalBase, fromDate, toDate, selectedOrderType, selectedStatus, search, dateSortOrder])
+  }, [historicalBase, fromDate, toDate, selectedOrderType, selectedStatus, paymentStatus, search, dateSortOrder])
 
   return (
     <div className="space-y-6">
@@ -144,6 +155,19 @@ export function HistoricalOrdersView() {
               </SelectContent>
             </Select>
           </div>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Payment Status</span>
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="All Payment Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="remaining-balance">Remaining Balance</SelectItem>
+              <SelectItem value="fully-paid">Fully Paid</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
@@ -210,6 +234,20 @@ export function HistoricalOrdersView() {
         </div>
 
         <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Payment Status</span>
+          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="All Payment Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="remaining-balance">Remaining Balance</SelectItem>
+              <SelectItem value="fully-paid">Fully Paid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">From</span>
           <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-56" />
         </div>
@@ -257,6 +295,11 @@ export function HistoricalOrdersView() {
                 <StatusBadge status={order.status} />
               </div>
               <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
+              {order.preOrderScheduledAt && (
+                <div className="text-sm text-muted-foreground">
+                  Scheduled: {new Date(order.preOrderScheduledAt).toLocaleString()}
+                </div>
+              )}
               <div className="space-y-1">
                 <div className="text-sm font-medium">{order.customerName}</div>
                 <div className="text-sm text-muted-foreground">{formatPhoneForDisplay(order.customerPhone)}</div>
@@ -304,9 +347,10 @@ export function HistoricalOrdersView() {
 
       {/* Desktop Table */}
       <div className="hidden lg:block rounded-lg border overflow-hidden">
-        <div className="grid grid-cols-9 gap-2 bg-muted px-4 py-3 text-sm font-medium">
+        <div className="grid grid-cols-10 gap-2 bg-muted px-4 py-3 text-sm font-medium">
           <div>Order ID</div>
           <div>Placed At</div>
+          <div>Scheduled At</div>
           <div>Customer</div>
           <div>Contact</div>
           <div>GCash</div>
@@ -328,10 +372,13 @@ export function HistoricalOrdersView() {
               order.deliveryFee || 0,
               order.discount
             )
+            const scheduledAt = order.preOrderScheduledAt 
+              ? new Date(order.preOrderScheduledAt).toLocaleString()
+              : '-'
             return (
               <div
                 key={order._id}
-                className="grid grid-cols-9 gap-2 w-full px-4 py-3 hover:bg-accent/40 transition-colors"
+                className="grid grid-cols-10 gap-2 w-full px-4 py-3 hover:bg-accent/40 transition-colors"
               >
                 <button
                   className="text-left font-mono text-sm hover:text-primary"
@@ -339,7 +386,8 @@ export function HistoricalOrdersView() {
                 >
                   #{idShort}
                 </button>
-                <div className="text-sm text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
+                <div className="text-xs text-muted-foreground">{new Date(createdTs).toLocaleString()}</div>
+                <div className="text-xs text-muted-foreground">{scheduledAt}</div>
                 <button
                   className="text-left text-sm hover:text-primary"
                   onClick={() => setSelectedOrderId(order._id)}

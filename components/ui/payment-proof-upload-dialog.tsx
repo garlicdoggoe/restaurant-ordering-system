@@ -14,6 +14,7 @@ import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { useData } from "@/lib/data-context"
 import Image from "next/image"
+import { compressImage } from "@/lib/image-compression"
 
 interface PaymentProofUploadDialogProps {
   open: boolean
@@ -37,7 +38,7 @@ export function PaymentProofUploadDialog({
   const { updateOrder } = useData()
 
   // Handle file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -53,14 +54,25 @@ export function PaymentProofUploadDialog({
       return
     }
 
-    setSelectedFile(file)
+    try {
+      // Compress the image before storing and uploading
+      // This reduces file size while maintaining acceptable quality
+      // Target 100KB for payment proof images
+      const compressedFile = await compressImage(file, 100)
+      
+      // Set the compressed file instead of the original
+      setSelectedFile(compressedFile)
 
-    // Create preview URL
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      setPreviewUrl(e.target?.result as string)
+      // Create preview URL from compressed file
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setPreviewUrl(e.target?.result as string)
+      }
+      reader.readAsDataURL(compressedFile)
+    } catch (error) {
+      console.error("Failed to compress image:", error)
+      alert("Failed to process image. Please try again.")
     }
-    reader.readAsDataURL(file)
   }
 
   // Handle file removal
@@ -140,6 +152,8 @@ export function PaymentProofUploadDialog({
           <DialogTitle>Upload Remaining Payment Proof</DialogTitle>
           <DialogDescription>
             Upload proof of payment for the remaining balance. Please upload a clear image of your payment receipt or screenshot.
+            <br />
+            <span className="text-blue-600 font-medium">GCash# (+63) 915-777-0545</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -186,7 +200,7 @@ export function PaymentProofUploadDialog({
                     Click to upload payment proof
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    PNG, JPG, or JPEG (max 5MB)
+                    PNG, JPG, or JPEG
                   </p>
                 </div>
               )}

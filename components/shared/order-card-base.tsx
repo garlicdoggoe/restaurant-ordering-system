@@ -40,6 +40,8 @@ interface OrderCardBaseProps {
   showDeliveryMap?: boolean
   // Optional button to show below status indicator (for owner edit status button)
   statusActionButton?: React.ReactNode
+  // Whether this order is new (created after owner last viewed orders)
+  isNew?: boolean
 }
 
 export function OrderCardBase({
@@ -51,6 +53,7 @@ export function OrderCardBase({
   actionButtons,
   showDeliveryMap = true,
   statusActionButton,
+  isNew = false,
 }: OrderCardBaseProps) {
   // Calculate total item count by quantity so we can surface it up front
   const totalItemCount = order.items.reduce((sum: number, item) => sum + item.quantity, 0)
@@ -334,7 +337,7 @@ export function OrderCardBase({
   const totals = calculateTotals(currentItems)
 
   return (
-    <Card className="h-fit">
+    <Card className={`h-fit ${isNew ? "border-6 border-red-400 shadow-lg shadow-yellow-200/50" : ""}`}>
       {/* Header doubles as the expand/collapse control so we no longer use a dialog */}
       <CardHeader 
         className="p-3 xs:p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"

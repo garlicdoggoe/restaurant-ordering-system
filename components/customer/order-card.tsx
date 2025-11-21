@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { MessageSquare, Ban, ChevronDown, ChevronUp, FileText, Upload, CheckCircle} from "lucide-react"
 import { type Order, useData } from "@/lib/data-context"
 import { PaymentProofUploadDialog } from "@/components/ui/payment-proof-upload-dialog"
+import { BundleItemsList } from "@/components/shared/bundle-items-list"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import {
   isDeliveryOrder as isDeliveryOrderUtil,
@@ -237,6 +238,12 @@ export function OrderCard({
                       {Object.entries(item.selectedChoices).map(([groupId, choice]) => (
                         <div key={groupId}>• {choice.name}</div>
                       ))}
+                    </div>
+                  )}
+                  {/* Display bundle items if available */}
+                  {item.bundleItems && item.bundleItems.length > 0 && (
+                    <div className="mt-0.5">
+                      <BundleItemsList bundleItems={item.bundleItems} showPrices={true} className="text-muted-foreground" />
                     </div>
                   )}
                 </div>

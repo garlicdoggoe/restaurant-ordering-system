@@ -33,6 +33,8 @@ interface CartItem {
   price: number
   quantity: number
   size?: string
+  variantId?: string
+  selectedChoices?: Record<string, { name: string; price: number; menuItemId?: string }>
   bundleItems?: Array<{ menuItemId: string; variantId?: string; name: string; price: number }>
 }
 
@@ -603,12 +605,17 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
       }
 
       // Transform cart items to order items
+      // IMPORTANT: price should be the total price (unitPrice * quantity), not just unit price
+      // Also include variantId and selectedChoices so server can validate prices correctly
       const orderItems = items.map((item) => ({
         menuItemId: item.menuItemId || item.id,
         name: item.name,
-        price: item.price,
+        price: item.price * item.quantity, // Total price = unit price * quantity
         quantity: item.quantity,
+        variantId: item.variantId || undefined,
         variantName: item.size || undefined,
+        unitPrice: item.price, // Include unit price for reference
+        selectedChoices: item.selectedChoices || undefined,
         bundleItems: item.bundleItems || undefined,
       }))
 

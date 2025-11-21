@@ -396,6 +396,31 @@ export function OrderDetails({ orderId, onClose }: OrderDetailsProps) {
                     ₱{totals.total.toFixed(2)}
                   </span>
                 </div>
+                
+                {/* Partial payment breakdown for downpayment orders */}
+                {order.paymentPlan === "downpayment" && order.downpaymentAmount && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between text-green-600">
+                        <span>50% Downpayment Paid</span>
+                        <span>-₱{order.downpaymentAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-base">
+                        <span>Remaining Balance</span>
+                        <span>₱{(totals.total - order.downpaymentAmount).toFixed(2)}</span>
+                      </div>
+                      {order.remainingPaymentMethod && (
+                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                          <span>Remaining will be paid:</span>
+                          <Badge variant="outline" className="capitalize">
+                            {order.remainingPaymentMethod === "online" ? "Online" : "Cash"}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

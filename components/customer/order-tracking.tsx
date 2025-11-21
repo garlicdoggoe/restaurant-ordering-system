@@ -261,7 +261,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
           )}
 
           {/* Order Items */}
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          <div className="space-y-2">
             {order.items.map((item, idx) => (
               <div key={idx} className="flex justify-between text-fluid-sm">
                 <div>

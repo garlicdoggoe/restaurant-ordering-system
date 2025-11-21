@@ -19,6 +19,8 @@ interface OrderCardProps {
   // Expanded state for mobile collapse/expand
   isExpanded: boolean
   onToggleExpand: () => void
+  // Whether this order is new (created after owner last viewed orders)
+  isNew?: boolean
 }
 
 export function OrderCard({ 
@@ -29,6 +31,7 @@ export function OrderCard({
   deliveryCoordinates,
   isExpanded,
   onToggleExpand,
+  isNew = false,
 }: OrderCardProps) {
   const { updateOrder } = useData()
   
@@ -280,6 +283,7 @@ export function OrderCard({
             </Button>
           ) : undefined
         }
+        isNew={isNew}
       />
 
       {/* Change Status Dialog - allows owner to edit status (except cancelled, completed, or delivered orders) */}

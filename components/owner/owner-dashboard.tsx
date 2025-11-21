@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { OwnerSidebar } from "./owner-sidebar"
 import { OwnerHeader } from "./owner-header"
 import { OrdersView } from "./orders-view"
@@ -12,7 +12,7 @@ import { PromotionsView } from "./promotions-view"
 import { ChatView } from "./chat-view" // Added chat view import
 import { HistoryLogView } from "./history-log-view" // Added history log view import
 import { TotalMonitoringView } from "./total-monitoring-view" // Added total monitoring view import for pre-order aggregation
-import { useQuery } from "convex/react"
+import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" | "promotions" | "chat" | "history-log" | "total-monitoring" // Added chat, history & history-log & total-monitoring to view types
@@ -20,9 +20,32 @@ export type OwnerView = "orders" | "history" | "menu" | "settings" | "vouchers" 
 export function OwnerDashboard({ initialOrderId }: { initialOrderId?: string }) {
   const [currentView, setCurrentView] = useState<OwnerView>("orders")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  
+  // Track previous view to detect when owner leaves orders view
+  const previousViewRef = useRef<OwnerView>(currentView)
 
   // Query unread message count
   const unreadMessageCount = useQuery(api.chat.getUnreadCount) ?? 0
+  
+  // Query new orders count (orders created after owner last viewed orders page)
+  const newOrdersCount = useQuery(api.orders.getNewOrdersCount) ?? 0
+  
+  // Mutation to mark orders as viewed when owner leaves orders view
+  const markOrdersAsViewed = useMutation(api.orders.markOrdersAsViewed)
+  
+  // Mark orders as viewed when owner navigates away from orders view
+  useEffect(() => {
+    // If owner was on orders view and now navigated to a different view, mark orders as viewed
+    if (previousViewRef.current === "orders" && currentView !== "orders") {
+      markOrdersAsViewed().catch((error) => {
+        // Silently handle errors (e.g., if user is not authenticated)
+        console.error("Failed to mark orders as viewed:", error)
+      })
+    }
+    
+    // Update previous view reference
+    previousViewRef.current = currentView
+  }, [currentView, markOrdersAsViewed])
 
   return (
     <div className="min-h-screen bg-muted/30 flex">
@@ -41,6 +64,7 @@ export function OwnerDashboard({ initialOrderId }: { initialOrderId?: string }) 
         isMobileMenuOpen={isMobileMenuOpen}
         onMobileMenuToggle={setIsMobileMenuOpen}
         unreadMessageCount={unreadMessageCount}
+        newOrdersCount={newOrdersCount}
       />
 
       {/* Main Content Area */}
