@@ -23,6 +23,7 @@ import {
 import { OrderDetails } from "./order-details"
 import Image from "next/image"
 import type { Id } from "@/convex/_generated/dataModel"
+import { compressImage } from "@/lib/image-compression"
 
 interface OwnerChatDialogProps {
   orderId: string
@@ -48,10 +49,45 @@ function ChatImageMessage({ message, onImageClick }: { message: string; onImageC
     isStorageId ? { storageId: message as Id<"_storage"> } : "skip"
   )
   
-  const finalUrl = imageUrl || message
+  // Determine the final URL to use
+  // If it's a storage ID, wait for the query to return a valid URL
+  // If it's already a valid URL (http/https), use it directly
+  // If it's a relative path (starts with /), use it directly
+  let finalUrl: string | null = null
+  if (isStorageId) {
+    // For storage IDs, only use the URL if it's been resolved
+    // Don't fall back to the raw storage ID as it's not a valid URL
+    finalUrl = imageUrl || null
+  } else {
+    // For URLs or paths, use the message directly
+    finalUrl = message
+  }
+  
+  // Show loading state while fetching URL for storage ID
+  if (isStorageId && imageUrl === undefined) {
+    return (
+      <div className="relative rounded max-h-64 max-w-full flex items-center justify-center bg-muted p-4">
+        <p className="text-xs text-muted-foreground">Loading image...</p>
+      </div>
+    )
+  }
+  
+  // Show error state if storage ID couldn't be resolved
+  if (isStorageId && imageUrl === null) {
+    return (
+      <div className="relative rounded max-h-64 max-w-full flex items-center justify-center bg-muted p-4">
+        <p className="text-xs text-muted-foreground">Failed to load image</p>
+      </div>
+    )
+  }
+  
+  // Only render Image if we have a valid URL
+  if (!finalUrl) {
+    return null
+  }
   
   return (
-    <div className="relative rounded max-h-64 max-w-full cursor-zoom-in" onClick={onImageClick ? () => onImageClick(finalUrl) : undefined}>
+    <div className="relative rounded max-h-64 max-w-full cursor-zoom-in" onClick={onImageClick ? () => onImageClick(finalUrl!) : undefined}>
       <Image
         src={finalUrl}
         alt="Attachment"
@@ -134,14 +170,19 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
 
     setIsUploading(true)
     try {
+      // Compress the image before uploading to reduce file size
+      // This helps reduce storage costs and improves upload/download speeds
+      const compressedFile = await compressImage(file)
+      
       // Generate upload URL
       const uploadUrl = await generateUploadUrl({})
       
-      // Upload file to Convex storage
+      // Upload compressed file to Convex storage
+      // Note: compressedFile.type will be "image/jpeg" as compression converts to JPEG
       const uploadResponse = await fetch(uploadUrl, {
         method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
+        headers: { "Content-Type": compressedFile.type },
+        body: compressedFile,
       })
       const { storageId } = await uploadResponse.json()
 
