@@ -294,6 +294,17 @@ export function WebsiteInquiryView() {
               </Button>
             </form>
           )}
+
+          {/* Bug / Issues Report Section */}
+          <div className="mt-6 pt-6 border-t">
+            <Button
+              type="button"
+              className="w-full text-sm bg-yellow-500 hover:bg-yellow-600"
+              onClick={() => window.open("https://forms.gle/ybSqK7tuB3dsmNfp6", "_blank", "noopener,noreferrer")}
+            >
+              Report Bug / Issue
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
