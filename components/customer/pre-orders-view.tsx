@@ -50,7 +50,7 @@ export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
   // Status filter options for pre-orders - includes all possible statuses
   const statusFilterOptions: StatusFilterOption[] = [
     { id: "all", label: "All", icon: Calendar },
-    { id: "pre-order-pending", label: "Pending Acknowledgment", icon: Clock },
+    { id: "pre-order-pending", label: "Reviewing", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
     { id: "accepted", label: "Preparing", icon: CheckCircle },
     { id: "ready", label: "Ready", icon: CheckCircle },

@@ -87,12 +87,12 @@ export function CustomerSidebar({
       active: currentView === "activeorders",
       badge: activeOrdersCount > 0 ? activeOrdersCount : undefined
     },
-    {
-      id: "favorites",
-      label: "Favorite",
-      icon: Heart,
-      active: false
-    },
+    // {
+    //   id: "favorites",
+    //   label: "Favorite",
+    //   icon: Heart,
+    //   active: false
+    // },
     {
       id: "orders",
       label: "Order History",

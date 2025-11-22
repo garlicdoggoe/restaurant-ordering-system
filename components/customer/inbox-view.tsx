@@ -39,7 +39,7 @@ export function InboxView({ orderIdToOpen, onOrderOpened }: InboxViewProps = {})
   const statusFilterOptions: StatusFilterOption[] = useMemo(() => [
     { id: "all", label: "All", icon: Clock },
     { id: "active", label: "Open Orders", icon: ListFilter },
-    { id: "pre-order-pending", label: "Pre-order Pending", icon: Clock },
+    { id: "pre-order-pending", label: "Reviewing", icon: Clock },
     { id: "pending", label: "Pending", icon: Clock },
     { id: "accepted", label: "Preparing", icon: CheckCircle },
     { id: "ready", label: "Ready", icon: Timer },

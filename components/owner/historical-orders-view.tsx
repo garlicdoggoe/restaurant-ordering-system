@@ -50,7 +50,7 @@ export function HistoricalOrdersView() {
     { value: "completed", label: "Completed" },
     { value: "denied", label: "Denied" },
     { value: "cancelled", label: "Cancelled" },
-    { value: "pre-order-pending", label: "Pre-order Pending" }
+    { value: "pre-order-pending", label: "Reviewing" }
   ]
 
   // Include all orders regardless of status in history

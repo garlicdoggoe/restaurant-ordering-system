@@ -36,7 +36,7 @@ interface TimelineEntry {
 }
 
 const PREORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
-  { value: "pre-order-pending", label: "Pre-order Pending" },
+  { value: "pre-order-pending", label: "Reviewing" },
   { value: "pending", label: "Pending" },
   { value: "accepted", label: "Accepted" },
   { value: "ready", label: "Ready" },
