@@ -69,6 +69,7 @@ export interface Restaurant {
     lng: number
     lat: number
   }
+  preorderNotification?: string // Notification message for pre-orders
 }
 
 export interface DeliveryFee {
@@ -517,6 +518,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         platformFeeEnabled: restaurantDoc.platformFeeEnabled,
         preorderSchedule: normalizePreorderSchedule(restaurantDoc.preorderSchedule),
         coordinates: restaurantDoc.coordinates,
+        preorderNotification: restaurantDoc.preorderNotification,
       } as Restaurant)
     : ({
         _id: "",
@@ -681,7 +683,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       averageDeliveryTime: data.averageDeliveryTime ?? restaurant.averageDeliveryTime,
       platformFee: data.platformFee !== undefined ? data.platformFee : restaurant.platformFee,
       platformFeeEnabled: data.platformFeeEnabled !== undefined ? data.platformFeeEnabled : restaurant.platformFeeEnabled,
+      feePerKilometer: data.feePerKilometer !== undefined ? data.feePerKilometer : restaurant.feePerKilometer,
       preorderSchedule: normalizePreorderSchedule(data.preorderSchedule ?? restaurant.preorderSchedule),
+      coordinates: data.coordinates ?? restaurant.coordinates,
+      preorderNotification: data.preorderNotification !== undefined ? data.preorderNotification : restaurant.preorderNotification,
     }
     void upsertRestaurant(body)
   }, [restaurant, upsertRestaurant])

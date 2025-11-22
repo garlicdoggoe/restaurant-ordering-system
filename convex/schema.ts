@@ -57,6 +57,7 @@ export default defineSchema({
         lat: v.number(),
       })
     ),
+    preorderNotification: v.optional(v.string()), // Notification message for pre-orders
     createdAt: v.number(),
     updatedAt: v.number(),
   }),

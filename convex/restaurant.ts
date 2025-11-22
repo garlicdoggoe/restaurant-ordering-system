@@ -60,6 +60,7 @@ export const upsert = mutation({
         lat: v.number(),
       })
     ),
+    preorderNotification: v.optional(v.string()), // Notification message for pre-orders
   },
   handler: async (ctx, args) => {
     // SECURITY: Verify user is authenticated and is an owner

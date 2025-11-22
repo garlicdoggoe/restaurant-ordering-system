@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 import { useData, type PreorderScheduleDate } from "@/lib/data-context"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { isValidPhoneNumber } from "@/lib/phone-validation"
@@ -33,6 +34,7 @@ export function RestaurantSettings() {
     logo: restaurant.logo || "",
     openingTime: restaurant.openingTime || "10:00",
     closingTime: restaurant.closingTime || "18:30",
+    preorderNotification: restaurant.preorderNotification || "",
   })
   // Local state for the owner-managed pre-order calendar
   const [preorderRestrictionsEnabled, setPreorderRestrictionsEnabled] = useState(
@@ -65,6 +67,7 @@ export function RestaurantSettings() {
       logo: restaurant.logo || "",
       openingTime: restaurant.openingTime || "10:00",
       closingTime: restaurant.closingTime || "18:30",
+      preorderNotification: restaurant.preorderNotification || "",
     })
     
     // Update status when restaurant data changes
@@ -156,6 +159,13 @@ export function RestaurantSettings() {
     }
     updateRestaurant({ preorderSchedule: payload })
     alert("Pre-order schedule saved successfully.")
+  }
+
+  const savePreorderNotification = () => {
+    updateRestaurant({
+      preorderNotification: formData.preorderNotification,
+    })
+    alert("Pre-order notification saved successfully.")
   }
 
   // Function to check if restaurant should be open based on current time
@@ -252,6 +262,7 @@ export function RestaurantSettings() {
       platformFee: Number.parseFloat(formData.platformFee),
       platformFeeEnabled: formData.platformFeeEnabled,
       feePerKilometer: Number.parseFloat(formData.feePerKilometer),
+      preorderNotification: formData.preorderNotification,
     })
 
     alert("Restaurant profile updated successfully!")
@@ -515,6 +526,30 @@ export function RestaurantSettings() {
             <Button type="button" onClick={savePreorderSchedule}>
               Save Pre-order Schedule
             </Button>
+          </div>
+
+          <Separator />
+
+          {/* Pre-order Notification */}
+          <div className="space-y-2">
+            <Label htmlFor="preorder-notification">Pre-order Notification Message</Label>
+            <Textarea
+              id="preorder-notification"
+              value={formData.preorderNotification}
+              onChange={(e) => {
+                setFormData({ ...formData, preorderNotification: e.target.value })
+              }}
+              placeholder="Enter a notification message to display to customers during checkout (e.g., 'Currently, only for Christmas week pre-orders are being accepted.')"
+              className="min-h-[100px]"
+            />
+            <p className="text-xs text-muted-foreground">
+              This message will be displayed to customers when they select the pre-order option during checkout.
+            </p>
+            <div className="flex justify-end">
+              <Button type="button" onClick={savePreorderNotification}>
+                Save Notification
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

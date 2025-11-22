@@ -204,6 +204,7 @@ export function CustomerInterface() {
                       setCurrentView(view)
                       setIsCartOpen(false)
                     }}
+                    onCloseCart={() => setIsCartOpen(false)}
                   />
                 )}
               </div>
@@ -281,6 +282,7 @@ export function CustomerInterface() {
                 setCurrentView(view)
                 setIsCartOpen(false)
               }}
+              onCloseCart={() => setIsCartOpen(false)}
             />
           </div>
         </div>

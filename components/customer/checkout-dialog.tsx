@@ -47,6 +47,7 @@ interface CheckoutDialogProps {
   onSuccess: () => void
   onOpenSettings?: () => void
   onNavigateToView?: (view: "preorders" | "activeorders") => void
+  onCloseCart?: () => void
 }
 
 const DEFAULT_PREORDER_TIME = "13:00"
@@ -254,7 +255,7 @@ const TimePicker = ({ id, value, onChange, disabled }: TimePickerProps) => {
   )
 }
 
-export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSuccess, onOpenSettings, onNavigateToView }: CheckoutDialogProps) {
+export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSuccess, onOpenSettings, onNavigateToView, onCloseCart }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("pre-order")
   const { addOrder, currentUser, restaurant } = useData()
   const { updateQuantity } = useCart()
@@ -789,7 +790,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-red-500">Currently, only for Christmas week pre-orders are being accepted.</p>
+            {restaurant.preorderNotification && (
+              <p className="text-xs text-red-500">{restaurant.preorderNotification}</p>
+            )}
           </div>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row h-full">
@@ -816,6 +819,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                     className="text-[11px] text-yellow-600 hover:text-yellow-700 underline mt-[-7px]"
                     onClick={() => {
                       onClose()
+                      onCloseCart?.()
                       onOpenSettings?.()
                     }}
                   >

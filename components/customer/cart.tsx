@@ -23,9 +23,10 @@ interface CartProps {
   onClearCart: () => void
   onOpenSettings?: () => void
   onNavigateToView?: (view: "preorders" | "activeorders") => void
+  onCloseCart?: () => void
 }
 
-export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings, onNavigateToView }: CartProps) {
+export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings, onNavigateToView, onCloseCart }: CartProps) {
   const [showCheckout, setShowCheckout] = useState(false)
 
   const { getCustomerActiveOrder, currentUser, restaurant } = useData()
@@ -156,6 +157,7 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings, onN
           }}
           onOpenSettings={onOpenSettings}
           onNavigateToView={onNavigateToView}
+          onCloseCart={onCloseCart}
         />
       )}
     </>
