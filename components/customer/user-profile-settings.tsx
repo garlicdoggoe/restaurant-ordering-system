@@ -68,6 +68,51 @@ function UserProfileSettingsContent() {
     }
   }, [currentUser])
 
+  // Automatically calculate distance if user has coordinates but no distance value
+  // This fixes the issue where users in production have coordinates but distance wasn't calculated
+  useEffect(() => {
+    // Only calculate if:
+    // 1. User data is loaded
+    // 2. User has coordinates
+    // 3. Restaurant data is loaded and has coordinates
+    // 4. User doesn't have a distance value (undefined or null)
+    const userCoords = currentUser?.coordinates
+    const restaurantCoords = restaurant?.coordinates
+    
+    if (
+      userCoords &&
+      restaurantCoords &&
+      (currentUser.distance === undefined || currentUser.distance === null)
+    ) {
+      const calculateDistanceOnLoad = async () => {
+        try {
+          const calculatedDistance = await calculateDistance({
+            customerCoordinates: {
+              lng: userCoords.lng,
+              lat: userCoords.lat,
+            },
+            restaurantCoordinates: restaurantCoords,
+          })
+
+          // Only update profile if distance was successfully calculated
+          // If calculation failed (returned null), don't update to avoid overwriting
+          if (calculatedDistance !== null && calculatedDistance !== undefined) {
+            await updateProfile({
+              distance: calculatedDistance,
+            })
+          }
+        } catch (error) {
+          // Log error but don't show toast to user - this is a background operation
+          // Log only error message to avoid exposing sensitive coordinate data
+          console.error("Failed to auto-calculate distance:", error instanceof Error ? error.message : "Unknown error")
+        }
+      }
+
+      // Run calculation in background
+      calculateDistanceOnLoad()
+    }
+  }, [currentUser?.coordinates, currentUser?.distance, restaurant?.coordinates, calculateDistance, updateProfile])
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
