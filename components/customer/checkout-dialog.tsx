@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, Suspense } from "react"
 import { ChevronDown } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -19,8 +19,25 @@ import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import { calculateDeliveryFee, isWithinDeliveryCoverage } from "@/lib/order-utils"
 import dynamic from "next/dynamic"
-const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { isValidPhoneNumber } from "@/lib/phone-validation"
+
+// Dynamically import AddressMapPicker with error handling and loading state
+// Using default export from address-map-picker
+const AddressMapPicker = dynamic(
+  () => import("@/components/ui/address-map-picker").catch((err) => {
+    console.error("Failed to load AddressMapPicker:", err);
+    // Return a fallback component if import fails
+    return { default: () => (
+      <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground border rounded-md">
+        Map unavailable. Please refresh the page.
+      </div>
+    ) };
+  }),
+  { 
+    ssr: false,
+    loading: () => <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground border rounded-md">Loading map...</div>
+  }
+)
 import { PaymentModal } from "@/components/ui/payment-modal"
 import { compressImage } from "@/lib/image-compression"
 import Image from "next/image"
@@ -822,15 +839,17 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
               <div className="space-y-3">
                 {/* Show map */}
                 <div className="rounded-lg border p-3 bg-white">
-                  <AddressMapPicker
-                    address={customerAddress}
-                    onAddressChange={setCustomerAddress}
-                    coordinates={deliveryCoordinates || defaultCoordinates}
-                    onCoordinatesChange={setDeliveryCoordinates}
-                    mapHeightPx={180}
-                    interactive={false}
-                    disabled={true}
-                  />
+                  <Suspense fallback={<div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">Loading map...</div>}>
+                    <AddressMapPicker
+                      address={customerAddress}
+                      onAddressChange={setCustomerAddress}
+                      coordinates={deliveryCoordinates || defaultCoordinates}
+                      onCoordinatesChange={setDeliveryCoordinates}
+                      mapHeightPx={180}
+                      interactive={false}
+                      disabled={true}
+                    />
+                  </Suspense>
                 </div>
                 <div className="flex justify-end">
                   <button

@@ -262,7 +262,7 @@ export const ORDER_STATUS_COLORS_FOR_TRACKING: Record<OrderStatus, string> = {
  */
 export function getStatusDescriptions(): Record<OrderStatus, string> {
   return {
-    pending: "Waiting for restaurant confirmation",
+    pending: "Your order is going to be processed on the scheduled date and time.",
     "pre-order-pending": "Waiting for restaurant confirmation",
     accepted: "Order confirmed - being prepared",
     ready: "Order is ready for pickup",
