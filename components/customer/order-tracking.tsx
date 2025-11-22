@@ -210,8 +210,8 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
 
   return (
     <>
-      <Card className={`h-fit ${getOrderBorderClass(order.status as OrderStatus)}`}>
-        <CardHeader className="p-4 xs:p-6">
+      <Card className={`w-full md:min-h-fit md:h-fit md:max-w-2xl md:mx-auto rounded-none md:rounded-lg flex flex-col`}>
+        <CardHeader className="p-4 xs:p-6 md:p-6 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center justify-between">
@@ -219,7 +219,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                 {/* Status Badge */}
                 <Badge className={`${ORDER_STATUS_COLORS_FOR_TRACKING[order.status]} flex items-center gap-1`}>
                   {getStatusIconsForTracking(order.status)}
-                  <span className="capitalize text-xs">{order.status === 'accepted' ? 'Pending' : order.status.replace('-', ' ')}</span>
+                  <span className="capitalize text-xs">{order.status === 'accepted' ? 'Preparing' : order.status.replace('-', ' ')}</span>
                 </Badge>
               </div>
               <p className="text-fluid-sm text-muted-foreground">Placed at {new Date(createdTs).toLocaleString()}</p>
@@ -227,24 +227,17 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
               <p className="text-xs text-yellow-600 mt-1">
                 {getStatusDescription(order.status)}
               </p>
-              {/* Estimated Time Display - Desktop Only */}
+              {/* Estimated Time Display - Desktop Only
               {order.estimatedPrepTime && order.status === "accepted" && order.orderType !== "pre-order" && (
                 <div className="hidden lg:block text-xs text-gray-600 mt-1 text-red-600">
                   <Clock className="w-3 h-3 inline mr-1 text-red-600" />
                   Estimated: {Math.max(0, order.estimatedPrepTime - 5)}-{order.estimatedPrepTime} minutes
                 </div>
-              )}
+              )} */}
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-4 xs:p-6 space-y-4 mt-[-50]">
-          {/* GCash Number Display */}
-          {order.gcashNumber && (
-            <p className="text-fluid-xs font-medium">
-              💳 GCash Number Used: (+63) {order.gcashNumber}
-            </p>
-          )}
-
+        <CardContent className="xs:p-6 md:p-6 space-y-4">
           {/* Denial Reason Display */}
           {order.status === "denied" && order.denialReason && (
             <div className="p-3 bg-red-50 rounded-lg border border-red-200">

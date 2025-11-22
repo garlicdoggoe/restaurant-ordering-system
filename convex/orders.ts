@@ -737,7 +737,7 @@ export const update = mutation({
         
         // Human-readable status labels
         const statusLabels: Record<string, string> = {
-          "pre-order-pending": "Awaiting Restaurant Confirmation",
+          "pre-order-pending": "Reviewing",
           "pending": "Pending",
           "accepted": "Preparing",
           "ready": "Ready",

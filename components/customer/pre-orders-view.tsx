@@ -212,13 +212,15 @@ export function PreOrdersView({ onNavigateToInbox }: PreOrdersViewProps) {
       {/* Dialogs */}
       {/* Order Details Dialog */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="!fixed !inset-0 !top-0 !left-0 !right-0 !bottom-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none !max-h-none md:!inset-auto md:!top-[50%] md:!left-[50%] md:!-translate-x-1/2 md:!-translate-y-1/2 md:!w-auto md:!h-auto md:!max-w-lg md:!max-h-[90vh] sm:max-w-lg overflow-hidden p-0 md:p-6 rounded-none md:rounded-lg !flex !flex-col !bg-white md:!bg-background">
+          <DialogHeader className="p-4 pb-0 md:p-0 flex-shrink-0 bg-transparent">
             <DialogTitle>Order Details</DialogTitle>
           </DialogHeader>
-          {selectedOrderId && (
-            <OrderTracking orderId={selectedOrderId} />
-          )}
+          <div className="flex-1 overflow-y-auto">
+            {selectedOrderId && (
+              <OrderTracking orderId={selectedOrderId} />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

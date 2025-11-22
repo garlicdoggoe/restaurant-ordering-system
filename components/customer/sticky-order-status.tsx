@@ -217,7 +217,7 @@ export function StickyOrderStatus({ customerId }: StickyOrderStatusProps) {
                     className="w-full hover:text-gray-700 hover:bg-gray-50 text-xs"
                   >
                     <CheckCircle className="w-3 h-3 mr-1" />
-                    Confirm & Clear
+                    Confirm & Cancel Order
                   </Button>
                 </div>
               )}
@@ -250,13 +250,15 @@ export function StickyOrderStatus({ customerId }: StickyOrderStatusProps) {
 
       {/* Full Order Details Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="!fixed !inset-0 !top-0 !left-0 !right-0 !bottom-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none !max-h-none md:!inset-auto md:!top-[50%] md:!left-[50%] md:!-translate-x-1/2 md:!-translate-y-1/2 md:!w-auto md:!h-auto md:!max-w-lg md:!max-h-[90vh] sm:max-w-lg overflow-hidden p-0 md:p-6 rounded-none md:rounded-lg !flex !flex-col">
+          <DialogHeader className="p-4 md:p-0 flex-shrink-0">
             <DialogTitle>Order Details</DialogTitle>
           </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
           {activeOrder && (
             <OrderTracking orderId={activeOrder._id} />
           )}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -131,7 +131,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
  */
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   "pending": "Pending",
-  "pre-order-pending": "Awaiting Restaurant Confirmation",
+  "pre-order-pending": "Reviewing",
   "accepted": "Preparing",
   "ready": "Ready",
   "denied": "Denied",
