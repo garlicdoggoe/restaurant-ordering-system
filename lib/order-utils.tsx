@@ -7,6 +7,45 @@ import { Clock, CheckCircle, XCircle, Truck, Package, CircleCheck, Ban } from "l
 import type { Order, OrderStatus } from "@/lib/data-context"
 import React from "react"
 
+// Delivery coverage areas: Libmanan, Sipocot, and Cabusao, Camarines Sur bounding boxes
+// Format: [minLng, minLat, maxLng, maxLat]
+// Approximate boundaries covering these municipalities
+const LIBMANAN_BBOX: [number, number, number, number] = [122.95, 13.6, 123.15, 13.8]
+const SIPOCOT_BBOX: [number, number, number, number] = [122.9, 13.75, 123.0, 13.85]
+const CABUSAO_BBOX: [number, number, number, number] = [122.85, 13.65, 122.95, 13.75]
+
+/**
+ * Check if coordinates are within delivery coverage (Libmanan, Sipocot, or Cabusao)
+ * @param coords - Coordinates in [lng, lat] format, or coordinates object with lng and lat
+ * @returns true if coordinates are within delivery coverage, false otherwise
+ */
+export function isWithinDeliveryCoverage(coords: [number, number] | { lng: number; lat: number } | null | undefined): boolean {
+  if (!coords) return false
+  
+  // Handle both tuple and object formats
+  let lng: number, lat: number
+  if (Array.isArray(coords)) {
+    [lng, lat] = coords
+  } else {
+    lng = coords.lng
+    lat = coords.lat
+  }
+  
+  // Check Libmanan
+  const [minLng1, minLat1, maxLng1, maxLat1] = LIBMANAN_BBOX
+  if (lng >= minLng1 && lng <= maxLng1 && lat >= minLat1 && lat <= maxLat1) return true
+  
+  // Check Sipocot
+  const [minLng2, minLat2, maxLng2, maxLat2] = SIPOCOT_BBOX
+  if (lng >= minLng2 && lng <= maxLng2 && lat >= minLat2 && lat <= maxLat2) return true
+  
+  // Check Cabusao
+  const [minLng3, minLat3, maxLng3, maxLat3] = CABUSAO_BBOX
+  if (lng >= minLng3 && lng <= maxLng3 && lat >= minLat3 && lat <= maxLat3) return true
+  
+  return false
+}
+
 /**
  * Final order states that cannot be edited
  */

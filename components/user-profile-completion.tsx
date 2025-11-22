@@ -14,6 +14,16 @@ import { PhoneInput, GcashInput } from "@/components/ui/phone-input"
 import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { isValidPhoneNumber } from "@/lib/phone-validation"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface ProfileCompletionProps {
   onComplete?: () => void
@@ -29,6 +39,8 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
   const [isLocationValid, setIsLocationValid] = useState<boolean>(false)
+  const [showOutOfScopeDialog, setShowOutOfScopeDialog] = useState(false)
+  const [pendingSubmission, setPendingSubmission] = useState(false)
 
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
@@ -53,10 +65,8 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
 
   // NOTE: Avoid logging user data here; rely on Convex dashboard/Clerk dev tools for debugging.
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
+  // Function to proceed with profile submission
+  const proceedWithSubmission = async () => {
     try {
       if (!user) {
         throw new Error("User not found")
@@ -66,38 +76,6 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
       // New user creation is handled by SignupCallback component
       if (!currentUser) {
         throw new Error("User not found in database. Please refresh the page.")
-      }
-
-      // Validate required fields and phone numbers before submission
-      if (!firstName.trim()) {
-        toast.error("First name is required")
-        setIsSubmitting(false)
-        return
-      }
-
-      if (!lastName.trim()) {
-        toast.error("Last name is required")
-        setIsSubmitting(false)
-        return
-      }
-
-      if (!address.trim()) {
-        toast.error("Address is required")
-        setIsSubmitting(false)
-        return
-      }
-
-      if (!selectedLngLat) {
-        toast.error("Please select your location on the map")
-        setIsSubmitting(false)
-        return
-      }
-
-      // Validate that location is within Libmanan
-      if (!isLocationValid) {
-        toast.error("Address must be within Libmanan, Camarines Sur")
-        setIsSubmitting(false)
-        return
       }
 
       // Validate phone numbers
@@ -128,12 +106,64 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
       })
 
       toast.success("Profile completed successfully!")
+      setShowOutOfScopeDialog(false)
+      setPendingSubmission(false)
       onComplete?.()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update profile")
+      setShowOutOfScopeDialog(false)
+      setPendingSubmission(false)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    // Validate required fields before submission
+    if (!firstName.trim()) {
+      toast.error("First name is required")
+      setIsSubmitting(false)
+      return
+    }
+
+    if (!lastName.trim()) {
+      toast.error("Last name is required")
+      setIsSubmitting(false)
+      return
+    }
+
+    if (!address.trim()) {
+      toast.error("Address is required")
+      setIsSubmitting(false)
+      return
+    }
+
+    if (!selectedLngLat) {
+      toast.error("Please select your location on the map")
+      setIsSubmitting(false)
+      return
+    }
+
+    // Check if location is out of scope - show confirmation dialog instead of blocking
+    if (!isLocationValid) {
+      setPendingSubmission(true)
+      setShowOutOfScopeDialog(true)
+      setIsSubmitting(false)
+      return
+    }
+
+    // Continue with submission if location is valid
+    await proceedWithSubmission()
+  }
+
+  // Handle confirmation to proceed with out-of-scope address
+  const handleConfirmOutOfScope = async () => {
+    setIsSubmitting(true)
+    setShowOutOfScopeDialog(false)
+    await proceedWithSubmission()
   }
 
   return (
@@ -197,7 +227,7 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
               onLocationValid={setIsLocationValid}
             />
             
-            {/* Disable button if required fields are empty or location is invalid */}
+            {/* Disable button if required fields are empty or location is not selected */}
             <Button 
               type="submit" 
               className="w-full" 
@@ -208,8 +238,7 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
                 !phone.trim() || 
                 !gcashNumber.trim() || 
                 !address.trim() || 
-                !selectedLngLat || 
-                !isLocationValid
+                !selectedLngLat
               }
             >
               {isSubmitting ? (
@@ -224,6 +253,30 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
           </form>
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog for Out-of-Scope Address */}
+      <AlertDialog open={showOutOfScopeDialog} onOpenChange={setShowOutOfScopeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Address Outside Delivery Coverage</AlertDialogTitle>
+            <AlertDialogDescription>
+              The address you selected is outside the delivery coverage area. 
+              Delivery is currently only available in Libmanan, Sipocot, and Cabusao, Camarines Sur.
+              <br /><br />
+              You can still save this address, but you won&apos;t be able to place delivery orders 
+              to this location. Would you like to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingSubmission(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmOutOfScope}>
+              Continue Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

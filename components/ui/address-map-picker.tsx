@@ -10,21 +10,35 @@ import { AlertCircle } from "lucide-react"
 
 type LngLatTuple = [number, number]
 
-// Libmanan, Camarines Sur bounding box
+// Delivery coverage areas: Libmanan, Sipocot, and Cabusao, Camarines Sur bounding boxes
 // Format: [minLng, minLat, maxLng, maxLat]
-// Approximate boundaries covering Libmanan municipality
+// Approximate boundaries covering these municipalities
 const LIBMANAN_BBOX: [number, number, number, number] = [122.95, 13.6, 123.15, 13.8]
+const SIPOCOT_BBOX: [number, number, number, number] = [122.9, 13.75, 123.0, 13.85]
+const CABUSAO_BBOX: [number, number, number, number] = [122.85, 13.65, 122.95, 13.75]
 
 /**
- * Check if coordinates are within Libmanan boundaries
+ * Check if coordinates are within delivery coverage (Libmanan, Sipocot, or Cabusao)
  * @param coords - Coordinates in [lng, lat] format
- * @returns true if coordinates are within Libmanan, false otherwise
+ * @returns true if coordinates are within delivery coverage, false otherwise
  */
-function isWithinLibmanan(coords: LngLatTuple | null): boolean {
+function isWithinDeliveryCoverage(coords: LngLatTuple | null): boolean {
   if (!coords) return false
   const [lng, lat] = coords
-  const [minLng, minLat, maxLng, maxLat] = LIBMANAN_BBOX
-  return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat
+  
+  // Check Libmanan
+  const [minLng1, minLat1, maxLng1, maxLat1] = LIBMANAN_BBOX
+  if (lng >= minLng1 && lng <= maxLng1 && lat >= minLat1 && lat <= maxLat1) return true
+  
+  // Check Sipocot
+  const [minLng2, minLat2, maxLng2, maxLat2] = SIPOCOT_BBOX
+  if (lng >= minLng2 && lng <= maxLng2 && lat >= minLat2 && lat <= maxLat2) return true
+  
+  // Check Cabusao
+  const [minLng3, minLat3, maxLng3, maxLat3] = CABUSAO_BBOX
+  if (lng >= minLng3 && lng <= maxLng3 && lat >= minLat3 && lat <= maxLat3) return true
+  
+  return false
 }
 
 interface AddressMapPickerProps {
@@ -78,14 +92,14 @@ export function AddressMapPicker({
   // Track if current location is within Libmanan
   const [isWithinBounds, setIsWithinBounds] = useState<boolean | null>(null)
 
-  // Helper: Check if coordinates are within Libmanan and notify parent
+  // Helper: Check if coordinates are within delivery coverage and notify parent
   const validateLocation = useCallback((coords: LngLatTuple | null) => {
     if (!coords) {
       setIsWithinBounds(null)
       // Don't notify parent when coordinates are null - let parent handle that
       return
     }
-    const isValid = isWithinLibmanan(coords)
+    const isValid = isWithinDeliveryCoverage(coords)
     setIsWithinBounds(isValid)
     onLocationValid?.(isValid)
   }, [onLocationValid])
@@ -206,11 +220,11 @@ export function AddressMapPicker({
           disabled={disabled}
           className="text-gray-500 focus:outline-none focus:ring-0 focus:border-input focus-visible:outline-none focus-visible:ring-0 focus-visible:border-input"
         />
-        {/* Show error indicator when location is outside Libmanan */}
+        {/* Show warning indicator when location is outside delivery coverage */}
         {isWithinBounds === false && (
           <div className="flex items-center gap-2 text-sm text-red-600">
-            <AlertCircle className="h-4 w-4" />
-            <span>Address is out of scope!</span>
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <span className="text-xs text-yellow-600">Warning! Address is outside delivery coverage (Libmanan, Sipocot, Cabusao only).</span>
           </div>
         )}
       </div>
@@ -239,11 +253,12 @@ export function AddressMapPicker({
               }}
               options={{ 
                 language: "en",
-                // Limit search results to Libmanan bounding box
+                // Limit search results to delivery coverage areas
                 // Format: [minLng, minLat, maxLng, maxLat]
-                bbox: LIBMANAN_BBOX,
-                // Bias results towards Libmanan center
-                proximity: [123.05, 13.7]
+                // Combined bounding box covering all three municipalities
+                bbox: [122.85, 13.6, 123.15, 13.85],
+                // Bias results towards center of coverage area
+                proximity: [123.0, 13.7]
               }}
             />
           )}

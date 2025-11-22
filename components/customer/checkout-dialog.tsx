@@ -17,7 +17,7 @@ import { useCart } from "@/lib/cart-context"
 import { useMutation, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
-import { calculateDeliveryFee } from "@/lib/order-utils"
+import { calculateDeliveryFee, isWithinDeliveryCoverage } from "@/lib/order-utils"
 import dynamic from "next/dynamic"
 const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
 import { isValidPhoneNumber } from "@/lib/phone-validation"
@@ -320,6 +320,12 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     ? [currentUser.coordinates.lng, currentUser.coordinates.lat]
     : [123.05, 13.7] // Libmanan, Camarines Sur, Bicol
 
+  // Check if user's address is within delivery coverage
+  const isAddressWithinDeliveryCoverage = useMemo(() => {
+    if (!currentUser?.coordinates) return false
+    return isWithinDeliveryCoverage(currentUser.coordinates)
+  }, [currentUser?.coordinates])
+
   // Keep address synced from profile on open/switches
   useEffect(() => {
     // Initialize delivery coordinates with user's saved coordinates
@@ -584,6 +590,17 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         return
       }
 
+      // Check if trying to place delivery order with out-of-scope address
+      const wantsDelivery = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
+      if (wantsDelivery && !isAddressWithinDeliveryCoverage) {
+        setIsSubmitting(false)
+        toast.error("Delivery not available", {
+          description: "Your address is outside delivery coverage. Delivery is only available in Libmanan, Sipocot, and Cabusao, Camarines Sur. Please change your address or select Pickup.",
+          duration: 5000,
+        })
+        return
+      }
+
       // Validate pre-order fields if it's a pre-order
       if (orderType === "pre-order") {
         if (restrictionsEnabledButEmpty) {
@@ -671,8 +688,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
       const normalizedPhone = currentUser.phone
       const customerName = `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim()
 
-      // Calculate final total including delivery fee
-      const finalTotal = subtotal + platformFee + deliveryFee
+      // Calculate final total including delivery fee (only if address is within coverage)
+      const effectiveDeliveryFee = wantsDelivery && isAddressWithinDeliveryCoverage ? deliveryFee : 0
+      const finalTotal = subtotal + platformFee + effectiveDeliveryFee
 
       addOrder({
         // Backend enforces and overrides customerId to the authenticated user; provide for types
@@ -685,7 +703,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         items: orderItems,
         subtotal,
         platformFee,
-        deliveryFee: (orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) ? deliveryFee : undefined,
+        deliveryFee: wantsDelivery && isAddressWithinDeliveryCoverage ? effectiveDeliveryFee : undefined,
         discount: 0,
         total: finalTotal,
         orderType,
@@ -791,7 +809,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
               </div>
             </div>
             {restaurant.preorderNotification && (
-              <p className="text-xs text-red-500">{restaurant.preorderNotification}</p>
+              <p className="text-xs text-red-500 pt-4">{restaurant.preorderNotification}</p>
             )}
           </div>
         </DialogHeader>
@@ -816,7 +834,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    className="text-[11px] text-yellow-600 hover:text-yellow-700 underline mt-[-7px]"
+                    className="text-[12px] text-yellow-600 hover:text-yellow-700 underline mt-[-7px]"
                     onClick={() => {
                       onClose()
                       onCloseCart?.()
@@ -826,6 +844,27 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                     Change delivery address
                   </button>
                 </div>
+                {/* Warning message for regular delivery orders when address is out of coverage */}
+                {orderType === "delivery" && !isAddressWithinDeliveryCoverage && (
+                  <div className="mt-1 space-y-1">
+                    <p className="text-xs text-red-500">
+                      Delivery not available. Your address is outside coverage (Libmanan, Sipocot, Cabusao only).
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      <button
+                        type="button"
+                        className="text-yellow-600 hover:text-yellow-700 underline"
+                        onClick={() => {
+                          onClose()
+                          onCloseCart?.()
+                          onOpenSettings?.()
+                        }}
+                      >
+                        change delivery address
+                      </button>
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -836,13 +875,20 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs font-medium text-gray-500 mb-1">Fulfillment Method</p>
-                    <Select value={preOrderFulfillment} onValueChange={(v: PreOrderFulfillment) => setPreOrderFulfillment(v)}>
+                    <Select 
+                      value={preOrderFulfillment} 
+                      onValueChange={(v: PreOrderFulfillment) => {
+                        setPreOrderFulfillment(v)
+                      }}
+                    >
                       <SelectTrigger className="w-full text-xs">
                         <SelectValue placeholder="Fulfillment Method" className="text-gray-500" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pickup" className="text-xs">Pickup</SelectItem>
-                        <SelectItem value="delivery" className="text-xs">Delivery</SelectItem>
+                        <SelectItem value="delivery" className="text-xs">
+                          Delivery
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -860,6 +906,14 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                     </Select>
                   </div>
                 </div>
+                {/* Warning message spans full width - show when delivery is selected and address is out of coverage */}
+                {preOrderFulfillment === "delivery" && !isAddressWithinDeliveryCoverage && (
+                  <div className="mt-1 space-y-1">
+                    <p className="text-xs text-red-500">
+                      Your address is outside delivery coverage.
+                    </p>
+                  </div>
+                )}
                 {/* Downpayment Method - if downpayment is selected */}
                 {paymentPlan === "downpayment" && (
                   <div>
@@ -1175,7 +1229,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 <span>Platform fee</span>
                 <span>₱{platformFee.toFixed(2)}</span>
               </div>
-              {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
+              {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && isAddressWithinDeliveryCoverage && (
                 <div className="flex justify-between">
                   <span>
                     Delivery fee
@@ -1187,7 +1241,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
               <Separator />
               <div className="flex justify-between font-semibold text-base">
                 <span>Total</span>
-                <span>₱{(subtotal + platformFee + deliveryFee).toFixed(2)}</span>
+                <span>₱{(subtotal + platformFee + ((orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && isAddressWithinDeliveryCoverage ? deliveryFee : 0)).toFixed(2)}</span>
               </div>
             </div>
 
@@ -1202,8 +1256,10 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                   !preOrderDate || 
                   !preOrderTime || 
                   !!dateError || 
-                  !!timeError
-                ))
+                  !!timeError ||
+                  (preOrderFulfillment === "delivery" && !isAddressWithinDeliveryCoverage)
+                )) ||
+                (orderType === "delivery" && !isAddressWithinDeliveryCoverage)
               }
             >
               {isSubmitting ? "Placing Order..." : "Confirm order"}
