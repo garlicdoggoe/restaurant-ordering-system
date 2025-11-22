@@ -905,7 +905,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const chatMessages: ChatMessage[] = []
   const sendMessage = useCallback((orderId: string, senderId: string, senderName: string, senderRole: "owner" | "customer", message: string) => {
-    void sendChatMut({ orderId, senderId, senderName, senderRole, message })
+    // SECURITY: Only send orderId and message - sender info is derived server-side
+    void sendChatMut({ orderId, message })
   }, [sendChatMut])
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

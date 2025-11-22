@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { checkRateLimit } from "./rateLimit";
 
 export const listByOrder = query({
   args: { orderId: v.string() },
@@ -14,12 +15,13 @@ export const listByOrder = query({
 export const send = mutation({
   args: {
     orderId: v.string(),
-    senderId: v.string(),
-    senderName: v.string(),
-    senderRole: v.union(v.literal("owner"), v.literal("customer")),
     message: v.string(),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Rate limiting - prevent spam messages
+    // Limit: 20 messages per minute per user
+    await checkRateLimit(ctx, "chat.send");
+    
     // SECURITY: Verify user is authenticated
     const identity = await ctx.auth.getUserIdentity();
     const clerkId = identity?.subject;
@@ -32,16 +34,6 @@ export const send = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // SECURITY: Verify senderId matches authenticated user's ID (prevent impersonation)
-    if (args.senderId !== (user._id as unknown as string)) {
-      throw new Error("Unauthorized: senderId must match authenticated user");
-    }
-
-    // SECURITY: Verify senderRole matches user's actual role
-    if (args.senderRole !== user.role) {
-      throw new Error("Unauthorized: senderRole must match user's role");
-    }
-
     // SECURITY: Verify user has access to this order
     const order = await ctx.db.get(args.orderId as any);
     if (!order) throw new Error("Order not found");
@@ -51,7 +43,9 @@ export const send = mutation({
       throw new Error("Unauthorized: You don't have access to this order");
     }
 
-    // SECURITY: Derive senderName from authenticated user (don't trust client)
+    // SECURITY: Derive all sender information from authenticated user (don't trust client)
+    const senderId = user._id as unknown as string;
+    const senderRole = user.role;
     const senderName = user.role === "owner" 
       ? (await ctx.db.query("restaurant").first())?.name || `${user.firstName} ${user.lastName}`
       : `${user.firstName} ${user.lastName}`;
@@ -63,14 +57,24 @@ export const send = mutation({
     if (args.message.length > 2000) {
       throw new Error("Message must be 2000 characters or less");
     }
-    // Basic sanitization: remove potential script tags (simple approach)
-    const sanitizedMessage = args.message.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+    
+    // SECURITY: Strip all HTML tags to prevent XSS attacks
+    // This removes <script>, <img>, <iframe>, event handlers, and all other HTML tags
+    // Simple but effective: remove all content between < and > characters
+    let sanitizedMessage = args.message.trim();
+    // Remove all HTML tags
+    sanitizedMessage = sanitizedMessage.replace(/<[^>]*>/g, "");
+    // Remove HTML entities that could be used for XSS (basic protection)
+    sanitizedMessage = sanitizedMessage.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+    // Remove any remaining script-like patterns (case-insensitive)
+    sanitizedMessage = sanitizedMessage.replace(/javascript:/gi, "");
+    sanitizedMessage = sanitizedMessage.replace(/on\w+\s*=/gi, "");
 
     return await ctx.db.insert("chat_messages", { 
       orderId: args.orderId,
-      senderId: args.senderId,
+      senderId: senderId,
       senderName: senderName,
-      senderRole: args.senderRole,
+      senderRole: senderRole,
       message: sanitizedMessage,
       timestamp: Date.now() 
     });

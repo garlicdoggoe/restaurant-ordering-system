@@ -309,6 +309,15 @@ export default defineSchema({
     expiresAt: v.number(), // Expiration timestamp
     createdAt: v.number(),
   }).index("by_token", ["token"]),
+
+  // Rate limiting - tracks request counts per user/endpoint within time windows
+  rate_limits: defineTable({
+    userId: v.string(), // User ID (or "anonymous" for unauthenticated requests)
+    endpoint: v.string(), // Mutation/action name (e.g., "validateOwnerCode", "orders.create")
+    count: v.number(), // Number of requests in current window
+    windowStart: v.number(), // Timestamp when current window started
+    lastRequestAt: v.number(), // Timestamp of last request
+  }).index("by_userId_endpoint", ["userId", "endpoint"]).index("by_windowStart", ["windowStart"]),
 });
 
 

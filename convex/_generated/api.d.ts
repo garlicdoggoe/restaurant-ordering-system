@@ -18,6 +18,7 @@ import type * as migrations from "../migrations.js";
 import type * as order_modifications from "../order_modifications.js";
 import type * as orders from "../orders.js";
 import type * as promotions from "../promotions.js";
+import type * as rateLimit from "../rateLimit.js";
 import type * as restaurant from "../restaurant.js";
 import type * as users from "../users.js";
 import type * as vouchers from "../vouchers.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   order_modifications: typeof order_modifications;
   orders: typeof orders;
   promotions: typeof promotions;
+  rateLimit: typeof rateLimit;
   restaurant: typeof restaurant;
   users: typeof users;
   vouchers: typeof vouchers;

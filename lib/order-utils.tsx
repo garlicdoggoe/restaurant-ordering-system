@@ -88,26 +88,43 @@ export function getOrderTypePrefix(orderType: Order["orderType"]): string {
  * @returns Delivery fee in pesos
  */
 export function calculateDeliveryFee(distanceInMeters: number | null | undefined, feePerKilometer: number = 15): number {
-  // If distance is not available or invalid, return 0
-  if (distanceInMeters === null || distanceInMeters === undefined || distanceInMeters < 0) {
+  // If distance is not available, return 0 (free delivery)
+  if (distanceInMeters === null || distanceInMeters === undefined) {
+    return 0
+  }
+
+  // If distance is invalid (negative), return 0 (treat as unavailable)
+  // Note: Negative distances shouldn't occur in practice, but handle gracefully
+  if (distanceInMeters < 0) {
+    console.warn("Invalid negative distance provided to calculateDeliveryFee:", distanceInMeters)
+    return 0
+  }
+
+  // If distance is 0 (same location), return 0 (free delivery)
+  if (distanceInMeters === 0) {
     return 0
   }
 
   // Convert meters to kilometers
   const distanceInKm = distanceInMeters / 1000
 
-  // 0-0.5km: free
+  // 0-0.5km (0-500m): free delivery
+  // Note: Exactly 0.5km (500m) is included in the free tier
   if (distanceInKm <= 0.5) {
     return 0
   }
 
-  // 0.5-1km: 20 pesos
+  // 0.5-1km (500-1000m): flat rate of 20 pesos
+  // Note: Exactly 1km (1000m) is included in this tier
   if (distanceInKm <= 1) {
     return 20
   }
 
-  // >1km: 20 pesos + (distance - 1) * feePerKilometer
-  return 20 + (distanceInKm - 1) * feePerKilometer
+  // >1km: 20 pesos base + (distance - 1) * feePerKilometer
+  // Example: 2km with feePerKm=15: 20 + (2-1)*15 = 35 pesos
+  // Example: 1.5km with feePerKm=15: 20 + (1.5-1)*15 = 20 + 7.5 = 27.5 pesos
+  const additionalDistance = distanceInKm - 1
+  return 20 + additionalDistance * feePerKilometer
 }
 
 /**

@@ -1,6 +1,7 @@
 import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { checkRateLimit, checkRateLimitAction } from "./rateLimit";
 
 // Get current user profile
 export const getCurrentUser = query({
@@ -219,6 +220,10 @@ export const validateOwnerCode = mutation({
     code: v.string(),
   },
   handler: async (ctx, { code }) => {
+    // SECURITY: Rate limiting - prevent brute force attacks
+    // Very strict limit: 5 attempts per 15 minutes
+    await checkRateLimit(ctx, "validateOwnerCode");
+    
     // SECURITY: Owner signup code stored in environment variable
     // This prevents the code from being visible in version control
     const validOwnerCode = process.env.OWNER_SIGNUP_CODE;
@@ -327,6 +332,39 @@ export const calculateDistance = action({
     }),
   },
   handler: async (ctx, args) => {
+    // SECURITY: Rate limiting - prevent API abuse
+    // Limit: 30 requests per minute per user
+    // Actions must use checkRateLimitAction (calls internal mutation)
+    await checkRateLimitAction(ctx, "users.calculateDistance");
+    // SECURITY: Validate coordinates are within reasonable geographic bounds
+    // Validate latitude (-90 to 90)
+    if (args.customerCoordinates.lat < -90 || args.customerCoordinates.lat > 90 ||
+        args.restaurantCoordinates.lat < -90 || args.restaurantCoordinates.lat > 90) {
+      console.error("Invalid latitude coordinates. Must be between -90 and 90.");
+      return null;
+    }
+    
+    // Validate longitude (-180 to 180)
+    if (args.customerCoordinates.lng < -180 || args.customerCoordinates.lng > 180 ||
+        args.restaurantCoordinates.lng < -180 || args.restaurantCoordinates.lng > 180) {
+      console.error("Invalid longitude coordinates. Must be between -180 and 180.");
+      return null;
+    }
+    
+    // Reject coordinates that are exactly (0, 0) as they're likely invalid/default
+    if ((args.customerCoordinates.lat === 0 && args.customerCoordinates.lng === 0) ||
+        (args.restaurantCoordinates.lat === 0 && args.restaurantCoordinates.lng === 0)) {
+      console.error("Invalid coordinates: (0, 0) is not a valid location.");
+      return null;
+    }
+    
+    // Validate coordinates are finite numbers (not NaN or Infinity)
+    if (!Number.isFinite(args.customerCoordinates.lat) || !Number.isFinite(args.customerCoordinates.lng) ||
+        !Number.isFinite(args.restaurantCoordinates.lat) || !Number.isFinite(args.restaurantCoordinates.lng)) {
+      console.error("Coordinates must be finite numbers.");
+      return null;
+    }
+    
     // Get Mapbox access token from environment variables
     const accessToken = process.env.MAPBOX_ACCESS_TOKEN;
     
