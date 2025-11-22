@@ -11,7 +11,7 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { OrderCard } from "./order-card"
 import { DenyOrderDialog } from "./deny-order-dialog"
 import { AcceptOrderDialog } from "./accept-order-dialog"
-import { useMutation, useQuery } from "convex/react"
+import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 type OrderStatus = "pending" | "preparing" | "ready" | "completed" | "cancelled" | "denied" | "in-transit" | "delivered" | "pre-order-pending"

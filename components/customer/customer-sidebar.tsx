@@ -9,7 +9,6 @@ import { Separator } from "@/components/ui/separator"
 import { 
   Menu, 
   ShoppingCart, 
-  Heart, 
   Clock, 
   Inbox, 
   Settings, 

@@ -8,14 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { 
-  Clock, 
   CheckCircle,
   XCircle, 
   MessageSquare, 
   Ban,
   Upload
 } from "lucide-react"
-import { useData, type OrderStatus } from "@/lib/data-context"
+import { useData } from "@/lib/data-context"
 import { ChatDialog } from "./chat-dialog"
 import { BundleItemsList } from "@/components/shared/bundle-items-list"
 import {
@@ -37,7 +36,6 @@ import {
   getStatusIconsForTracking,
   ORDER_STATUS_COLORS_FOR_TRACKING,
   getStatusDescription,
-  getOrderBorderClass,
   isDeliveryOrder,
   calculateFullOrderTotal,
   getOrderTypePrefix,

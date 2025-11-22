@@ -40,7 +40,6 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
   const [selectedLngLat, setSelectedLngLat] = useState<[number, number] | null>(null)
   const [isLocationValid, setIsLocationValid] = useState<boolean>(false)
   const [showOutOfScopeDialog, setShowOutOfScopeDialog] = useState(false)
-  const [pendingSubmission, setPendingSubmission] = useState(false)
 
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
@@ -107,12 +106,10 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
 
       toast.success("Profile completed successfully!")
       setShowOutOfScopeDialog(false)
-      setPendingSubmission(false)
       onComplete?.()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update profile")
       setShowOutOfScopeDialog(false)
-      setPendingSubmission(false)
     } finally {
       setIsSubmitting(false)
     }
@@ -149,7 +146,6 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
 
     // Check if location is out of scope - show confirmation dialog instead of blocking
     if (!isLocationValid) {
-      setPendingSubmission(true)
       setShowOutOfScopeDialog(true)
       setIsSubmitting(false)
       return
@@ -268,7 +264,7 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingSubmission(false)}>
+            <AlertDialogCancel>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmOutOfScope}>

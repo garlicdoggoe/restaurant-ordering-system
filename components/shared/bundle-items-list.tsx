@@ -19,7 +19,7 @@ interface BundleItemsListProps {
 export function BundleItemsList({
   bundleItems,
   className = "",
-  showPrices = true,
+  showPrices: _showPrices = true, // Prefix with underscore to indicate intentionally unused (feature may be used in future)
   compact = false,
 }: BundleItemsListProps) {
   if (!bundleItems || bundleItems.length === 0) {

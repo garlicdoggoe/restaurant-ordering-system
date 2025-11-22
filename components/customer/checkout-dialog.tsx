@@ -443,8 +443,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     restrictionsEnabledButEmpty,
     scheduledDates,
     preOrderDate,
-    // Removed preOrderTime from dependencies to prevent resetting while user types
     selectedScheduleEntry,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // preOrderTime intentionally excluded from dependencies to prevent resetting while user types
   ])
 
   // Restore any pending image from localStorage (if available)
