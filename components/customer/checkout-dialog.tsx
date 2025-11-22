@@ -438,13 +438,13 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     if (!preOrderTime) {
       setPreOrderTime(DEFAULT_PREORDER_TIME)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     restrictionsActive,
     restrictionsEnabledButEmpty,
     scheduledDates,
     preOrderDate,
     selectedScheduleEntry,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     // preOrderTime intentionally excluded from dependencies to prevent resetting while user types
   ])
 

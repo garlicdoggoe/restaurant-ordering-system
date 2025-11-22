@@ -19,9 +19,11 @@ interface BundleItemsListProps {
 export function BundleItemsList({
   bundleItems,
   className = "",
-  showPrices: _showPrices = true, // Prefix with underscore to indicate intentionally unused (feature may be used in future)
+  showPrices = true, // Currently unused but kept for future price display feature
   compact = false,
 }: BundleItemsListProps) {
+  // Suppress unused parameter warning - showPrices may be used in future
+  void showPrices;
   if (!bundleItems || bundleItems.length === 0) {
     return null
   }
