@@ -129,7 +129,7 @@ export function WebsiteInquiryView() {
       }, 5000)
     } catch (error) {
       // Handle errors - show user-friendly error message
-      console.error("Error sending email:", error)
+      console.error("Error sending email:", error instanceof Error ? error.message : "Unknown error")
       toast.error("Failed to send message", {
         description: error instanceof Error 
           ? error.message 

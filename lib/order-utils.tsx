@@ -96,7 +96,6 @@ export function calculateDeliveryFee(distanceInMeters: number | null | undefined
   // If distance is invalid (negative), return 0 (treat as unavailable)
   // Note: Negative distances shouldn't occur in practice, but handle gracefully
   if (distanceInMeters < 0) {
-    console.warn("Invalid negative distance provided to calculateDeliveryFee:", distanceInMeters)
     return 0
   }
 

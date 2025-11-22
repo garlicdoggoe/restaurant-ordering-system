@@ -135,7 +135,8 @@ You can reply directly to ${args.email} to respond.
         emailId: result.id,
       };
     } catch (error) {
-      console.error("Error sending email via Resend:", error);
+      // Log only error message to avoid exposing sensitive email content or API credentials
+      console.error("Error sending email via Resend:", error instanceof Error ? error.message : "Unknown error");
       throw new Error(
         `Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`
       );

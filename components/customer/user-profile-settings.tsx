@@ -108,7 +108,8 @@ function UserProfileSettingsContent() {
             restaurantCoordinates: restaurant.coordinates,
           })
         } catch (error) {
-          console.error("Failed to calculate distance:", error)
+          // Log only error message to avoid exposing sensitive coordinate data
+          console.error("Failed to calculate distance:", error instanceof Error ? error.message : "Unknown error")
           // Set to null if calculation failed
           calculatedDistance = null
         }

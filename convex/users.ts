@@ -389,8 +389,8 @@ export const calculateDistance = action({
       const response = await fetch(url);
       
       if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        console.error(`Mapbox Directions API error: ${response.status} ${response.statusText}. Response: ${errorText}`);
+        // Log only status code to avoid exposing sensitive API response data
+        console.error(`Mapbox Directions API error: ${response.status} ${response.statusText}`);
         return null;
       }
       
@@ -406,14 +406,16 @@ export const calculateDistance = action({
       const distance = data.routes[0]?.distance;
       
       if (typeof distance !== "number") {
-        console.error("Invalid distance in API response:", data);
+        // Log only error type, not full API response data which may contain sensitive route information
+        console.error("Invalid distance in API response: distance is not a number");
         return null;
       }
       
       // NOTE: Avoid logging successful distance calculations to keep logs lean in production.
       return distance;
     } catch (error) {
-      console.error("Error calculating distance via Mapbox Directions API:", error);
+      // Log only error message to avoid exposing sensitive data in error stack traces
+      console.error("Error calculating distance via Mapbox Directions API:", error instanceof Error ? error.message : "Unknown error");
       return null;
     }
   },

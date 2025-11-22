@@ -51,7 +51,8 @@ export function SignupCallback() {
           ownerToken: ownerToken || undefined, // Only send token if we have one
         })
       } catch (error) {
-        console.error("Failed to create user:", error)
+        // Log only error message to avoid exposing sensitive user data or tokens
+        console.error("Failed to create user:", error instanceof Error ? error.message : "Unknown error")
       }
     }
 

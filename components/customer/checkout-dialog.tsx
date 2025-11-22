@@ -24,9 +24,9 @@ import { isValidPhoneNumber } from "@/lib/phone-validation"
 // Dynamically import AddressMapPicker with error handling and loading state
 // Using default export from address-map-picker
 const AddressMapPicker = dynamic(
-  () => import("@/components/ui/address-map-picker").catch((err) => {
-    console.error("Failed to load AddressMapPicker:", err);
+  () => import("@/components/ui/address-map-picker").catch((_err) => {
     // Return a fallback component if import fails
+    // Note: Dynamic import errors are handled gracefully with fallback UI
     return { default: () => (
       <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground border rounded-md">
         Map unavailable. Please refresh the page.
@@ -395,7 +395,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         const calculatedFee = calculateDeliveryFee(distanceInMeters, feePerKm)
         setDeliveryFee(calculatedFee)
       } catch (error) {
-        console.error("Failed to calculate delivery fee:", error)
+        // Log only error message to avoid exposing sensitive coordinate or route data
+        console.error("Failed to calculate delivery fee:", error instanceof Error ? error.message : "Unknown error")
         setDeliveryFee(0)
       } finally {
         setIsCalculatingDistance(false)
@@ -760,7 +761,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         }
       }
     } catch (error) {
-      console.error("Failed to create order:", error)
+      // Log only error message to avoid exposing sensitive order data
+      console.error("Failed to create order:", error instanceof Error ? error.message : "Unknown error")
       toast.error("Failed to place order", {
         description: "Please try again or contact support if the problem persists.",
         duration: 5000,

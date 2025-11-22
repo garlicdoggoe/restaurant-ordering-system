@@ -125,7 +125,8 @@ export function PaymentProofUploadDialog({
         onSuccess()
       }
     } catch (error) {
-      console.error("Failed to upload payment proof:", error)
+      // Log only error message to avoid exposing sensitive payment data
+      console.error("Failed to upload payment proof:", error instanceof Error ? error.message : "Unknown error")
       alert("Failed to upload payment proof. Please try again.")
     } finally {
       setIsUploading(false)

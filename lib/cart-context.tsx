@@ -50,7 +50,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      console.error("Error loading cart from localStorage:", error)
       // If there's an error parsing, clear the localStorage
       localStorage.removeItem(CART_STORAGE_KEY)
     }
@@ -61,7 +60,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems))
     } catch (error) {
-      console.error("Error saving cart to localStorage:", error)
     }
   }, [cartItems])
 
@@ -116,7 +114,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.removeItem(CART_STORAGE_KEY)
     } catch (error) {
-      console.error("Error clearing cart from localStorage:", error)
     }
   }, [])
 
