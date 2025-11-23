@@ -923,6 +923,8 @@ export function OrderCardBase({
           onOpenChange={setMapModalOpen}
           address={order.customerAddress}
           coordinates={mapCoordinates}
+          restaurantCoordinates={restaurant?.coordinates}
+          showRoute={true}
         />
       )}
 

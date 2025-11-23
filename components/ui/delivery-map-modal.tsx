@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -20,6 +20,10 @@ interface DeliveryMapModalProps {
   address?: string | null
   // Delivery coordinates (optional). Format: [lng, lat]
   coordinates?: LngLatTuple | null
+  // Optional restaurant coordinates to display route from restaurant to customer
+  restaurantCoordinates?: { lng: number; lat: number } | null
+  // Whether to show the route from restaurant to customer (default: true)
+  showRoute?: boolean
 }
 
 /**
@@ -34,6 +38,8 @@ export function DeliveryMapModal({
   onOpenChange,
   address,
   coordinates,
+  restaurantCoordinates,
+  showRoute = true,
 }: DeliveryMapModalProps) {
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || ""
 
@@ -41,9 +47,125 @@ export function DeliveryMapModal({
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markerRef = useRef<mapboxgl.Marker | null>(null)
+  const restaurantMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [resolvedCoordinates, setResolvedCoordinates] = useState<LngLatTuple | null>(coordinates ?? null)
   const [isGeocoding, setIsGeocoding] = useState(false)
+
+  // Fetch route geometry from Mapbox Directions API
+  const fetchRoute = useCallback(async (
+    restaurantCoords: { lng: number; lat: number },
+    customerCoords: LngLatTuple
+  ) => {
+    if (!accessToken || !showRoute) return null
+
+    try {
+      // Format coordinates for Mapbox Directions API
+      // Format: {lng},{lat};{lng},{lat} (semicolon-separated)
+      // Start from restaurant, end at customer
+      const coordinates = `${restaurantCoords.lng},${restaurantCoords.lat};${customerCoords[0]},${customerCoords[1]}`
+      
+      // Use driving profile for route calculation
+      const profile = "mapbox/driving"
+      
+      // Build API URL with geometries=geojson to get route geometry
+      const url = `https://api.mapbox.com/directions/v5/${profile}/${coordinates}?access_token=${accessToken}&geometries=geojson`
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        console.error(`Mapbox Directions API error: ${response.status} ${response.statusText}`)
+        return null
+      }
+      
+      const data = await response.json() as {
+        code?: string
+        routes?: Array<{ geometry?: GeoJSON.LineString }>
+      }
+      
+      // Check if route was found
+      if (data.code === "NoRoute" || !data.routes || data.routes.length === 0) {
+        console.warn("No route found between restaurant and customer coordinates")
+        return null
+      }
+      
+      // Extract route geometry from first route
+      const geometry = data.routes[0]?.geometry
+      
+      if (!geometry || geometry.type !== "LineString") {
+        console.error("Invalid route geometry in API response")
+        return null
+      }
+      
+      return geometry
+    } catch (error) {
+      console.error("Error fetching route via Mapbox Directions API:", error instanceof Error ? error.message : "Unknown error")
+      return null
+    }
+  }, [accessToken, showRoute])
+
+  // Ensure restaurant marker exists
+  const ensureRestaurantMarker = useCallback((map: mapboxgl.Map, lngLat: { lng: number; lat: number }) => {
+    if (!restaurantMarkerRef.current) {
+      // Create a custom restaurant marker with different color
+      const el = document.createElement("div")
+      el.className = "restaurant-marker"
+      el.style.width = "20px"
+      el.style.height = "20px"
+      el.style.borderRadius = "50%"
+      el.style.backgroundColor = "#ef4444" // Red color for restaurant
+      el.style.border = "3px solid white"
+      el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)"
+      el.style.cursor = "pointer"
+      
+      restaurantMarkerRef.current = new mapboxgl.Marker({ element: el, draggable: false })
+        .setLngLat([lngLat.lng, lngLat.lat])
+        .addTo(map)
+    } else {
+      restaurantMarkerRef.current.setLngLat([lngLat.lng, lngLat.lat])
+    }
+  }, [])
+
+  // Add or update route layer on map
+  const updateRouteLayer = useCallback((map: mapboxgl.Map, geometry: GeoJSON.LineString | null) => {
+    if (!map.getSource("route")) {
+      // Add route source if it doesn't exist
+      map.addSource("route", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: geometry || { type: "LineString", coordinates: [] },
+        },
+      })
+    } else {
+      // Update existing route source
+      const source = map.getSource("route") as mapboxgl.GeoJSONSource
+      source.setData({
+        type: "Feature",
+        properties: {},
+        geometry: geometry || { type: "LineString", coordinates: [] },
+      })
+    }
+
+    // Add route layer if it doesn't exist
+    if (!map.getLayer("route")) {
+      map.addLayer({
+        id: "route",
+        type: "line",
+        source: "route",
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#fbbf24", // Yellow color for route
+          "line-width": 4,
+          "line-opacity": 0.75,
+        },
+      })
+    }
+  }, [])
 
   // Reverse geocode address to coordinates if coordinates not provided
   useEffect(() => {
@@ -94,9 +216,28 @@ export function DeliveryMapModal({
     if (!open || !accessToken) {
       // Clean up map when modal closes
       if (mapRef.current) {
-        mapRef.current.remove()
+        try {
+          // Clean up route layer if it exists
+          if (mapRef.current.getSource("route")) {
+            if (mapRef.current.getLayer("route")) {
+              mapRef.current.removeLayer("route")
+            }
+            mapRef.current.removeSource("route")
+          }
+          // Remove markers
+          if (markerRef.current) {
+            markerRef.current.remove()
+          }
+          if (restaurantMarkerRef.current) {
+            restaurantMarkerRef.current.remove()
+          }
+          mapRef.current.remove()
+        } catch (error) {
+          console.error("Error cleaning up map:", error)
+        }
         mapRef.current = null
         markerRef.current = null
+        restaurantMarkerRef.current = null
         setMapLoaded(false)
       }
       return
@@ -136,7 +277,11 @@ export function DeliveryMapModal({
         const nav = new mapboxgl.NavigationControl()
         map.addControl(nav, "top-right")
 
-        map.on("load", () => setMapLoaded(true))
+        map.on("load", () => {
+          setMapLoaded(true)
+          // Initialize route layer when map loads (empty initially)
+          updateRouteLayer(map, null)
+        })
 
         mapRef.current = map
       } catch (error) {
@@ -151,16 +296,31 @@ export function DeliveryMapModal({
       clearTimeout(timeoutId)
       if (mapRef.current) {
         try {
+          // Clean up route layer if it exists
+          if (mapRef.current.getSource("route")) {
+            if (mapRef.current.getLayer("route")) {
+              mapRef.current.removeLayer("route")
+            }
+            mapRef.current.removeSource("route")
+          }
+          // Remove markers
+          if (markerRef.current) {
+            markerRef.current.remove()
+          }
+          if (restaurantMarkerRef.current) {
+            restaurantMarkerRef.current.remove()
+          }
           mapRef.current.remove()
         } catch (error) {
           console.error("Error removing map:", error)
         }
         mapRef.current = null
         markerRef.current = null
+        restaurantMarkerRef.current = null
         setMapLoaded(false)
       }
     }
-  }, [open, accessToken, resolvedCoordinates])
+  }, [open, accessToken, resolvedCoordinates, updateRouteLayer])
 
   // Update map when coordinates change
   useEffect(() => {
@@ -184,6 +344,65 @@ export function DeliveryMapModal({
       duration: 1000,
     })
   }, [mapLoaded, resolvedCoordinates, open])
+
+  // Fetch and display route when both restaurant and customer coordinates are available
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || !open) return
+    
+    // If showRoute is disabled or coordinates are missing, clear route and restaurant marker
+    if (!showRoute || !restaurantCoordinates || !resolvedCoordinates) {
+      // Clear route if coordinates are missing or route display is disabled
+      if (mapRef.current.getSource("route")) {
+        updateRouteLayer(mapRef.current, null)
+      }
+      // Remove restaurant marker if coordinates are missing or route is disabled
+      if (restaurantMarkerRef.current) {
+        restaurantMarkerRef.current.remove()
+        restaurantMarkerRef.current = null
+      }
+      return
+    }
+
+    // Add restaurant marker
+    ensureRestaurantMarker(mapRef.current, restaurantCoordinates)
+
+    // Fetch route
+    const loadRoute = async () => {
+      const geometry = await fetchRoute(restaurantCoordinates, resolvedCoordinates)
+      if (mapRef.current) {
+        updateRouteLayer(mapRef.current, geometry)
+        
+        // Fit map to show both restaurant and customer with route
+        if (geometry && geometry.coordinates.length > 0) {
+          const bounds = new mapboxgl.LngLatBounds()
+          bounds.extend([restaurantCoordinates.lng, restaurantCoordinates.lat])
+          bounds.extend(resolvedCoordinates)
+          // Extend bounds to include all route points
+          // Position can be [lng, lat] or [lng, lat, elevation], we only need first two
+          geometry.coordinates.forEach((coord) => {
+            if (Array.isArray(coord) && coord.length >= 2) {
+              bounds.extend([coord[0] as number, coord[1] as number])
+            }
+          })
+          mapRef.current.fitBounds(bounds, {
+            padding: { top: 50, bottom: 50, left: 50, right: 50 },
+            maxZoom: 16,
+          })
+        } else {
+          // If no route, just fit to show both markers
+          const bounds = new mapboxgl.LngLatBounds()
+          bounds.extend([restaurantCoordinates.lng, restaurantCoordinates.lat])
+          bounds.extend(resolvedCoordinates)
+          mapRef.current.fitBounds(bounds, {
+            padding: { top: 50, bottom: 50, left: 50, right: 50 },
+            maxZoom: 16,
+          })
+        }
+      }
+    }
+
+    loadRoute()
+  }, [mapLoaded, restaurantCoordinates, resolvedCoordinates, showRoute, fetchRoute, updateRouteLayer, ensureRestaurantMarker, open])
 
 
   // Don't render if no access token

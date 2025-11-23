@@ -1,17 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CategoryFilter, Category } from "@/components/ui/category-filter"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
 import { Plus, Minus, Search, X } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
-import type { MenuItem, OrderItem, MenuItemVariant } from "@/lib/data-context"
+import type { MenuItem, OrderItem, MenuItemVariant, MenuItemChoiceGroup, MenuItemChoice } from "@/lib/data-context"
 import { DEFAULT_CATEGORIES } from "@/lib/default-categories"
 
 interface AddOrderItemDialogProps {
@@ -20,20 +22,117 @@ interface AddOrderItemDialogProps {
   onAddItem: (item: OrderItem) => void
 }
 
+// Helper component to display choices for a choice group
+function ChoiceGroupSelector({ 
+  group, 
+  selectedChoiceIndex, 
+  onSelect,
+  isBundle,
+  allMenuItems
+}: { 
+  group: MenuItemChoiceGroup
+  selectedChoiceIndex: number | undefined
+  onSelect: (choiceIndex: number, choiceData: { name: string; price: number; menuItemId?: string; variantId?: string }) => void
+  isBundle?: boolean
+  allMenuItems?: MenuItem[]
+}) {
+  // Choices are now stored directly in the group
+  const choices = useMemo(() => (group.choices || []) as MenuItemChoice[], [group.choices])
+  const availableChoices = useMemo(() => {
+    return choices
+      .map((choice, originalIndex) => ({ ...choice, originalIndex }))
+      .filter((c) => c.available !== false)
+  }, [choices])
+
+  // Notify parent of choice selection with choice data
+  const handleSelect = (value: string) => {
+    const choiceIndex = parseInt(value, 10)
+    const selectedChoice = availableChoices.find(c => c.originalIndex === choiceIndex)
+    if (selectedChoice) {
+      // For bundle choices, get menu item name and price
+      if (isBundle && selectedChoice.menuItemId) {
+        const menuItem = allMenuItems?.find(m => m._id === selectedChoice.menuItemId)
+        if (menuItem) {
+          onSelect(choiceIndex, { 
+            name: menuItem.name, 
+            price: menuItem.price,
+            menuItemId: selectedChoice.menuItemId,
+            variantId: selectedChoice.variantId
+          })
+        }
+      } else {
+        onSelect(choiceIndex, { name: selectedChoice.name, price: selectedChoice.price })
+      }
+    }
+  }
+
+  if (availableChoices.length === 0) return null
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">{group.name} *</Label>
+      <RadioGroup value={selectedChoiceIndex !== undefined ? String(selectedChoiceIndex) : ""} onValueChange={handleSelect}>
+        <div className="space-y-2">
+          {availableChoices.map((choice) => {
+            // For bundle choices, show menu item name
+            const displayName = isBundle && choice.menuItemId
+              ? allMenuItems?.find(m => m._id === choice.menuItemId)?.name || choice.name
+              : choice.name
+            
+            return (
+              <div key={`${choice.originalIndex}-${choice.name}`} className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value={String(choice.originalIndex)} id={`choice-${group._id}-${choice.originalIndex}`} />
+                  <Label 
+                    htmlFor={`choice-${group._id}-${choice.originalIndex}`} 
+                    className="flex-1 cursor-pointer text-sm font-normal"
+                  >
+                    <span>{displayName}</span>
+                    {!isBundle && choice.price !== 0 && (
+                      <span className="ml-2 text-muted-foreground">
+                        ({choice.price >= 0 ? '+' : ''}₱{choice.price.toFixed(2)})
+                      </span>
+                    )}
+                  </Label>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </RadioGroup>
+    </div>
+  )
+}
+
 export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemDialogProps) {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
   const [selectedVariant, setSelectedVariant] = useState<MenuItemVariant | null>(null)
   const [quantity, setQuantity] = useState(1)
+  // Map of choiceGroupId -> { name, price, menuItemId?, variantId? } (for order storage)
+  const [selectedChoices, setSelectedChoices] = useState<Record<string, { name: string; price: number; menuItemId?: string; variantId?: string }>>({})
+  // Map of choiceGroupId -> choiceIndex (for UI selection tracking)
+  const [selectedChoiceIndices, setSelectedChoiceIndices] = useState<Record<string, number>>({})
 
   const { categories, menuItems } = useData()
+  
+  // Check if selected item is a bundle
+  const isBundle = useMemo(() => selectedItem?.isBundle === true, [selectedItem])
+  const bundleItems = useMemo(() => selectedItem?.bundleItems || [], [selectedItem])
   
   // Fetch variants for the selected item
   const variants = useQuery(
     api.menu.getVariantsByMenuItem,
     selectedItem ? { menuItemId: selectedItem._id as Id<"menu_items"> } : "skip"
   ) || []
+
+  // Fetch choice groups for bundle items
+  const choiceGroupsQuery = useQuery(
+    api.menu.getChoiceGroupsByMenuItem,
+    selectedItem && isBundle ? { menuItemId: selectedItem._id as Id<"menu_items"> } : "skip"
+  )
+  const choiceGroups = useMemo(() => (choiceGroupsQuery || []) as MenuItemChoiceGroup[], [choiceGroupsQuery])
 
   // Reset state when dialog opens/closes
   const handleClose = () => {
@@ -42,12 +141,16 @@ export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemD
     setQuantity(1)
     setSearchQuery("")
     setSelectedCategory("all")
+    setSelectedChoices({})
+    setSelectedChoiceIndices({})
     onClose()
   }
 
-  // Reset variant when item changes
+  // Reset variant and choices when item changes
   useEffect(() => {
     setSelectedVariant(null)
+    setSelectedChoices({})
+    setSelectedChoiceIndices({})
   }, [selectedItem])
 
   // Build categories with item counts
@@ -85,11 +188,74 @@ export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemD
   const handleAddToOrder = () => {
     if (!selectedItem) return
 
+    // For bundles, validate that all required choice groups have selections
+    if (isBundle && choiceGroups.length > 0) {
+      const allGroupsHaveSelections = choiceGroups.every((group) => {
+        if (!group.required) return true
+        return selectedChoices[group._id] !== undefined
+      })
+
+      if (!allGroupsHaveSelections) {
+        return
+      }
+    }
+
     // Determine the final price and name based on variant selection
-    const finalPrice = selectedVariant ? selectedVariant.price : selectedItem.price
+    // For bundles, use the fixed price from the menu item (not affected by choices)
+    const finalPrice = isBundle 
+      ? selectedItem.price 
+      : (selectedVariant ? selectedVariant.price : selectedItem.price)
+    
     const finalName = selectedVariant 
       ? `${selectedItem.name} - ${selectedVariant.name}`
       : selectedItem.name
+
+    // For bundles, build bundleItems array (selected items + fixed items)
+    let bundleItemsArray: Array<{ menuItemId: string; variantId?: string; name: string; price: number }> | undefined = undefined
+    
+    if (isBundle && bundleItems.length > 0) {
+      bundleItemsArray = []
+      
+      // Get all menuItemIds from choice groups (all possible choices)
+      const choiceGroupMenuItemIds = new Set<string>()
+      choiceGroups.forEach(group => {
+        group.choices.forEach(choice => {
+          if (choice.menuItemId) {
+            choiceGroupMenuItemIds.add(choice.menuItemId)
+          }
+        })
+      })
+      
+      // Fixed items = bundle items NOT in any choice group
+      const fixedItems = bundleItems.filter(bi => !choiceGroupMenuItemIds.has(bi.menuItemId))
+      
+      // Add fixed items
+      fixedItems.forEach(bi => {
+        const menuItem = menuItems.find(m => m._id === bi.menuItemId)
+        if (menuItem) {
+          bundleItemsArray!.push({
+            menuItemId: bi.menuItemId,
+            name: menuItem.name,
+            price: menuItem.price,
+          })
+        }
+      })
+      
+      // Add selected choice items (using default variantId from choice if available)
+      Object.values(selectedChoices).forEach((choice) => {
+        if (choice.menuItemId) {
+          const menuItem = menuItems.find(m => m._id === choice.menuItemId)
+          if (menuItem) {
+            bundleItemsArray!.push({
+              menuItemId: choice.menuItemId,
+              variantId: choice.variantId,
+              name: menuItem.name,
+              price: menuItem.price, // Base price - variant pricing handled separately
+            })
+          }
+        }
+      })
+    }
 
     const orderItem: OrderItem = {
       menuItemId: selectedItem._id,
@@ -99,6 +265,8 @@ export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemD
       variantId: selectedVariant?._id,
       variantName: selectedVariant?.name,
       unitPrice: finalPrice,
+      selectedChoices: Object.keys(selectedChoices).length > 0 ? selectedChoices : undefined,
+      bundleItems: bundleItemsArray,
     }
 
     onAddItem(orderItem)
@@ -193,6 +361,28 @@ export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemD
                       </Select>
                     </div>
                   )}
+
+                  {/* Choice Groups Selection (for bundle items) */}
+                  {isBundle && choiceGroups.length > 0 && (
+                    <div className="space-y-4 mt-4">
+                      {choiceGroups.map((group) => (
+                        <ChoiceGroupSelector
+                          key={group._id}
+                          group={group}
+                          selectedChoiceIndex={selectedChoiceIndices[group._id]}
+                          isBundle={isBundle}
+                          allMenuItems={menuItems}
+                          onSelect={(choiceIndex, choiceData) => {
+                            setSelectedChoiceIndices((prev) => ({ ...prev, [group._id]: choiceIndex }))
+                            setSelectedChoices((prev) => ({ 
+                              ...prev, 
+                              [group._id]: choiceData 
+                            }))
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-4 ml-6">
@@ -219,11 +409,17 @@ export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemD
                     <div className="text-right min-w-[120px]">
                       <p className="text-sm text-muted-foreground">Unit Price</p>
                       <p className="font-semibold text-lg">
-                        ₱{(selectedVariant ? selectedVariant.price : selectedItem.price).toFixed(2)}
+                        ₱{(isBundle 
+                          ? selectedItem.price 
+                          : (selectedVariant ? selectedVariant.price : selectedItem.price)
+                        ).toFixed(2)}
                       </p>
                       <p className="text-sm text-muted-foreground">Total</p>
                       <p className="font-bold text-xl">
-                        ₱{((selectedVariant ? selectedVariant.price : selectedItem.price) * quantity).toFixed(2)}
+                        ₱{((isBundle 
+                          ? selectedItem.price 
+                          : (selectedVariant ? selectedVariant.price : selectedItem.price)
+                        ) * quantity).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -239,7 +435,14 @@ export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemD
             </Button>
             <Button 
               onClick={handleAddToOrder} 
-              disabled={!selectedItem || (variants.length > 0 && !selectedVariant)}
+              disabled={
+                !selectedItem || 
+                (variants.length > 0 && !selectedVariant) ||
+                (isBundle && choiceGroups.length > 0 && !choiceGroups.every((group) => {
+                  if (!group.required) return true
+                  return selectedChoices[group._id] !== undefined
+                }))
+              }
               className="flex-1 h-12 text-base"
             >
               Add to Order
