@@ -20,4 +20,13 @@ export const getUrl = query({
   },
 });
 
+// Mutation to get URL from storage ID (for immediate use after upload)
+export const getUrlFromStorageId = mutation({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, { storageId }) => {
+    const url = await ctx.storage.getUrl(storageId);
+    return url;
+  },
+});
+
 

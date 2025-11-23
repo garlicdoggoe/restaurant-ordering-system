@@ -23,103 +23,24 @@ interface ChatDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-// Component to render image message, resolving storageId to URL if needed
+// Component to render image message from URL (similar to order-tracking.tsx)
 function ChatImageMessage({ message, onImageClick }: { message: string; onImageClick?: (url: string) => void }) {
-  // Prefix marker to explicitly identify image storage IDs
-  // This isolates image handling and prevents false positives from text messages
-  const STORAGE_ID_PREFIX = "STORAGE_ID:"
+  // Messages now store URLs directly, so we can use them immediately
+  // Check if it's a valid URL (http/https) or a Convex storage URL
+  const isUrl = message && (message.startsWith('http://') || message.startsWith('https://'))
   
-  // Helper function to check if a string looks like a Convex storage ID (for backward compatibility)
-  // Used only for existing messages that don't have the prefix
-  const looksLikeStorageId = (text: string): boolean => {
-    if (!text) return false
-    
-    // Must not start with http/https or be a path
-    if (text.startsWith('http') || text.startsWith('/')) return false
-    
-    // Must not contain dots or spaces (these indicate URLs or text messages)
-    if (text.includes('.') || text.includes(' ')) return false
-    
-    // Length should be reasonable for a storage ID (typically 20-40 characters)
-    // Too short or too long suggests it's not a storage ID
-    if (text.length < 20 || text.length > 40) return false
-    
-    // Must match base64url pattern (alphanumeric + '-' and '_')
-    // This excludes text messages with special characters or punctuation
-    const base64urlPattern = /^[A-Za-z0-9_-]+$/
-    if (!base64urlPattern.test(text)) return false
-    
-    // Check for simple repeated patterns (like "aaaa..." or "1234...")
-    // Real storage IDs have varied character distribution
-    const firstChar = text[0]
-    if (text.split('').every(char => char === firstChar)) return false
-    
-    return true
-  }
-  
-  // Check if message has the STORAGE_ID prefix (new format)
-  const hasStorageIdPrefix = message.startsWith(STORAGE_ID_PREFIX)
-  
-  // Extract the actual storage ID if prefix is present
-  const actualStorageId = hasStorageIdPrefix 
-    ? message.substring(STORAGE_ID_PREFIX.length) 
-    : null
-  
-  // For backward compatibility: if no prefix, check if it looks like a storage ID
-  const isLegacyStorageId = !hasStorageIdPrefix && looksLikeStorageId(message)
-  
-  // Determine if this is a storage ID (either new format with prefix or legacy format)
-  const isStorageId = hasStorageIdPrefix || isLegacyStorageId
-  
-  // Use the actual storage ID (without prefix) or the message itself for legacy format
-  const storageIdToQuery = hasStorageIdPrefix ? actualStorageId : (isLegacyStorageId ? message : null)
-  
-  const imageUrl = useQuery(
-    api.files.getUrl,
-    isStorageId && storageIdToQuery ? { storageId: storageIdToQuery as Id<"_storage"> } : "skip"
-  )
-  
-  // Determine the final URL to use
-  // If it's a storage ID, wait for the query to return a valid URL
-  // If it's already a valid URL (http/https), use it directly
-  // If it's a relative path (starts with /), use it directly
-  let finalUrl: string | null = null
-  if (isStorageId) {
-    // For storage IDs, only use the URL if it's been resolved
-    // Don't fall back to the raw storage ID as it's not a valid URL
-    finalUrl = imageUrl || null
-  } else {
-    // For URLs or paths, use the message directly
-    finalUrl = message
-  }
-  
-  // Show loading state while fetching URL for storage ID
-  if (isStorageId && imageUrl === undefined) {
+  if (!isUrl) {
+    // Not a URL, treat as regular text
     return (
-      <div className="relative rounded max-h-64 max-w-full flex items-center justify-center bg-muted p-4">
-        <p className="text-xs text-muted-foreground">Loading image...</p>
-      </div>
+      <p className="text-xs md:text-fluid-sm break-all whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{message}</p>
     )
   }
   
-  // Show error state if storage ID couldn't be resolved
-  if (isStorageId && imageUrl === null) {
-    return (
-      <div className="relative rounded max-h-64 max-w-full flex items-center justify-center bg-muted p-4">
-        <p className="text-xs text-muted-foreground">Failed to load image</p>
-      </div>
-    )
-  }
-  
-  // Only render Image if we have a valid URL
-  if (!finalUrl) {
-    return null
-  }
-  
+  // Use the URL directly (like order-tracking.tsx does with payment proof URLs)
   return (
-    <div className="relative rounded max-h-64 max-w-full cursor-zoom-in" onClick={onImageClick ? () => onImageClick(finalUrl!) : undefined}>
+    <div className="relative rounded max-h-64 max-w-full cursor-zoom-in" onClick={onImageClick ? () => onImageClick(message) : undefined}>
       <Image
-        src={finalUrl}
+        src={message}
         alt="Attachment"
         width={400}
         height={256}
@@ -153,6 +74,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
   // Mutations for file upload
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
+  const getUrlFromStorageId = useMutation(api.files.getUrlFromStorageId)
   // Mutation to mark messages as read
   const markAsRead = useMutation(api.chat.markAsRead)
   
@@ -288,43 +210,34 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
     }
   }
 
-  // Helper function to check if message is an image URL or storageId
+  // Helper function to check if message is an image URL
+  // Only treat URLs as images if they are:
+  // 1. Convex storage URLs (contain /api/storage/)
+  // 2. URLs ending in image file extensions
+  // Regular links should be treated as text and linkified
   const isImageUrl = (text: string) => {
     if (!text) return false
     
-    // Check if it's an HTTP(S) URL ending in image extension
-    if (/^https?:\/\/.*\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(text)) {
+    // Must be an HTTP(S) URL
+    if (!text.startsWith('http://') && !text.startsWith('https://')) {
+      return false
+    }
+    
+    // Check if it's a Convex storage URL (these are always images)
+    // Convex storage URLs look like: https://outstanding-dalmatian-605.convex.cloud/api/storage/...
+    if (text.includes('/api/storage/')) {
       return true
     }
     
-    // Check if it has the STORAGE_ID prefix (new format - most reliable)
-    const STORAGE_ID_PREFIX = "STORAGE_ID:"
-    if (text.startsWith(STORAGE_ID_PREFIX)) {
+    // Check if it ends with an image file extension
+    // This handles direct image URLs like https://example.com/image.jpg
+    const imageExtensions = /\.(png|jpg|jpeg|gif|webp|bmp|svg)(\?.*)?$/i
+    if (imageExtensions.test(text)) {
       return true
     }
     
-    // For backward compatibility: check if it looks like a Convex storage ID (legacy format)
-    // Storage IDs are base64url-encoded strings (alphanumeric + '-' and '_')
-    // They typically have a length between 20-40 characters
-    // They should not be simple repeated characters
-    // Must not start with http/https or be a path
-    if (text.startsWith('http') || text.startsWith('/')) return false
-    
-    // Must not contain dots or spaces
-    if (text.includes('.') || text.includes(' ')) return false
-    
-    // Length should be reasonable for a storage ID (typically 20-40 characters)
-    if (text.length < 20 || text.length > 40) return false
-    
-    // Must match base64url pattern (alphanumeric + '-' and '_')
-    const base64urlPattern = /^[A-Za-z0-9_-]+$/
-    if (!base64urlPattern.test(text)) return false
-    
-    // Check for simple repeated patterns (like "aaaa..." or "1234...")
-    const firstChar = text[0]
-    if (text.split('').every(char => char === firstChar)) return false
-    
-    return true
+    // Not an image URL, treat as regular link
+    return false
   }
 
   // Handle image upload (only if allowed)
@@ -356,9 +269,17 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
         body: compressedFile,
       })
       const { storageId } = await uploadResponse.json()
-      // Add "STORAGE_ID:" prefix to explicitly mark this as an image storage ID
-      // This isolates image handling and prevents false positives from text messages
-      sendMessage(orderId, customerId, customerName, "customer", `STORAGE_ID:${storageId}`)
+      
+      // Immediately resolve storage ID to URL and store the URL directly
+      // This allows the image to be displayed directly without needing to resolve it later
+      const imageUrl = await getUrlFromStorageId({ storageId: storageId as Id<"_storage"> })
+      
+      if (imageUrl) {
+        // Store the URL directly in the chat message (like order-tracking.tsx does)
+        sendMessage(orderId, customerId, customerName, "customer", imageUrl)
+      } else {
+        throw new Error("Failed to get image URL")
+      }
     } catch (err) {
       console.error("Failed to upload image:", err)
       alert("Failed to upload image. Please try again.")
