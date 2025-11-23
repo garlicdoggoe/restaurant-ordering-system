@@ -134,6 +134,7 @@ export default function RootLayout({
           <NextStepProvider>
             <NextStep steps={customerOnboardingSteps}>
               <Providers>{children}</Providers>
+              <SpeedInsights />
             </NextStep>
           </NextStepProvider>
           <Analytics />
