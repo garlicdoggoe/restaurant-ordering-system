@@ -228,17 +228,17 @@ export function TotalMonitoringView() {
   }, [filteredPreOrders])
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
+    <div className="space-y-4 md:space-y-6">
+      <header className="space-y-1 md:space-y-2">
         <h1 className="text-fluid-2xl font-bold">Total Monitoring</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-sm md:text-base">
           Track every pre-order scheduled for the selected day. Switch views to focus on aggregated prep
           quantities or the chronological timeline of who will arrive next.
         </p>
       </header>
 
       {/* Controls */}
-      <Card className="p-4 space-y-6">
+      <Card className="p-3 md:p-4 space-y-4 md:space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end">
           <div className="flex-1 space-y-2">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Date</Label>
@@ -283,7 +283,7 @@ export function TotalMonitoringView() {
             variant="ghost"
             size="sm"
             onClick={() => setShowStateFilter((prev) => !prev)}
-            className="flex items-center gap-2 text-sm font-medium"
+            className="flex items-center gap-2 text-xs md:text-sm font-medium"
           >
             {showStateFilter ? (
               <ChevronDown className="h-4 w-4" />
@@ -307,23 +307,23 @@ export function TotalMonitoringView() {
         </div>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-4 md:gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         {/* Main content */}
         <section className="space-y-4">
           {mode === "aggregated" ? (
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0 pb-2 md:pb-4">
                 <div>
-                  <CardTitle>Aggregated Items</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-base md:text-lg">Aggregated Items</CardTitle>
+                  <CardDescription className="text-xs md:text-sm">
                     Total quantities for {selectedDate || "all dates"}. Use this to prepare ingredients in advance.
                   </CardDescription>
                 </div>
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs w-fit">
                   {aggregatedItems.length} items
                 </Badge>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 md:p-6">
                 {aggregatedItems.length === 0 ? (
                   <EmptyState label="No pre-orders for this date." />
                 ) : (
@@ -331,13 +331,13 @@ export function TotalMonitoringView() {
                     {aggregatedItems.map((item) => (
                       <div
                         key={item.key}
-                        className="flex items-center justify-between rounded-lg border px-4 py-3 shadow-sm bg-white/40"
+                        className="flex items-center justify-between rounded-lg border px-3 py-2 md:px-4 md:py-3 shadow-sm bg-white/40"
                       >
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">₱{item.total.toFixed(2)} total</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm md:text-base truncate">{item.name}</p>
+                          <p className="text-xs md:text-sm text-muted-foreground">₱{item.total.toFixed(2)} total</p>
                         </div>
-                        <Badge className="text-base px-3 py-1">
+                        <Badge className="text-sm md:text-base px-3 py-1 flex-shrink-0">
                           ×{item.quantity}
                         </Badge>
                       </div>
@@ -347,39 +347,39 @@ export function TotalMonitoringView() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="min-h-[400px]">
-              <CardHeader>
-                <CardTitle>Within-the-day Timeline</CardTitle>
-                <CardDescription>
+            <Card className="min-h-0 md:min-h-[400px]">
+              <CardHeader className="pb-2 md:pb-4">
+                <CardTitle className="text-base md:text-lg">Within-the-day Timeline</CardTitle>
+                <CardDescription className="text-xs md:text-sm">
                   See the exact time each pre-order is scheduled so staff can stage pickups or deliveries.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-3 md:p-6">
                 {timelineEntries.length === 0 ? (
                   <EmptyState label="No pre-orders scheduled for this date." />
                 ) : (
-                  <ScrollArea className="max-h-[540px]">
+                  <ScrollArea className="max-h-[calc(100vh-300px)] md:max-h-[540px]">
                     <div className="space-y-4 pr-2">
                       {timelineEntries.map((entry) => (
-                        <article key={entry.id} className="rounded-xl border p-4 shadow-sm">
-                          <div className="flex items-center justify-between gap-3 flex-wrap">
-                            <div>
-                              <p className="text-sm text-muted-foreground">{entry.timeLabel}</p>
-                              <h3 className="text-base font-semibold">{entry.customerName}</h3>
+                        <article key={entry.id} className="rounded-xl border p-3 md:p-4 shadow-sm">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs md:text-sm text-muted-foreground">{entry.timeLabel}</p>
+                              <h3 className="text-sm md:text-base font-semibold truncate">{entry.customerName}</h3>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center flex-wrap gap-1 md:gap-2">
                               {entry.fulfillment && (
                                 <Badge variant="outline" className="uppercase text-[10px]">
                                   {entry.fulfillment}
                                 </Badge>
                               )}
-                              <Badge variant="secondary">₱{entry.total.toFixed(2)}</Badge>
+                              <Badge variant="secondary" className="text-xs md:text-sm">₱{entry.total.toFixed(2)}</Badge>
                             </div>
                           </div>
-                          <ul className="mt-3 space-y-1 text-sm">
+                          <ul className="mt-3 space-y-1">
                             {entry.items.map((item, index) => (
-                              <li key={`${entry.id}-${index}`} className="flex justify-between text-muted-foreground">
-                                <span>
+                              <li key={`${entry.id}-${index}`} className="flex justify-between text-xs md:text-sm text-muted-foreground gap-2">
+                                <span className="min-w-0 flex-1 break-words">
                                   {item.quantity}× {item.name}
                                   {item.variantName ? ` · ${item.variantName}` : ""}
                                   {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
@@ -390,7 +390,7 @@ export function TotalMonitoringView() {
                                     </span>
                                   )}
                                 </span>
-                                <span>₱{((item.unitPrice ?? item.price) * item.quantity).toFixed(2)}</span>
+                                <span className="flex-shrink-0">₱{((item.unitPrice ?? item.price) * item.quantity).toFixed(2)}</span>
                               </li>
                             ))}
                           </ul>
@@ -398,7 +398,7 @@ export function TotalMonitoringView() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="gap-2"
+                              className="gap-2 w-full md:w-auto text-xs md:text-sm"
                               onClick={() => setSelectedOrderId(entry.primaryOrderId)}
                             >
                               <Eye className="h-4 w-4" />
@@ -421,13 +421,13 @@ export function TotalMonitoringView() {
         </section>
 
         {/* Right panel summary */}
-        <aside className="space-y-4">
+        <aside className="space-y-3 md:space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Summary</CardTitle>
-              <CardDescription>Aggregated totals for the selected date.</CardDescription>
+            <CardHeader className="pb-2 md:pb-4">
+              <CardTitle className="text-base md:text-lg">Summary</CardTitle>
+              <CardDescription className="text-xs md:text-sm">Aggregated totals for the selected date.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 md:space-y-4 p-3 md:p-6">
               <SummaryStat label="Pre-orders" value={kpis.totalOrders} />
               <SummaryStat label="Items to prep" value={kpis.totalItems} />
               <SummaryStat label="Unique customers" value={kpis.uniqueCustomers} />
@@ -436,13 +436,13 @@ export function TotalMonitoringView() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Quick tips</CardTitle>
-              <CardDescription>
+            <CardHeader className="pb-2 md:pb-4">
+              <CardTitle className="text-base md:text-lg">Quick tips</CardTitle>
+              <CardDescription className="text-xs md:text-sm">
                 Use Aggregated view when planning prep, switch to Timeline when coordinating hand-offs.
               </CardDescription>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
+            <CardContent className="text-xs md:text-sm text-muted-foreground space-y-2 p-3 md:p-6">
               <p>• Filters only affect pre-orders so regular orders stay out of the way.</p>
               <p>• Update the scheduled times to keep this board accurate for the team.</p>
               <p>• When in doubt, refresh the date picker to snap back to today.</p>
@@ -520,7 +520,7 @@ function StateFilter({
           return (
             <label
               key={option.value}
-              className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm shadow-sm bg-muted/30"
+              className="flex items-center gap-2 md:gap-3 rounded-lg border px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm shadow-sm bg-muted/30"
             >
               <input
                 type="checkbox"
@@ -545,9 +545,9 @@ function StateFilter({
  */
 function SummaryStat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-lg border px-4 py-3 bg-muted/30">
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-xl font-semibold">{value}</p>
+    <div className="rounded-lg border px-3 py-2 md:px-4 md:py-3 bg-muted/30">
+      <p className="text-[10px] md:text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-lg md:text-xl font-semibold">{value}</p>
     </div>
   )
 }
@@ -557,8 +557,8 @@ function SummaryStat({ label, value }: { label: string; value: number | string }
  */
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-sm text-muted-foreground">
-      <Calendar className="h-10 w-10 text-muted-foreground/40" />
+    <div className="flex flex-col items-center justify-center gap-2 py-8 md:py-12 text-center text-xs md:text-sm text-muted-foreground">
+      <Calendar className="h-8 w-8 md:h-10 md:w-10 text-muted-foreground/40" />
       <p>{label}</p>
     </div>
   )
