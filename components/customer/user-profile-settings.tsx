@@ -19,7 +19,25 @@ import { isValidPhoneNumber, formatPhoneForDisplay } from "@/lib/phone-validatio
 import { useStartOnboarding } from "@/components/customer/onboarding-trigger"
 import { Play } from "lucide-react"
 import dynamic from "next/dynamic"
-const AddressMapPicker = dynamic(() => import("@/components/ui/address-map-picker"), { ssr: false })
+
+// Dynamically import AddressMapPicker with error handling and loading state
+// Using default export from address-map-picker
+// This prevents runtime errors when the chunk fails to load
+const AddressMapPicker = dynamic(
+  () => import("@/components/ui/address-map-picker").catch(() => {
+    // Return a fallback component if import fails
+    // Note: Dynamic import errors are handled gracefully with fallback UI
+    return { default: () => (
+      <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground border rounded-md">
+        Map unavailable. Please refresh the page.
+      </div>
+    ) };
+  }),
+  { 
+    ssr: false,
+    loading: () => <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground border rounded-md">Loading map...</div>
+  }
+)
 
 export function UserProfileSettings() {
   return (
