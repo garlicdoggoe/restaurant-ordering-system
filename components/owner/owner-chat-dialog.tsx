@@ -156,6 +156,8 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Detect mobile devices to apply additional padding for browser toolbar
+  const [isMobile, setIsMobile] = useState(false)
 
   const order = getOrderById(orderId)
   const messagesQuery = useQuery(api.chat.listByOrder, { orderId })
@@ -168,6 +170,22 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
   // Mutation to mark messages as read
   const markAsRead = useMutation(api.chat.markAsRead)
+
+  // Detect mobile devices on component mount
+  useEffect(() => {
+    // Check if device is mobile by:
+    // 1. Touch capability (touch devices)
+    // 2. Screen width (smaller than tablet breakpoint)
+    // 3. User agent patterns for mobile devices (iOS, Android, etc.)
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    const isSmallScreen = window.innerWidth < 768 // md breakpoint
+    const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || ""
+    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
+    
+    // Consider it mobile if it has touch AND (small screen OR mobile user agent)
+    const isMobileDevice = hasTouch && (isSmallScreen || isMobileUserAgent)
+    setIsMobile(isMobileDevice)
+  }, [])
 
   // Mark messages as read when dialog opens
   useEffect(() => {
@@ -445,21 +463,21 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[70vw] h-[70vh] max-w-none flex flex-col">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
+      <DialogContent className="!fixed !inset-0 !top-0 !left-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none !max-h-none md:!w-[85vw] md:!h-auto md:!max-w-2xl md:!max-h-[80vh] md:!inset-auto md:!top-[50%] md:!left-[50%] md:!-translate-x-1/2 md:!-translate-y-1/2 !flex !flex-col p-3 md:p-6 rounded-none md:rounded-lg">
+        <DialogHeader className="p-0 flex-shrink-0">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <DialogTitle>Chat with {order.customerName}</DialogTitle>
+              <DialogTitle className="text-sm md:text-fluid-lg">Chat with {order.customerName}</DialogTitle>
               <button
                 type="button"
-                className="text-sm text-blue-600 underline hover:text-blue-800 cursor-pointer"
+                className="text-xs md:text-sm text-blue-600 underline hover:text-blue-800 cursor-pointer"
                 onClick={() => setDetailsDialogOpen(true)}
                 aria-label="Open order details"
               >
                 Order #{orderId.slice(-6).toUpperCase()}
               </button>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Customer can send images</span>
                 <Switch
@@ -476,10 +494,10 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
           </div>
         </DialogHeader>
 
-        <ScrollArea ref={scrollRef} className="flex-1 min-h-0 pr-4 overflow-y-auto">
+        <ScrollArea ref={scrollRef} className="flex-1 min-h-0 pr-1 md:pr-4 overflow-y-auto">
           <div className="space-y-4">
             {messages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">No messages yet. Start a conversation!</div>
+              <div className="text-center text-muted-foreground py-6 md:py-8 text-xs md:text-fluid-sm">No messages yet. Start a conversation!</div>
             ) : (
               messages.map((msg: ChatMessage) => (
                 <div key={msg._id} className={cn("flex min-w-0", msg.senderRole === "owner" ? "justify-end" : "justify-start")}>
@@ -491,7 +509,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
                         : "bg-muted border-2 border-border",
                     )}
                   >
-                    <p className="text-sm font-medium mb-1 break-words">{msg.senderRole === "owner" ? "You" : msg.senderName}</p>
+                    <p className="text-xs md:text-fluid-sm font-medium mb-1 break-words">{msg.senderRole === "owner" ? "You" : msg.senderName}</p>
                     {/* Render image if message is an image URL or storageId */}
                     {isImageUrl(msg.message) ? (
                       <ChatImageMessage
@@ -502,7 +520,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
                         }}
                       />
                     ) : (
-                      <p className="text-sm break-all whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{parseMessage(msg.message)}</p>
+                      <p className="text-xs md:text-fluid-sm break-all whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{parseMessage(msg.message)}</p>
                     )}
                     <p className="text-xs opacity-70 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</p>
                   </div>
@@ -512,15 +530,27 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
           </div>
         </ScrollArea>
 
-        <div className="border-t">
+        <div className="border-t flex-shrink-0">
           {/* Show message if chat is disallowed */}
           {!allowChat && (
-            <div className="p-2 bg-yellow-50 border-b border-yellow-200 text-sm text-yellow-800">
+            <div className="p-2 bg-yellow-50 border-b border-yellow-200 text-xs md:text-sm text-yellow-800">
               Chat is disabled for this order. Existing messages are visible but no new messages can be sent.
             </div>
           )}
           
-          <div className="flex gap-2 pt-4">
+          <div 
+            className={cn(
+              "flex gap-2 pt-3 md:pt-4"
+            )}
+            style={{
+              // Use CSS safe area inset for mobile devices to handle notched devices and browser UI
+              // Add additional padding (56px) for the browser toolbar (address bar + bottom navigation)
+              // This prevents the browser toolbar from covering the input section on mobile devices
+              paddingBottom: typeof window !== 'undefined' && isMobile 
+                ? `calc(env(safe-area-inset-bottom) + 74px)`
+                : undefined
+            }}
+          >
             {/* Quick replies dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -560,6 +590,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
+            className="text-xs md:text-fluid-sm"
             disabled={isUploading || !allowChat}
           />
           <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim() || !allowChat}>
@@ -589,10 +620,15 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
 
       {/* Order Details Dialog */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          {orderId && (
-            <OrderDetails orderId={orderId} onClose={() => setDetailsDialogOpen(false)} />
-          )}
+        <DialogContent className="!fixed !inset-0 !top-0 !left-0 !right-0 !bottom-0 !translate-x-0 !translate-y-0 !w-screen !h-screen !max-w-none !max-h-none md:!inset-auto md:!top-[50%] md:!left-[50%] md:!-translate-x-1/2 md:!-translate-y-1/2 md:!w-auto md:!h-auto md:!max-w-lg md:!max-h-[90vh] sm:max-w-lg overflow-hidden p-0 md:p-6 rounded-none md:rounded-lg !flex !flex-col !bg-white md:!bg-background">
+          <DialogHeader className="p-4 pb-0 md:p-0 flex-shrink-0 bg-transparent">
+            <DialogTitle>Order Details</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            {orderId && (
+              <OrderDetails orderId={orderId} onClose={() => setDetailsDialogOpen(false)} />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </Dialog>
