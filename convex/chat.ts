@@ -128,8 +128,8 @@ export const send = mutation({
     if (!args.message || args.message.trim().length === 0) {
       throw new Error("Message cannot be empty");
     }
-    if (args.message.length > 2000) {
-      throw new Error("Message must be 2000 characters or less");
+    if (args.message.length > 100) {
+      throw new Error("Message must be 100 characters or less");
     }
     
     // SECURITY: Strip all HTML tags to prevent XSS attacks

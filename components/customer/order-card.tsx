@@ -129,7 +129,8 @@ export function OrderCard({
           {!isExpanded && (
             <div className="space-y-2 mb-3 lg:hidden">
               {firstTwoItems.map((item, idx: number) => {
-                const itemTotal = item.price * item.quantity
+                // item.price is already the total price (unit price * quantity) from checkout
+                const itemTotal = item.price
                 
                 return (
                   <div key={idx} className="flex items-start justify-between">
@@ -249,7 +250,8 @@ export function OrderCard({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">x{item.quantity}</span>
-                  <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                  {/* item.price is already the total price (unit price * quantity) from checkout */}
+                  <span className="font-medium">₱{item.price.toFixed(2)}</span>
                 </div>
               </div>
             ))}

@@ -278,7 +278,8 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
                     </div>
                   )}
                 </div>
-                <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                {/* item.price is already the total price (unit price * quantity) from checkout */}
+                <span className="font-medium">₱{item.price.toFixed(2)}</span>
               </div>
             ))}
           </div>

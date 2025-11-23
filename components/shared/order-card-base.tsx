@@ -312,9 +312,16 @@ export function OrderCardBase({
   const handleQuantityChange = (index: number, newQuantity: number) => {
     if (newQuantity <= 0) return
     setEditedItems(prev => 
-      prev.map((item, i) => 
-        i === index ? { ...item, quantity: newQuantity } : item
-      )
+      prev.map((item, i) => {
+        if (i === index) {
+          // Calculate unit price from current total price, or use unitPrice if available
+          const unitPrice = item.unitPrice ?? (item.price / item.quantity)
+          // Recalculate total price based on new quantity
+          const newPrice = unitPrice * newQuantity
+          return { ...item, quantity: newQuantity, price: newPrice }
+        }
+        return item
+      })
     )
   }
 
@@ -324,7 +331,9 @@ export function OrderCardBase({
 
   // Calculate totals for edited items
   const calculateTotals = (items: OrderItem[]) => {
-    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    // item.price is already the total price (unit price * quantity) from checkout
+    // So we just sum item.price directly, not item.price * item.quantity
+    const subtotal = items.reduce((sum, item) => sum + item.price, 0)
     const platformFee = order.platformFee || 0
     const deliveryFee = order.deliveryFee || 0
     const discount = order.discount || 0
@@ -428,7 +437,10 @@ export function OrderCardBase({
                     {item.bundleItems && item.bundleItems.length > 0 && (
                       <BundleItemsList bundleItems={item.bundleItems} compact={true} showPrices={true} />
                     )}
-                    <div className="text-xs text-muted-foreground">₱{item.price.toFixed(2)} each</div>
+                    {/* Display unit price: calculate from total price / quantity, or use unitPrice if available */}
+                    <div className="text-xs text-muted-foreground">
+                      ₱{((item.unitPrice ?? item.price / item.quantity)).toFixed(2)} each
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">
@@ -468,7 +480,8 @@ export function OrderCardBase({
                       <Trash2 className="w-3 h-3" />
                     </Button>
                     <div className="text-right ml-2 min-w-[60px]">
-                      <div className="font-medium text-xs">₱{(item.price * item.quantity).toFixed(2)}</div>
+                      {/* item.price is already the total price (unit price * quantity) from checkout */}
+                      <div className="font-medium text-xs">₱{item.price.toFixed(2)}</div>
                     </div>
                   </div>
                 </div>
@@ -531,7 +544,8 @@ export function OrderCardBase({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">x{item.quantity}</span>
-                    <span className="font-medium">₱{(item.price * item.quantity).toFixed(2)}</span>
+                    {/* item.price is already the total price (unit price * quantity) from checkout */}
+                    <span className="font-medium">₱{item.price.toFixed(2)}</span>
                   </div>
                 </div>
               ))}

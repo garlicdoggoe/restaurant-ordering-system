@@ -25,11 +25,58 @@ interface ChatDialogProps {
 
 // Component to render image message, resolving storageId to URL if needed
 function ChatImageMessage({ message, onImageClick }: { message: string; onImageClick?: (url: string) => void }) {
-  // StorageIds are alphanumeric strings without spaces - exclude text messages
-  const isStorageId = message && !message.startsWith('http') && !message.startsWith('/') && !message.includes('.') && message.length > 20 && !message.includes(' ')
+  // Prefix marker to explicitly identify image storage IDs
+  // This isolates image handling and prevents false positives from text messages
+  const STORAGE_ID_PREFIX = "STORAGE_ID:"
+  
+  // Helper function to check if a string looks like a Convex storage ID (for backward compatibility)
+  // Used only for existing messages that don't have the prefix
+  const looksLikeStorageId = (text: string): boolean => {
+    if (!text) return false
+    
+    // Must not start with http/https or be a path
+    if (text.startsWith('http') || text.startsWith('/')) return false
+    
+    // Must not contain dots or spaces (these indicate URLs or text messages)
+    if (text.includes('.') || text.includes(' ')) return false
+    
+    // Length should be reasonable for a storage ID (typically 20-40 characters)
+    // Too short or too long suggests it's not a storage ID
+    if (text.length < 20 || text.length > 40) return false
+    
+    // Must match base64url pattern (alphanumeric + '-' and '_')
+    // This excludes text messages with special characters or punctuation
+    const base64urlPattern = /^[A-Za-z0-9_-]+$/
+    if (!base64urlPattern.test(text)) return false
+    
+    // Check for simple repeated patterns (like "aaaa..." or "1234...")
+    // Real storage IDs have varied character distribution
+    const firstChar = text[0]
+    if (text.split('').every(char => char === firstChar)) return false
+    
+    return true
+  }
+  
+  // Check if message has the STORAGE_ID prefix (new format)
+  const hasStorageIdPrefix = message.startsWith(STORAGE_ID_PREFIX)
+  
+  // Extract the actual storage ID if prefix is present
+  const actualStorageId = hasStorageIdPrefix 
+    ? message.substring(STORAGE_ID_PREFIX.length) 
+    : null
+  
+  // For backward compatibility: if no prefix, check if it looks like a storage ID
+  const isLegacyStorageId = !hasStorageIdPrefix && looksLikeStorageId(message)
+  
+  // Determine if this is a storage ID (either new format with prefix or legacy format)
+  const isStorageId = hasStorageIdPrefix || isLegacyStorageId
+  
+  // Use the actual storage ID (without prefix) or the message itself for legacy format
+  const storageIdToQuery = hasStorageIdPrefix ? actualStorageId : (isLegacyStorageId ? message : null)
+  
   const imageUrl = useQuery(
     api.files.getUrl,
-    isStorageId ? { storageId: message as Id<"_storage"> } : "skip"
+    isStorageId && storageIdToQuery ? { storageId: storageIdToQuery as Id<"_storage"> } : "skip"
   )
   
   // Determine the final URL to use
@@ -243,17 +290,41 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
   // Helper function to check if message is an image URL or storageId
   const isImageUrl = (text: string) => {
+    if (!text) return false
+    
     // Check if it's an HTTP(S) URL ending in image extension
     if (/^https?:\/\/.*\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(text)) {
       return true
     }
-    // Check if it's a storageId (not starting with http, no dots, long string, no spaces)
-    // StorageIds from Convex are typically long alphanumeric strings without spaces
-    // Text messages contain spaces, so exclude them
-    if (text && !text.startsWith('http') && !text.startsWith('/') && !text.includes('.') && text.length > 20 && !text.includes(' ')) {
+    
+    // Check if it has the STORAGE_ID prefix (new format - most reliable)
+    const STORAGE_ID_PREFIX = "STORAGE_ID:"
+    if (text.startsWith(STORAGE_ID_PREFIX)) {
       return true
     }
-    return false
+    
+    // For backward compatibility: check if it looks like a Convex storage ID (legacy format)
+    // Storage IDs are base64url-encoded strings (alphanumeric + '-' and '_')
+    // They typically have a length between 20-40 characters
+    // They should not be simple repeated characters
+    // Must not start with http/https or be a path
+    if (text.startsWith('http') || text.startsWith('/')) return false
+    
+    // Must not contain dots or spaces
+    if (text.includes('.') || text.includes(' ')) return false
+    
+    // Length should be reasonable for a storage ID (typically 20-40 characters)
+    if (text.length < 20 || text.length > 40) return false
+    
+    // Must match base64url pattern (alphanumeric + '-' and '_')
+    const base64urlPattern = /^[A-Za-z0-9_-]+$/
+    if (!base64urlPattern.test(text)) return false
+    
+    // Check for simple repeated patterns (like "aaaa..." or "1234...")
+    const firstChar = text[0]
+    if (text.split('').every(char => char === firstChar)) return false
+    
+    return true
   }
 
   // Handle image upload (only if allowed)
@@ -285,7 +356,9 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
         body: compressedFile,
       })
       const { storageId } = await uploadResponse.json()
-      sendMessage(orderId, customerId, customerName, "customer", storageId)
+      // Add "STORAGE_ID:" prefix to explicitly mark this as an image storage ID
+      // This isolates image handling and prevents false positives from text messages
+      sendMessage(orderId, customerId, customerName, "customer", `STORAGE_ID:${storageId}`)
     } catch (err) {
       console.error("Failed to upload image:", err)
       alert("Failed to upload image. Please try again.")
@@ -457,17 +530,17 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
               messages.map((msg: ChatMessage) => (
                 <div
                   key={msg._id}
-                  className={cn("flex", msg.senderRole === "customer" ? "justify-end" : "justify-start")}
+                  className={cn("flex min-w-0", msg.senderRole === "customer" ? "justify-end" : "justify-start")}
                 >
                   <div
                     className={cn(
-                      "max-w-[70%] rounded-lg p-3",
+                      "max-w-[85%] sm:max-w-[70%] min-w-0 rounded-lg p-3 overflow-hidden",
                       msg.senderRole === "customer"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted border-2 border-border",
                     )}
                   >
-                    <p className="text-xs md:text-fluid-sm font-medium mb-1">{msg.senderRole === "customer" ? "You" : msg.senderName}</p>
+                    <p className="text-xs md:text-fluid-sm font-medium mb-1 break-words">{msg.senderRole === "customer" ? "You" : msg.senderName}</p>
                     {/* Render image if message is an image URL or storageId */}
                     {isImageUrl(msg.message) ? (
                       <ChatImageMessage
@@ -478,7 +551,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
                         }}
                       />
                     ) : (
-                      <p className="text-xs md:text-fluid-sm">{parseMessage(msg.message)}</p>
+                      <p className="text-xs md:text-fluid-sm break-all whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{parseMessage(msg.message)}</p>
                     )}
                     <p className="text-xs opacity-70 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</p>
                   </div>
@@ -523,20 +596,31 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
               />
             </>
           )}
-          <Input
-            placeholder={
-              !allowChat 
-                ? "Chat is disabled for this order" 
-                : messagingDisabled 
-                  ? "Messaging is disabled for this order" 
-                  : "Type your message..."
-            }
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="text-xs md:text-fluid-sm"
-            disabled={isUploading || messagingDisabled}
-          />
+          <div className="flex-1 relative">
+            <Input
+              placeholder={
+                !allowChat 
+                  ? "Chat is disabled for this order" 
+                  : messagingDisabled 
+                    ? "Messaging is disabled for this order" 
+                    : "Type your message..."
+              }
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="text-xs md:text-fluid-sm pr-12"
+              disabled={isUploading || messagingDisabled}
+              maxLength={100}
+            />
+            {/* Character counter indicator */}
+            {/* Shows current character count out of 100, changes color when approaching limit */}
+            <span className={cn(
+              "absolute right-2 top-1/2 -translate-y-1/2 text-xs",
+              message.length >= 90 ? "text-destructive" : "text-muted-foreground"
+            )}>
+              {message.length}/100
+            </span>
+          </div>
           <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim() || messagingDisabled}>
             <Send className="w-4 h-4" />
           </Button>

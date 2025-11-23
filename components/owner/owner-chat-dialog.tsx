@@ -42,11 +42,58 @@ const QUICK_REPLIES = [
 
 // Component to render image message, resolving storageId to URL if needed
 function ChatImageMessage({ message, onImageClick }: { message: string; onImageClick?: (url: string) => void }) {
-  // StorageIds are alphanumeric strings without spaces - exclude text messages
-  const isStorageId = message && !message.startsWith('http') && !message.startsWith('/') && !message.includes('.') && message.length > 20 && !message.includes(' ')
+  // Prefix marker to explicitly identify image storage IDs
+  // This isolates image handling and prevents false positives from text messages
+  const STORAGE_ID_PREFIX = "STORAGE_ID:"
+  
+  // Helper function to check if a string looks like a Convex storage ID (for backward compatibility)
+  // Used only for existing messages that don't have the prefix
+  const looksLikeStorageId = (text: string): boolean => {
+    if (!text) return false
+    
+    // Must not start with http/https or be a path
+    if (text.startsWith('http') || text.startsWith('/')) return false
+    
+    // Must not contain dots or spaces (these indicate URLs or text messages)
+    if (text.includes('.') || text.includes(' ')) return false
+    
+    // Length should be reasonable for a storage ID (typically 20-40 characters)
+    // Too short or too long suggests it's not a storage ID
+    if (text.length < 20 || text.length > 40) return false
+    
+    // Must match base64url pattern (alphanumeric + '-' and '_')
+    // This excludes text messages with special characters or punctuation
+    const base64urlPattern = /^[A-Za-z0-9_-]+$/
+    if (!base64urlPattern.test(text)) return false
+    
+    // Check for simple repeated patterns (like "aaaa..." or "1234...")
+    // Real storage IDs have varied character distribution
+    const firstChar = text[0]
+    if (text.split('').every(char => char === firstChar)) return false
+    
+    return true
+  }
+  
+  // Check if message has the STORAGE_ID prefix (new format)
+  const hasStorageIdPrefix = message.startsWith(STORAGE_ID_PREFIX)
+  
+  // Extract the actual storage ID if prefix is present
+  const actualStorageId = hasStorageIdPrefix 
+    ? message.substring(STORAGE_ID_PREFIX.length) 
+    : null
+  
+  // For backward compatibility: if no prefix, check if it looks like a storage ID
+  const isLegacyStorageId = !hasStorageIdPrefix && looksLikeStorageId(message)
+  
+  // Determine if this is a storage ID (either new format with prefix or legacy format)
+  const isStorageId = hasStorageIdPrefix || isLegacyStorageId
+  
+  // Use the actual storage ID (without prefix) or the message itself for legacy format
+  const storageIdToQuery = hasStorageIdPrefix ? actualStorageId : (isLegacyStorageId ? message : null)
+  
   const imageUrl = useQuery(
     api.files.getUrl,
-    isStorageId ? { storageId: message as Id<"_storage"> } : "skip"
+    isStorageId && storageIdToQuery ? { storageId: storageIdToQuery as Id<"_storage"> } : "skip"
   )
   
   // Determine the final URL to use
@@ -190,9 +237,9 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
       })
       const { storageId } = await uploadResponse.json()
 
-      // Send the storageId as the message - it will be resolved to URL in rendering
-      // StorageIds are sent as-is and resolved client-side using useQuery
-      sendMessage(orderId, ownerId, restaurant.name, "owner", storageId)
+      // Add "STORAGE_ID:" prefix to explicitly mark this as an image storage ID
+      // This isolates image handling and prevents false positives from text messages
+      sendMessage(orderId, ownerId, restaurant.name, "owner", `STORAGE_ID:${storageId}`)
     } catch (error) {
       console.error("Failed to upload image:", error)
       alert("Failed to upload image. Please try again.")
@@ -212,24 +259,41 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
 
   // Helper function to check if message is an image URL or storageId
   const isImageUrl = (text: string) => {
+    if (!text) return false
+    
     // Check if it's an HTTP(S) URL ending in image extension
     if (/^https?:\/\/.*\.(png|jpg|jpeg|gif|webp)(\?.*)?$/i.test(text)) {
       return true
     }
-    // Check if it's a storageId (not starting with http, no dots, long string, no spaces)
-    // StorageIds from Convex are typically long alphanumeric strings without spaces
-    // Text messages contain spaces, so exclude them
-    if (text && !text.startsWith('http') && !text.startsWith('/') && !text.includes('.') && text.length > 20 && !text.includes(' ')) {
+    
+    // Check if it has the STORAGE_ID prefix (new format - most reliable)
+    const STORAGE_ID_PREFIX = "STORAGE_ID:"
+    if (text.startsWith(STORAGE_ID_PREFIX)) {
       return true
     }
-    return false
-  }
-
-  // Helper function to check if text is a storageId (not a URL)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isStorageId = (text: string) => {
-    // StorageIds are alphanumeric strings without spaces - exclude text messages
-    return text && !text.startsWith('http') && !text.startsWith('/') && !text.includes('.') && text.length > 20 && !text.includes(' ')
+    
+    // For backward compatibility: check if it looks like a Convex storage ID (legacy format)
+    // Storage IDs are base64url-encoded strings (alphanumeric + '-' and '_')
+    // They typically have a length between 20-40 characters
+    // They should not be simple repeated characters
+    // Must not start with http/https or be a path
+    if (text.startsWith('http') || text.startsWith('/')) return false
+    
+    // Must not contain dots or spaces
+    if (text.includes('.') || text.includes(' ')) return false
+    
+    // Length should be reasonable for a storage ID (typically 20-40 characters)
+    if (text.length < 20 || text.length > 40) return false
+    
+    // Must match base64url pattern (alphanumeric + '-' and '_')
+    const base64urlPattern = /^[A-Za-z0-9_-]+$/
+    if (!base64urlPattern.test(text)) return false
+    
+    // Check for simple repeated patterns (like "aaaa..." or "1234...")
+    const firstChar = text[0]
+    if (text.split('').every(char => char === firstChar)) return false
+    
+    return true
   }
 
   // Helper function to parse message and replace "View details:" with a button
@@ -418,16 +482,16 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
               <div className="text-center text-muted-foreground py-8">No messages yet. Start a conversation!</div>
             ) : (
               messages.map((msg: ChatMessage) => (
-                <div key={msg._id} className={cn("flex", msg.senderRole === "owner" ? "justify-end" : "justify-start")}>
+                <div key={msg._id} className={cn("flex min-w-0", msg.senderRole === "owner" ? "justify-end" : "justify-start")}>
                   <div
                     className={cn(
-                      "max-w-[70%] rounded-lg p-3",
+                      "max-w-[85%] sm:max-w-[70%] min-w-0 rounded-lg p-3 overflow-hidden",
                       msg.senderRole === "owner"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted border-2 border-border",
                     )}
                   >
-                    <p className="text-sm font-medium mb-1">{msg.senderRole === "owner" ? "You" : msg.senderName}</p>
+                    <p className="text-sm font-medium mb-1 break-words">{msg.senderRole === "owner" ? "You" : msg.senderName}</p>
                     {/* Render image if message is an image URL or storageId */}
                     {isImageUrl(msg.message) ? (
                       <ChatImageMessage
@@ -438,7 +502,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
                         }}
                       />
                     ) : (
-                      <p className="text-sm">{parseMessage(msg.message)}</p>
+                      <p className="text-sm break-all whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{parseMessage(msg.message)}</p>
                     )}
                     <p className="text-xs opacity-70 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</p>
                   </div>
