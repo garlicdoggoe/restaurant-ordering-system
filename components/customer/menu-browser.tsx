@@ -8,6 +8,7 @@ import { MenuItemGrid } from "./menu-item-grid"
 import { PromotionBanner } from "./promotion-banner"
 import { useData } from "@/lib/data-context"
 import type { CartItem } from "@/lib/cart-context"
+import { DEFAULT_CATEGORIES } from "@/lib/default-categories"
 
 interface MenuBrowserProps {
   onAddToCart: (item: Omit<CartItem, "quantity">, quantity?: number, suppressToast?: boolean) => void
@@ -18,18 +19,12 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const { categories: ctxCategories, menuItems: ctxMenuItems } = useData()
 
-  // Build categories with fallback data (same logic as menu-view.tsx) - memoized to prevent dependency changes
-  const availableCategories = useMemo(() => ctxCategories.length > 0 ? ctxCategories : [
-    { _id: "1", name: "Pasta", icon: "🍝", order: 1 },
-    { _id: "2", name: "Pizza", icon: "🍕", order: 2 },
-    { _id: "3", name: "Rice Meals", icon: "🍚", order: 3 },
-    { _id: "4", name: "Bilao", icon: "🍜", order: 4 },
-    { _id: "5", name: "Bundles", icon: "🍽️", order: 5 },
-    { _id: "6", name: "Burger", icon: "🍔", order: 6 },
-    { _id: "7", name: "Snacks", icon: "🍟", order: 7 },
-    { _id: "8", name: "Chillers", icon: "🍮", order: 8 },
-    { _id: "9", name: "Salad", icon: "🥗", order: 9 },
-  ], [ctxCategories])
+  // Build categories with fallback data - memoized to prevent dependency changes
+  // Use database categories if available, otherwise use default fallback categories
+  const availableCategories = useMemo(() => 
+    ctxCategories.length > 0 ? ctxCategories : DEFAULT_CATEGORIES, 
+    [ctxCategories]
+  )
 
   const categories: Category[] = useMemo(
     () => [
@@ -71,8 +66,8 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
       if (searchQuery.trim() !== "") {
         const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.description.toLowerCase().includes(searchQuery.toLowerCase())
-        // Only show available items that match search
-        return matchesSearch && item.available
+        // Show all items that match search (including unavailable ones)
+        return matchesSearch
       }
       
       // When no search query, apply category filtering as normal
@@ -80,8 +75,8 @@ export function MenuBrowser({ onAddToCart }: MenuBrowserProps) {
       const matchesCategory = selectedCategories.includes("all") || 
         selectedCategories.some(cat => item.category.toLowerCase() === cat.toLowerCase())
       
-      // Only show available items that match category
-      return matchesCategory && item.available
+      // Show all items that match category (including unavailable ones)
+      return matchesCategory
     })
   }, [menuItems, selectedCategories, searchQuery])
 

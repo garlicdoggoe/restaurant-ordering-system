@@ -8,6 +8,7 @@ import { MenuItemCard } from "./menu-item-card"
 import { MenuItemDialog } from "./menu-item-dialog"
 import { CategoryFilter, Category } from "@/components/ui/category-filter"
 import { useData, type MenuItem } from "@/lib/data-context"
+import { DEFAULT_CATEGORIES } from "@/lib/default-categories"
 
 export function MenuView() {
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -26,18 +27,8 @@ export function MenuView() {
   }
 
   // Build categories with item counts for better filtering experience
-  // Use database categories if available, otherwise use fallback categories
-  const availableCategories = categories.length > 0 ? categories : [
-    { _id: "1", name: "Pasta", icon: "🍝", order: 1 },
-    { _id: "2", name: "Pizza", icon: "🍕", order: 2 },
-    { _id: "3", name: "Rice Meals", icon: "🍚", order: 3 },
-    { _id: "4", name: "Bilao", icon: "🍜", order: 4 },
-    { _id: "5", name: "Bundles", icon: "🍽️", order: 5 },
-    { _id: "6", name: "Burger", icon: "🍔", order: 6 },
-    { _id: "7", name: "Snacks", icon: "🍟", order: 7 },
-    { _id: "8", name: "Chillers", icon: "🍮", order: 8 },
-    { _id: "9", name: "Salad", icon: "🥗", order: 9 },
-  ]
+  // Use database categories if available, otherwise use default fallback categories
+  const availableCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
   const allCategories: Category[] = [
     { 

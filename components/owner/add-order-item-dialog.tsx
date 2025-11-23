@@ -12,6 +12,7 @@ import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import type { MenuItem, OrderItem, MenuItemVariant } from "@/lib/data-context"
+import { DEFAULT_CATEGORIES } from "@/lib/default-categories"
 
 interface AddOrderItemDialogProps {
   isOpen: boolean
@@ -50,17 +51,8 @@ export function AddOrderItemDialog({ isOpen, onClose, onAddItem }: AddOrderItemD
   }, [selectedItem])
 
   // Build categories with item counts
-  const availableCategories = categories.length > 0 ? categories : [
-    { _id: "1", name: "Pasta", icon: "🍝", order: 1 },
-    { _id: "2", name: "Pizza", icon: "🍕", order: 2 },
-    { _id: "3", name: "Rice Meals", icon: "🍚", order: 3 },
-    { _id: "4", name: "Bilao", icon: "🍜", order: 4 },
-    { _id: "5", name: "Bundles", icon: "🍽️", order: 5 },
-    { _id: "6", name: "Burger", icon: "🍔", order: 6 },
-    { _id: "7", name: "Snacks", icon: "🍟", order: 7 },
-    { _id: "8", name: "Chillers", icon: "🍮", order: 8 },
-    { _id: "9", name: "Salad", icon: "🥗", order: 9 },
-  ]
+  // Use database categories if available, otherwise use default fallback categories
+  const availableCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES
 
   const allCategories: Category[] = [
     { 

@@ -3,6 +3,8 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { Edit, Trash2 } from "lucide-react"
 import { useData } from "@/lib/data-context"
 import { toast } from "sonner"
@@ -26,8 +28,9 @@ interface MenuItemCardProps {
 }
 
 export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
-  const { deleteMenuItem } = useData()
+  const { deleteMenuItem, updateMenuItem } = useData()
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isToggling, setIsToggling] = useState(false)
   const [displayPrice, setDisplayPrice] = useState(item.price)
 
   // Fetch variants to determine display price
@@ -60,6 +63,19 @@ export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
       setIsDeleting(false)
     }
   }
+
+  const handleToggleAvailability = async (checked: boolean) => {
+    setIsToggling(true)
+    try {
+      await updateMenuItem(item._id, { available: checked })
+      toast.success(`Menu item ${checked ? "made available" : "marked as unavailable"}`)
+    } catch (error) {
+      console.error("Error updating menu item availability:", error)
+      toast.error("Failed to update availability. Please try again.")
+    } finally {
+      setIsToggling(false)
+    }
+  }
   return (
     <Card className="overflow-hidden">
       <div className="relative aspect-[4/3]">
@@ -69,11 +85,6 @@ export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
           fill 
           className="object-contain" 
         />
-        {!item.available && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <Badge variant="destructive">Unavailable</Badge>
-          </div>
-        )}
       </div>
       <CardContent className="p-3 space-y-2">
         <div>
@@ -92,7 +103,7 @@ export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
               size="sm" 
               variant="outline" 
               onClick={onEdit}
-              disabled={isDeleting}
+              disabled={isDeleting || isToggling}
               className="h-7 w-7 p-0"
             >
               <Edit className="w-3 h-3" />
@@ -102,11 +113,23 @@ export function MenuItemCard({ item, onEdit }: MenuItemCardProps) {
               variant="outline" 
               className="text-destructive bg-transparent hover:bg-destructive hover:text-destructive-foreground h-7 w-7 p-0"
               onClick={handleDelete}
-              disabled={isDeleting}
+              disabled={isDeleting || isToggling}
             >
               <Trash2 className="w-3 h-3" />
             </Button>
           </div>
+        </div>
+        {/* Availability toggle */}
+        <div className="flex items-center justify-between pt-2 border-t">
+          <Label htmlFor={`availability-${item._id}`} className="text-xs cursor-pointer">
+            Available for ordering
+          </Label>
+          <Switch
+            id={`availability-${item._id}`}
+            checked={item.available}
+            onCheckedChange={handleToggleAvailability}
+            disabled={isToggling || isDeleting}
+          />
         </div>
       </CardContent>
     </Card>

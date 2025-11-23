@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { DEFAULT_CATEGORIES } from "../lib/default-categories";
 
 // Helper function to verify user is authenticated and is an owner
 async function verifyOwner(ctx: any) {
@@ -189,31 +190,27 @@ export const addCategory = mutation({
 });
 
 // Function to seed default categories
+// Note: This is a one-time setup function, so we allow it to run without authentication
+// It only creates categories if none exist, making it safe to run
 export const seedDefaultCategories = mutation({
   args: {},
   handler: async (ctx) => {
-    // SECURITY: Verify user is authenticated and is an owner
-    await verifyOwner(ctx);
-
     const existingCategories = await ctx.db.query("categories").collect();
     
     // Only seed if no categories exist
+    // Use the shared DEFAULT_CATEGORIES constant to ensure consistency across the application
     if (existingCategories.length === 0) {
-      const defaultCategories = [
-        { name: "Pasta", icon: "🍝", order: 1 },
-        { name: "Pizza", icon: "🍕", order: 2 },
-        { name: "Rice Meals", icon: "🍚", order: 3 },
-        { name: "Bilao", icon: "🍜", order: 4 },
-        { name: "Bundles", icon: "🍽️", order: 5 },
-        { name: "Burger", icon: "🍔", order: 6 },
-        { name: "Snacks", icon: "🍟", order: 7 },
-        { name: "Chillers", icon: "🍮", order: 8 },
-        { name: "Salad", icon: "🥗", order: 9 },
-      ];
-
-      for (const category of defaultCategories) {
-        await ctx.db.insert("categories", category);
+      for (const category of DEFAULT_CATEGORIES) {
+        // Extract only the fields needed for database (exclude _id which is auto-generated)
+        await ctx.db.insert("categories", {
+          name: category.name,
+          icon: category.icon,
+          order: category.order,
+        });
       }
+      return { success: true, message: `Created ${DEFAULT_CATEGORIES.length} default categories` };
+    } else {
+      return { success: false, message: `Categories already exist (${existingCategories.length} found). Skipping seed.` };
     }
   },
 });

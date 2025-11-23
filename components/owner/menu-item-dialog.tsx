@@ -18,6 +18,7 @@ import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
 import { Plus, Trash2, Edit, Upload, ArrowUp, ArrowDown } from "lucide-react"
 import { compressImage } from "@/lib/image-compression"
+import { DEFAULT_CATEGORIES } from "@/lib/default-categories"
 
 interface MenuItemDialogProps {
   item?: MenuItem
@@ -904,17 +905,12 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
                       </SelectItem>
                     ))
                   ) : (
-                    <>
-                      <SelectItem value="pasta">🍝 Pasta</SelectItem>
-                      <SelectItem value="pizza">🍕 Pizza</SelectItem>
-                      <SelectItem value="rice meals">🍚 Rice Meals</SelectItem>
-                      <SelectItem value="bilao">🍜 Bilao</SelectItem>
-                      <SelectItem value="bundles">🍽️ Bundles</SelectItem>
-                      <SelectItem value="burger">🍔 Burger</SelectItem>
-                      <SelectItem value="snacks">🍟 Snacks</SelectItem>
-                      <SelectItem value="chillers">🍮 Chillers</SelectItem>
-                      <SelectItem value="salad">🥗 Salad</SelectItem>
-                    </>
+                    DEFAULT_CATEGORIES.map((category) => (
+                      <SelectItem key={category._id} value={category.name.toLowerCase()}>
+                        <span className="mr-2">{category.icon}</span>
+                        {category.name}
+                      </SelectItem>
+                    ))
                   )}
                 </SelectContent>
               </Select>
@@ -981,32 +977,18 @@ export function MenuItemDialog({ item, onClose }: MenuItemDialogProps) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">Price (₱) *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) => handlePriceChange(e.target.value)}
-                placeholder="0.00"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="available">Availability</Label>
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-sm">Available for ordering</span>
-                <Switch
-                  id="available"
-                  checked={formData.available}
-                  onCheckedChange={(checked) => setFormData({ ...formData, available: checked })}
-                />
-              </div>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="price">Price (₱) *</Label>
+            <Input
+              id="price"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.price}
+              onChange={(e) => handlePriceChange(e.target.value)}
+              placeholder="0.00"
+              required
+            />
           </div>
 
           {/* Bundle toggle */}

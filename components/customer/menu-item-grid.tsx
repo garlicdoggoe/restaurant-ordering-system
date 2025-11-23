@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Plus } from "lucide-react"
 import { MenuItemOrderDialog } from "./menu-item-order-dialog"
 import { MenuItemImage } from "@/components/ui/menu-item-image"
@@ -15,12 +16,27 @@ interface MenuItemGridProps {
     description: string
     price: number
     image: string
+    available?: boolean
   }>
   onAddToCart: (item: Omit<CartItem, "quantity">, quantity?: number, suppressToast?: boolean) => void
 }
 
 export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
   const [activeItem, setActiveItem] = useState<MenuItemGridProps["items"][0] | null>(null)
+
+  // Sort items so available items come first, unavailable items come last
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      const aAvailable = a.available !== false // Default to true if not specified
+      const bAvailable = b.available !== false // Default to true if not specified
+      
+      // If both have same availability status, maintain original order
+      if (aAvailable === bAvailable) return 0
+      
+      // Available items (true) come before unavailable items (false)
+      return aAvailable ? -1 : 1
+    })
+  }, [items])
 
   if (items.length === 0) {
     return (
@@ -33,12 +49,27 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
   return (
     <>
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-5">
-      {items.map((item) => {
+      {sortedItems.map((item) => {
+        const isAvailable = item.available !== false // Default to true if not specified
         // const isFavorite = favorites.has(item.id)
         return (
-          <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow group relative pt-0 pb-5">
+          <Card 
+            key={item.id} 
+            className={`overflow-hidden transition-shadow group relative pt-0 pb-5 ${
+              isAvailable 
+                ? "hover:shadow-lg" 
+                : "opacity-50 grayscale pointer-events-none"
+            }`}
+          >
             <div className="relative aspect-square mb-[-12px]">
               <MenuItemImage src={item.image} alt={item.name} fill className="object-cover" />
+              
+              {/* Unavailable badge overlay */}
+              {!isAvailable && (
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <Badge variant="destructive" className="text-xs">Unavailable</Badge>
+                </div>
+              )}
               
               {/* Heart button in top-right corner */}
               {/* <Button
@@ -60,14 +91,16 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
                     <span className="text-xs sm:text-[clamp(0.875rem,1.2vw,1rem)]">from ₱{item.price.toFixed(2)}</span>
                 </div>
                 
-                {/* Add button beside the item name and price */}
-                <Button
-                  size="icon"
-                  className="rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg flex-shrink-0 touch-target w-6 h-6 sm:w-8 sm:h-8 lg:w-9 lg:h-9"
-                  onClick={() => setActiveItem(item)}
-                >
-                  <Plus className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
-                </Button>
+                {/* Add button beside the item name and price - only show if available */}
+                {isAvailable && (
+                  <Button
+                    size="icon"
+                    className="rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg flex-shrink-0 touch-target w-6 h-6 sm:w-8 sm:h-8 lg:w-9 lg:h-9"
+                    onClick={() => setActiveItem(item)}
+                  >
+                    <Plus className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
