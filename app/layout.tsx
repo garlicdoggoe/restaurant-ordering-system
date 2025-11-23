@@ -7,6 +7,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { Analytics } from "@vercel/analytics/next"
 import { NextStepProvider, NextStep } from "nextstepjs"
 import { customerOnboardingSteps } from "@/lib/onboarding-steps"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 // Configure Gilroy font family with all weights and styles
 const gilroy = localFont({
