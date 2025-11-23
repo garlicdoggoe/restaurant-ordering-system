@@ -133,8 +133,10 @@ export default function RootLayout({
         <body className={`${gilroy.variable} antialiased`}>
           <NextStepProvider>
             <NextStep steps={customerOnboardingSteps}>
-              <Providers>{children}</Providers>
-              <SpeedInsights />
+              <Providers>
+                {children}
+                <SpeedInsights />
+              </Providers>
             </NextStep>
           </NextStepProvider>
           <Analytics />
