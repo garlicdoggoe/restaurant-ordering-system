@@ -356,6 +356,7 @@ function UserProfileSettingsContent() {
                     onAddressChange={setAddress}
                     coordinates={selectedLngLat}
                     onCoordinatesChange={setSelectedLngLat}
+                    showSearchBox={restaurant?.allowAddressSearchBox ?? true}
                   />
 
                   {/* Display distance from restaurant */}

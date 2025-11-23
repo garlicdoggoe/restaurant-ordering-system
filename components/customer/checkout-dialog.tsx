@@ -858,6 +858,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                       mapHeightPx={180}
                       interactive={false}
                       disabled={true}
+                      showSearchBox={restaurant?.allowAddressSearchBox ?? true}
                     />
                   </Suspense>
                 </div>

@@ -22,6 +22,8 @@ export function RestaurantSettings() {
   const [status, setStatus] = useState<"open" | "closed" | "busy">(restaurant.status)
   // State for allowNewOrders toggle - defaults to true for backward compatibility
   const [allowNewOrders, setAllowNewOrders] = useState<boolean>(restaurant.allowNewOrders ?? true)
+  // State for allowAddressSearchBox toggle - defaults to true for backward compatibility
+  const [allowAddressSearchBox, setAllowAddressSearchBox] = useState<boolean>(restaurant.allowAddressSearchBox ?? true)
   const [formData, setFormData] = useState({
     name: restaurant.name,
     description: restaurant.description,
@@ -77,6 +79,9 @@ export function RestaurantSettings() {
     
     // Update allowNewOrders when restaurant data changes - default to true for backward compatibility
     setAllowNewOrders(restaurant.allowNewOrders ?? true)
+    
+    // Update allowAddressSearchBox when restaurant data changes - default to true for backward compatibility
+    setAllowAddressSearchBox(restaurant.allowAddressSearchBox ?? true)
 
     const schedule = restaurant.preorderSchedule ?? { restrictionsEnabled: false, dates: [] }
     setPreorderRestrictionsEnabled(schedule.restrictionsEnabled)
@@ -268,6 +273,7 @@ export function RestaurantSettings() {
       platformFeeEnabled: formData.platformFeeEnabled,
       feePerKilometer: Number.parseFloat(formData.feePerKilometer),
       preorderNotification: formData.preorderNotification,
+      allowAddressSearchBox: allowAddressSearchBox,
     })
 
     alert("Restaurant profile updated successfully!")
@@ -431,6 +437,32 @@ export function RestaurantSettings() {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Address Search Box Toggle */}
+          <Separator />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="allow-address-search-box" className="text-base font-medium">
+                  Show Address Search Box
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Toggle to show or hide the address search box in the map picker. When disabled, customers can zoom and click on the map to select their address.
+                </p>
+              </div>
+              <Switch
+                id="allow-address-search-box"
+                checked={allowAddressSearchBox}
+                onCheckedChange={(checked) => {
+                  setAllowAddressSearchBox(checked)
+                  // Auto-save immediately when toggled
+                  updateRestaurant({
+                    allowAddressSearchBox: checked,
+                  })
+                }}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

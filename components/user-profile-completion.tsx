@@ -44,6 +44,7 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
   // Get current user profile
   const currentUser = useQuery(api.users.getCurrentUser)
   const updateProfile = useMutation(api.users.updateUserProfile)
+  const restaurant = useQuery(api.restaurant.get)
 
   // Initialize form with existing user data or Clerk user data
   useEffect(() => {
@@ -221,6 +222,7 @@ export function ProfileCompletion({ onComplete }: ProfileCompletionProps) {
               coordinates={selectedLngLat}
               onCoordinatesChange={setSelectedLngLat}
               onLocationValid={setIsLocationValid}
+              showSearchBox={restaurant?.allowAddressSearchBox ?? true}
             />
             
             {/* Disable button if required fields are empty or location is not selected */}

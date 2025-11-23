@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { SearchBox } from "@mapbox/search-js-react"
 import mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, ZoomIn, ZoomOut, MapPin, Info } from "lucide-react"
 
 type LngLatTuple = [number, number]
 
@@ -63,6 +63,9 @@ interface AddressMapPickerProps {
 
   // Called when location validation status changes (true = within Libmanan, false = outside)
   onLocationValid?: (isValid: boolean) => void
+
+  // Whether to show the address search box (defaults to true for backward compatibility)
+  showSearchBox?: boolean
 }
 
 /**
@@ -79,6 +82,7 @@ export function AddressMapPicker({
   interactive = true,
   disabled = false,
   onLocationValid,
+  showSearchBox = true,
 }: AddressMapPickerProps) {
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || ""
 
@@ -231,7 +235,8 @@ export function AddressMapPicker({
 
       {accessToken ? (
         <div className="space-y-2">
-          {interactive && (
+          {/* Search box - only show if both interactive and showSearchBox are true */}
+          {interactive && showSearchBox && (
             <SearchBox
               accessToken={accessToken}
               map={mapRef.current as unknown as mapboxgl.Map}
@@ -262,6 +267,37 @@ export function AddressMapPicker({
               }}
             />
           )}
+          
+          {/* Map instructions - show when interactive and search box is disabled, or always as helpful hint when interactive */}
+          {interactive && (
+            <div className="p-3 rounded-md border bg-muted/50 border-border flex items-start gap-3">
+              <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-muted-foreground" />
+              <div className="flex-1 space-y-2">
+                {!showSearchBox ? (
+                  <>
+                    <p className="text-xs font-medium text-foreground">How to select your address:</p>
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <ZoomIn className="w-4 h-4" />
+                        </div>
+                        <span>Zoom in or out to find your location</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+                        <span>Click on the map to pin your address</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[12px] text-muted-foreground">
+                    <span className="font-semibold text-yellow-600">Tip:</span> You can also zoom in/out and click on the map directly to pin your address location.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          
           <div
             id="map-container"
             ref={mapContainerRef}
