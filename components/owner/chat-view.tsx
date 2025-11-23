@@ -82,6 +82,55 @@ export function ChatView() {
   const getMessageCount = (orderId: string) => statsMap.get(orderId)?.unreadCount ?? 0
   const getLastMessage = (orderId: string) => statsMap.get(orderId)?.lastMessage
 
+  // Calculate unread counts per status filter
+  // This creates a map of status filter ID -> total unread count for orders matching that status
+  const statusUnreadCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    
+    // Initialize all status filters with 0
+    statusFilterOptions.forEach((option) => {
+      counts.set(option.id, 0)
+    })
+    
+    // Aggregate unread counts by order status
+    orders.forEach((order) => {
+      const orderStatus = order.status
+      const unreadCount = statsMap.get(order._id as string)?.unreadCount ?? 0
+      
+      if (unreadCount === 0) return // Skip orders with no unread messages
+      
+      // Add to specific status count
+      const currentCount = counts.get(orderStatus) ?? 0
+      counts.set(orderStatus, currentCount + unreadCount)
+      
+      // Add to "all" filter (sum of all unread messages)
+      const allCount = counts.get("all") ?? 0
+      counts.set("all", allCount + unreadCount)
+      
+      // Add to "active" filter if order is in active status
+      if (activeStatuses.has(orderStatus as OrderStatus)) {
+        const activeCount = counts.get("active") ?? 0
+        counts.set("active", activeCount + unreadCount)
+      }
+      
+      // Add to "recent" filter if order has recent messages
+      const lastMessage = statsMap.get(order._id as string)?.lastMessage
+      if (lastMessage) {
+        const ts = new Date(lastMessage.timestamp)
+        const now = new Date()
+        const isRecent = ts.getFullYear() === now.getFullYear() && 
+                        ts.getMonth() === now.getMonth() && 
+                        ts.getDate() === now.getDate()
+        if (isRecent) {
+          const recentCount = counts.get("recent") ?? 0
+          counts.set("recent", recentCount + unreadCount)
+        }
+      }
+    })
+    
+    return counts
+  }, [orders, statsMap, statusFilterOptions, activeStatuses])
+
   return (
     <div className="space-y-6">
       <div>
@@ -98,6 +147,7 @@ export function ChatView() {
         statusFilter={statusFilterDraft}
         onStatusFilterChange={setStatusFilterDraft}
         statusFilterOptions={statusFilterOptions}
+        statusUnreadCounts={statusUnreadCounts}
         onClearAll={() => {
           // Reset both draft and applied to defaults
           setFromDateDraft("")

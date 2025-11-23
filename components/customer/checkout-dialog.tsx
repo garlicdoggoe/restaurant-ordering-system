@@ -306,7 +306,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false)
 
   // Pre-order fields
-  const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery">("pickup")
+  // Initialize as undefined to require explicit selection
+  const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery" | undefined>(undefined)
   const [preOrderDate, setPreOrderDate] = useState<string>(() =>
     restrictionsActive ? scheduledDates[0]?.date ?? "" : getTodayIsoDate(),
   )
@@ -317,7 +318,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     if (!restrictionsActive) return undefined
     return scheduledDates.find((entry) => entry.date === preOrderDate) ?? scheduledDates[0]
   }, [restrictionsActive, scheduledDates, preOrderDate])
-  const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment">("full")
+  // Initialize as undefined to require explicit selection
+  const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment" | undefined>(undefined)
   const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
   // Special instructions with auto-save to localStorage
   const [specialInstructions, setSpecialInstructions] = useState<string>("")
@@ -630,6 +632,18 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
 
       // Validate pre-order fields if it's a pre-order
       if (orderType === "pre-order") {
+        // Validate that fulfillment method and payment terms are selected
+        if (!preOrderFulfillment) {
+          setIsSubmitting(false)
+          toast.error("Please select a fulfillment method")
+          return
+        }
+        if (!paymentPlan) {
+          setIsSubmitting(false)
+          toast.error("Please select payment terms")
+          return
+        }
+        
         if (restrictionsEnabledButEmpty) {
           setIsSubmitting(false)
           toast.error("Pre-orders are temporarily unavailable", {
@@ -783,6 +797,53 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
   // Calculate total items
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
 
+  // Helper function to get missing field messages
+  const getMissingFields = (): string[] => {
+    const missing: string[] = []
+    
+    // Payment proof is always required
+    if (!previewUrl) {
+      missing.push("Payment proof")
+    }
+    
+    // Pre-order specific validations
+    if (orderType === "pre-order") {
+      if (!preOrderFulfillment) {
+        missing.push("Fulfillment method")
+      }
+      if (!paymentPlan) {
+        missing.push("Payment terms")
+      }
+      if (restrictionsEnabledButEmpty) {
+        missing.push("Pre-order schedule (temporarily unavailable)")
+      }
+      if (!preOrderDate) {
+        missing.push("Pre-order date")
+      }
+      if (!preOrderTime) {
+        missing.push("Pre-order time")
+      }
+      if (dateError) {
+        missing.push("Valid pre-order date")
+      }
+      if (timeError) {
+        missing.push("Valid pre-order time")
+      }
+      if (preOrderFulfillment === "delivery" && !isAddressWithinDeliveryCoverage) {
+        missing.push("Delivery address within coverage area")
+      }
+    }
+    
+    // Delivery order validation
+    if (orderType === "delivery" && !isAddressWithinDeliveryCoverage) {
+      missing.push("Delivery address within coverage area")
+    }
+    
+    return missing
+  }
+
+  const missingFields = getMissingFields()
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-7xl max-h-[90vh] md:h-[95vh] overflow-y-auto p-2 md:p-6">
@@ -905,15 +966,17 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 {/* Top Row - Fulfillment Method and Payment Terms */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">Fulfillment Method</p>
+                    <p className="text-xs font-medium text-gray-500 mb-1">
+                      Fulfillment Method <span className="text-red-500">*</span>
+                    </p>
                     <Select 
-                      value={preOrderFulfillment} 
+                      value={preOrderFulfillment ?? ""} 
                       onValueChange={(v: PreOrderFulfillment) => {
                         setPreOrderFulfillment(v)
                       }}
                     >
                       <SelectTrigger className="w-full text-xs">
-                        <SelectValue placeholder="Fulfillment Method" className="text-gray-500" />
+                        <SelectValue placeholder="Select" className="text-gray-500" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pickup" className="text-xs">Pickup</SelectItem>
@@ -925,10 +988,12 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">Payment Terms</p>
-                    <Select value={paymentPlan} onValueChange={(v: PaymentPlan) => setPaymentPlan(v)}>
+                    <p className="text-xs font-medium text-gray-500 mb-1">
+                      Payment Terms <span className="text-red-500">*</span>
+                    </p>
+                    <Select value={paymentPlan ?? ""} onValueChange={(v: PaymentPlan) => setPaymentPlan(v)}>
                       <SelectTrigger className="w-full text-xs">
-                        <SelectValue placeholder="Payment Plan" className="text-gray-500" />
+                        <SelectValue placeholder="Select" className="text-gray-500" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="full" className="text-xs">Pay in full</SelectItem>
@@ -1122,6 +1187,11 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
               </div>
 
               {/* Payment Proof Upload */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-gray-500">
+                  Payment Proof <span className="text-red-500">*</span>
+                </p>
+              </div>
               {!previewUrl ? (
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
                   <input
@@ -1275,7 +1345,18 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 <span>₱{(subtotal + platformFee + ((orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && isAddressWithinDeliveryCoverage ? deliveryFee : 0)).toFixed(2)}</span>
               </div>
             </div>
-
+            
+            {/* Missing fields indicator - only show when button is disabled and not submitting */}
+            {!isSubmitting && missingFields.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-red-500 font-medium">Please fill in the following:</p>
+                <ul className="text-xs text-red-500 list-disc list-inside space-y-0.5 ml-2">
+                  {missingFields.map((field, index) => (
+                    <li key={index}>{field}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <Button 
               type="submit" 
               className="w-full mt-4 md:mt-6 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 md:py-4 rounded-lg text-sm md:text-base"
@@ -1283,6 +1364,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 isSubmitting || 
                 !previewUrl || // Require payment proof image
                 (orderType === "pre-order" && (
+                  !preOrderFulfillment || // Require fulfillment method selection
+                  !paymentPlan || // Require payment terms selection
                   restrictionsEnabledButEmpty ||
                   !preOrderDate || 
                   !preOrderTime || 

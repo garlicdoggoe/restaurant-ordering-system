@@ -70,15 +70,15 @@ export function OrderFilter({
 }: OrderFilterProps) {
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
 
-  // Aggregate filter IDs that should NOT show notifications
-  const aggregateFilters = new Set(["all", "active"])
-
   // Calculate aggregated total unread count for mobile dropdown indicator
-  // Only sum counts from specific order statuses (exclude aggregate filters)
+  // Use the "all" filter count if available (it contains the sum of all unread messages)
+  // Otherwise, sum counts from specific order statuses only (exclude aggregate filters to avoid double-counting)
+  const aggregateFilters = new Set(["all", "active", "recent"])
   const totalUnreadCount = statusUnreadCounts
-    ? Array.from(statusUnreadCounts.entries())
-        .filter(([statusId]) => !aggregateFilters.has(statusId))
-        .reduce((sum, [, count]) => sum + count, 0)
+    ? (statusUnreadCounts.get("all") ?? 
+       Array.from(statusUnreadCounts.entries())
+         .filter(([statusId]) => !aggregateFilters.has(statusId))
+         .reduce((sum, [, count]) => sum + count, 0))
     : 0
 
   return (
@@ -99,9 +99,7 @@ export function OrderFilter({
                       {/* Show red circle indicator to the left of chevron when collapsed (if there are unread messages) */}
                       {/* Don't show if the current selected status has notifications */}
                       {(() => {
-                        const currentStatusUnreadCount = aggregateFilters.has(statusFilter)
-                          ? 0
-                          : (statusUnreadCounts?.get(statusFilter) ?? 0)
+                        const currentStatusUnreadCount = statusUnreadCounts?.get(statusFilter) ?? 0
                         // Only show if there are unread messages AND the current status doesn't have notifications
                         return totalUnreadCount > 0 && currentStatusUnreadCount === 0 && (
                           <span className="bg-red-600 rounded-full w-2.5 h-2.5 shrink-0" />
@@ -112,10 +110,8 @@ export function OrderFilter({
                   <SelectContent>
                     {statusFilterOptions.map((option) => {
                       const Icon = option.icon
-                      // Only show notifications for specific order statuses, not aggregate filters
-                      const unreadCount = aggregateFilters.has(option.id) 
-                        ? 0 
-                        : (statusUnreadCounts?.get(option.id) ?? 0)
+                      // Get unread count for this filter (including aggregate filters)
+                      const unreadCount = statusUnreadCounts?.get(option.id) ?? 0
                       return (
                         <SelectItem key={option.id} value={option.id}>
                           <div className="flex items-center justify-between w-full gap-2">
@@ -123,12 +119,9 @@ export function OrderFilter({
                               <Icon className="h-4 w-4 shrink-0" />
                               <span className="truncate">{option.label}</span>
                             </div>
-                            {/* Only show for specific order statuses, not aggregate filters */}
-                            {/* Show notification badge on the rightmost side */}
+                            {/* Show red circle notification for any filter with unread messages */}
                             {unreadCount > 0 && (
-                              <span className="bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1.5 shrink-0">
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                              </span>
+                              <span className="bg-red-600 rounded-full w-2.5 h-2.5 shrink-0" />
                             )}
                           </div>
                         </SelectItem>
@@ -238,10 +231,8 @@ export function OrderFilter({
                 {statusFilterOptions.map((option) => {
                   const Icon = option.icon
                   const isActive = statusFilter === option.id
-                  // Only show notifications for specific order statuses, not aggregate filters
-                  const unreadCount = aggregateFilters.has(option.id)
-                    ? 0
-                    : (statusUnreadCounts?.get(option.id) ?? 0)
+                  // Get unread count for this filter (including aggregate filters)
+                  const unreadCount = statusUnreadCounts?.get(option.id) ?? 0
                   return (
                     <Button
                       key={option.id}
@@ -252,12 +243,9 @@ export function OrderFilter({
                     >
                       <Icon className="h-4 w-4" />
                       <span>{option.label}</span>
-                      {/* Show red circle badge with unread count on desktop buttons */}
-                      {/* Only show for specific order statuses, not aggregate filters */}
+                      {/* Show red circle notification for any filter with unread messages */}
                       {unreadCount > 0 && (
-                        <span className="bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[15px] h-[15px] flex items-center justify-center px-1.5">
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </span>
+                        <span className="bg-red-600 rounded-full w-2.5 h-2.5 shrink-0" />
                       )}
                     </Button>
                   )
