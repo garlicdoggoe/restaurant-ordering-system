@@ -214,6 +214,12 @@ export const create = mutation({
     const restaurant = await ctx.db.query("restaurant").first();
     if (!restaurant) throw new Error("Restaurant configuration not found");
 
+    // SECURITY: Check if new orders are allowed (cannot be bypassed on client side)
+    // Default to true (allow orders) if not set for backward compatibility
+    if (restaurant.allowNewOrders === false) {
+      throw new Error("New orders are currently disabled. Please try again later.");
+    }
+
     // Validate and recalculate each order item
     const validatedItems = [];
     let calculatedSubtotal = 0;

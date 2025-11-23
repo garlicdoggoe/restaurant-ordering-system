@@ -602,6 +602,14 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         throw new Error("Not authenticated")
       }
 
+      // Check if new orders are allowed (client-side validation for UX)
+      // Server-side validation in orders.create mutation is authoritative and cannot be bypassed
+      if (restaurant?.allowNewOrders === false) {
+        setIsSubmitting(false)
+        toast.error("New orders are currently disabled. Please try again later.")
+        return
+      }
+
       // Validate phone number from user profile
       if (!currentUser?.phone || !isValidPhoneNumber(currentUser.phone)) {
         toast.error("Please update your phone number in profile settings")

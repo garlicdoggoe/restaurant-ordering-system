@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react"
 import { CheckoutDialog } from "./checkout-dialog"
 import { useData } from "@/lib/data-context"
+import { toast } from "sonner"
 
 interface CartProps {
   items: Array<{
@@ -131,7 +132,21 @@ export function Cart({ items, onUpdateQuantity, onClearCart, onOpenSettings, onN
               </div>
             ) : (
               <>
-                <Button className="w-full touch-target" size="lg" onClick={() => setShowCheckout(true)}>
+                <Button 
+                  className="w-full touch-target" 
+                  size="lg" 
+                  onClick={() => {
+                    // Check if new orders are allowed before opening checkout
+                    // Show error message if orders are disabled (same message as in restaurant settings)
+                    if (restaurant?.allowNewOrders === false) {
+                      toast.error("⚠️ New orders are currently disabled. Customers cannot place orders or pre-orders.", {
+                        duration: 5000,
+                      })
+                      return
+                    }
+                    setShowCheckout(true)
+                  }}
+                >
                   <span className="text-fluid-base">Proceed to Checkout</span>
                 </Button>
                 <Button variant="outline" className="w-full gap-2 bg-transparent touch-target" onClick={onClearCart}>

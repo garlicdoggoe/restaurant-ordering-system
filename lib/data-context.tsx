@@ -70,6 +70,7 @@ export interface Restaurant {
     lat: number
   }
   preorderNotification?: string // Notification message for pre-orders
+  allowNewOrders?: boolean // Whether new orders (including pre-orders) are accepted
 }
 
 export interface DeliveryFee {
@@ -519,6 +520,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         preorderSchedule: normalizePreorderSchedule(restaurantDoc.preorderSchedule),
         coordinates: restaurantDoc.coordinates,
         preorderNotification: restaurantDoc.preorderNotification,
+        allowNewOrders: restaurantDoc.allowNewOrders,
       } as Restaurant)
     : ({
         _id: "",
@@ -687,6 +689,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       preorderSchedule: normalizePreorderSchedule(data.preorderSchedule ?? restaurant.preorderSchedule),
       coordinates: data.coordinates ?? restaurant.coordinates,
       preorderNotification: data.preorderNotification !== undefined ? data.preorderNotification : restaurant.preorderNotification,
+      allowNewOrders: data.allowNewOrders !== undefined ? data.allowNewOrders : restaurant.allowNewOrders,
     }
     void upsertRestaurant(body)
   }, [restaurant, upsertRestaurant])

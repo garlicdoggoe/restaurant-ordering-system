@@ -58,6 +58,7 @@ export default defineSchema({
       })
     ),
     preorderNotification: v.optional(v.string()), // Notification message for pre-orders
+    allowNewOrders: v.optional(v.boolean()), // Whether new orders (including pre-orders) are accepted
     createdAt: v.number(),
     updatedAt: v.number(),
   }),

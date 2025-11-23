@@ -20,6 +20,8 @@ export function RestaurantSettings() {
   const { restaurant, updateRestaurant } = useData()
 
   const [status, setStatus] = useState<"open" | "closed" | "busy">(restaurant.status)
+  // State for allowNewOrders toggle - defaults to true for backward compatibility
+  const [allowNewOrders, setAllowNewOrders] = useState<boolean>(restaurant.allowNewOrders ?? true)
   const [formData, setFormData] = useState({
     name: restaurant.name,
     description: restaurant.description,
@@ -72,6 +74,9 @@ export function RestaurantSettings() {
     
     // Update status when restaurant data changes
     setStatus(restaurant.status || "open")
+    
+    // Update allowNewOrders when restaurant data changes - default to true for backward compatibility
+    setAllowNewOrders(restaurant.allowNewOrders ?? true)
 
     const schedule = restaurant.preorderSchedule ?? { restrictionsEnabled: false, dates: [] }
     setPreorderRestrictionsEnabled(schedule.restrictionsEnabled)
@@ -392,6 +397,40 @@ export function RestaurantSettings() {
                 You can manually override the operating hours status above
               </p>
             </div>
+          </div>
+
+          {/* Order Acceptance Toggle */}
+          <Separator />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="allow-new-orders" className="text-base font-medium">
+                  Allow New Orders
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Toggle to temporarily disable order placement. Affects all order types including pre-orders.
+                </p>
+              </div>
+              <Switch
+                id="allow-new-orders"
+                checked={allowNewOrders}
+                onCheckedChange={(checked) => {
+                  setAllowNewOrders(checked)
+                  // Auto-save immediately when toggled
+                  updateRestaurant({
+                    allowNewOrders: checked,
+                  })
+                }}
+                className={allowNewOrders ? "" : "data-[state=checked]:bg-destructive"}
+              />
+            </div>
+            {!allowNewOrders && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-sm text-destructive font-medium">
+                  ⚠️ New orders are currently disabled. Customers cannot place orders or pre-orders.
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -61,6 +61,7 @@ export const upsert = mutation({
       })
     ),
     preorderNotification: v.optional(v.string()), // Notification message for pre-orders
+    allowNewOrders: v.optional(v.boolean()), // Whether new orders (including pre-orders) are accepted
   },
   handler: async (ctx, args) => {
     // SECURITY: Verify user is authenticated and is an owner
