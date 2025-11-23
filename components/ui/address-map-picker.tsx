@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { SearchBox } from "@mapbox/search-js-react"
 import mapboxgl from "mapbox-gl"
 import "mapbox-gl/dist/mapbox-gl.css"
-import { AlertCircle, ZoomIn, ZoomOut, MapPin, Info } from "lucide-react"
+import { AlertCircle, ZoomIn, MapPin, Info } from "lucide-react"
 
 type LngLatTuple = [number, number]
 
@@ -66,6 +66,12 @@ interface AddressMapPickerProps {
 
   // Whether to show the address search box (defaults to true for backward compatibility)
   showSearchBox?: boolean
+
+  // Optional restaurant coordinates to display route from restaurant to customer
+  restaurantCoordinates?: { lng: number; lat: number } | null
+
+  // Whether to show the route from restaurant to customer (default: true)
+  showRoute?: boolean
 }
 
 /**
@@ -83,6 +89,8 @@ export function AddressMapPicker({
   disabled = false,
   onLocationValid,
   showSearchBox = true,
+  restaurantCoordinates,
+  showRoute = true,
 }: AddressMapPickerProps) {
   const accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || ""
 
@@ -90,6 +98,7 @@ export function AddressMapPicker({
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markerRef = useRef<mapboxgl.Marker | null>(null)
+  const restaurantMarkerRef = useRef<mapboxgl.Marker | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   
@@ -127,6 +136,58 @@ export function AddressMapPicker({
     }, 400)
   }, [accessToken, onAddressChange])
 
+  // Fetch route geometry from Mapbox Directions API
+  const fetchRoute = useCallback(async (
+    restaurantCoords: { lng: number; lat: number },
+    customerCoords: LngLatTuple
+  ) => {
+    if (!accessToken || !showRoute) return null
+
+    try {
+      // Format coordinates for Mapbox Directions API
+      // Format: {lng},{lat};{lng},{lat} (semicolon-separated)
+      // Start from restaurant, end at customer
+      const coordinates = `${restaurantCoords.lng},${restaurantCoords.lat};${customerCoords[0]},${customerCoords[1]}`
+      
+      // Use driving profile for route calculation
+      const profile = "mapbox/driving"
+      
+      // Build API URL with geometries=geojson to get route geometry
+      const url = `https://api.mapbox.com/directions/v5/${profile}/${coordinates}?access_token=${accessToken}&geometries=geojson`
+      
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        console.error(`Mapbox Directions API error: ${response.status} ${response.statusText}`)
+        return null
+      }
+      
+      const data = await response.json() as {
+        code?: string
+        routes?: Array<{ geometry?: GeoJSON.LineString }>
+      }
+      
+      // Check if route was found
+      if (data.code === "NoRoute" || !data.routes || data.routes.length === 0) {
+        console.warn("No route found between restaurant and customer coordinates")
+        return null
+      }
+      
+      // Extract route geometry from first route
+      const geometry = data.routes[0]?.geometry
+      
+      if (!geometry || geometry.type !== "LineString") {
+        console.error("Invalid route geometry in API response")
+        return null
+      }
+      
+      return geometry
+    } catch (error) {
+      console.error("Error fetching route via Mapbox Directions API:", error instanceof Error ? error.message : "Unknown error")
+      return null
+    }
+  }, [accessToken, showRoute])
+
   // Ensure marker exists and attach drag handlers
   const ensureMarker = useCallback((map: mapboxgl.Map, lngLat: LngLatTuple) => {
     if (!markerRef.current) {
@@ -159,6 +220,69 @@ export function AddressMapPicker({
     }
   }, [interactive, onCoordinatesChange, validateLocation, scheduleReverseGeocode])
 
+  // Ensure restaurant marker exists
+  const ensureRestaurantMarker = useCallback((map: mapboxgl.Map, lngLat: { lng: number; lat: number }) => {
+    if (!restaurantMarkerRef.current) {
+      // Create a custom restaurant marker with different color
+      const el = document.createElement("div")
+      el.className = "restaurant-marker"
+      el.style.width = "20px"
+      el.style.height = "20px"
+      el.style.borderRadius = "50%"
+      el.style.backgroundColor = "#ef4444" // Red color for restaurant
+      el.style.border = "3px solid white"
+      el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)"
+      el.style.cursor = "pointer"
+      
+      restaurantMarkerRef.current = new mapboxgl.Marker({ element: el, draggable: false })
+        .setLngLat([lngLat.lng, lngLat.lat])
+        .addTo(map)
+    } else {
+      restaurantMarkerRef.current.setLngLat([lngLat.lng, lngLat.lat])
+    }
+  }, [])
+
+  // Add or update route layer on map
+  const updateRouteLayer = useCallback((map: mapboxgl.Map, geometry: GeoJSON.LineString | null) => {
+    if (!map.getSource("route")) {
+      // Add route source if it doesn't exist
+      map.addSource("route", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: geometry || { type: "LineString", coordinates: [] },
+        },
+      })
+    } else {
+      // Update existing route source
+      const source = map.getSource("route") as mapboxgl.GeoJSONSource
+      source.setData({
+        type: "Feature",
+        properties: {},
+        geometry: geometry || { type: "LineString", coordinates: [] },
+      })
+    }
+
+    // Add route layer if it doesn't exist
+    if (!map.getLayer("route")) {
+      map.addLayer({
+        id: "route",
+        type: "line",
+        source: "route",
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#fbbf24", // Yellow color for route
+          "line-width": 4,
+          "line-opacity": 0.75,
+        },
+      })
+    }
+  }, [])
+
   // Initialize map once
   useEffect(() => {
     if (!accessToken) return
@@ -174,7 +298,11 @@ export function AddressMapPicker({
       interactive: interactive,
     })
 
-    map.on("load", () => setMapLoaded(true))
+    map.on("load", () => {
+      setMapLoaded(true)
+      // Initialize route layer when map loads (empty initially)
+      updateRouteLayer(map, null)
+    })
 
     // Click to set/move marker (only when interactive)
     if (interactive) {
@@ -190,14 +318,29 @@ export function AddressMapPicker({
     mapRef.current = map
 
     return () => {
+      // Clean up route layer if it exists
+      if (map.getSource("route")) {
+        if (map.getLayer("route")) {
+          map.removeLayer("route")
+        }
+        map.removeSource("route")
+      }
+      // Remove markers
+      if (markerRef.current) {
+        markerRef.current.remove()
+      }
+      if (restaurantMarkerRef.current) {
+        restaurantMarkerRef.current.remove()
+      }
       map.remove()
       mapRef.current = null
       markerRef.current = null
+      restaurantMarkerRef.current = null
     }
     // Map initialization should only run once when accessToken changes
     // The callbacks (ensureMarker, validateLocation, etc.) are stable due to useCallback
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken])
+  }, [accessToken, updateRouteLayer])
 
   // If parent provides coordinates later, reflect them in the map/marker and fly
   useEffect(() => {
@@ -207,6 +350,65 @@ export function AddressMapPicker({
     mapRef.current.flyTo({ center: coordinates, zoom: Math.max(mapRef.current.getZoom(), 14) })
     validateLocation(coordinates)
   }, [mapLoaded, coordinates, ensureMarker, validateLocation])
+
+  // Fetch and display route when both restaurant and customer coordinates are available
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return
+    
+    // If showRoute is disabled or coordinates are missing, clear route and restaurant marker
+    if (!showRoute || !restaurantCoordinates || !coordinates) {
+      // Clear route if coordinates are missing or route display is disabled
+      if (mapRef.current.getSource("route")) {
+        updateRouteLayer(mapRef.current, null)
+      }
+      // Remove restaurant marker if coordinates are missing or route is disabled
+      if (restaurantMarkerRef.current) {
+        restaurantMarkerRef.current.remove()
+        restaurantMarkerRef.current = null
+      }
+      return
+    }
+
+    // Add restaurant marker
+    ensureRestaurantMarker(mapRef.current, restaurantCoordinates)
+
+    // Fetch route
+    const loadRoute = async () => {
+      const geometry = await fetchRoute(restaurantCoordinates, coordinates)
+      if (mapRef.current) {
+        updateRouteLayer(mapRef.current, geometry)
+        
+        // Fit map to show both restaurant and customer with route
+        if (geometry && geometry.coordinates.length > 0) {
+          const bounds = new mapboxgl.LngLatBounds()
+          bounds.extend([restaurantCoordinates.lng, restaurantCoordinates.lat])
+          bounds.extend(coordinates)
+          // Extend bounds to include all route points
+          // Position can be [lng, lat] or [lng, lat, elevation], we only need first two
+          geometry.coordinates.forEach((coord) => {
+            if (Array.isArray(coord) && coord.length >= 2) {
+              bounds.extend([coord[0] as number, coord[1] as number])
+            }
+          })
+          mapRef.current.fitBounds(bounds, {
+            padding: { top: 50, bottom: 50, left: 50, right: 50 },
+            maxZoom: 16,
+          })
+        } else {
+          // If no route, just fit to show both markers
+          const bounds = new mapboxgl.LngLatBounds()
+          bounds.extend([restaurantCoordinates.lng, restaurantCoordinates.lat])
+          bounds.extend(coordinates)
+          mapRef.current.fitBounds(bounds, {
+            padding: { top: 50, bottom: 50, left: 50, right: 50 },
+            maxZoom: 16,
+          })
+        }
+      }
+    }
+
+    loadRoute()
+  }, [mapLoaded, restaurantCoordinates, coordinates, showRoute, fetchRoute, updateRouteLayer, ensureRestaurantMarker])
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const coordsText = coordinates ? `${coordinates[1].toFixed(6)}, ${coordinates[0].toFixed(6)}` : ""

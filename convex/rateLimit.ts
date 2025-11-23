@@ -96,7 +96,7 @@ async function checkRateLimitCore(
           `Rate limit exceeded. Maximum ${maxRequests} requests per ${windowMs / 1000 / 60} minute(s). Please try again in ${minutesRemaining} minute(s).`
         );
       }
-      
+
       // Update count and timestamp
       await ctx.db.patch(existing._id, {
         count: newCount,

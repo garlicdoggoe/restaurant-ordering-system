@@ -3,6 +3,148 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./rateLimit";
 
+/**
+ * Calculate distance between customer and restaurant using Mapbox Directions API
+ * This is a helper function for server-side delivery fee calculation
+ * @param customerCoordinates - Customer location as {lng, lat}
+ * @param restaurantCoordinates - Restaurant location as {lng, lat}
+ * @returns Distance in meters, or null if route not found or API error
+ */
+async function calculateDistanceServerSide(
+  customerCoordinates: { lng: number; lat: number },
+  restaurantCoordinates: { lng: number; lat: number }
+): Promise<number | null> {
+  // Validate coordinates are within reasonable geographic bounds
+  if (customerCoordinates.lat < -90 || customerCoordinates.lat > 90 ||
+      restaurantCoordinates.lat < -90 || restaurantCoordinates.lat > 90) {
+    console.error("Invalid latitude coordinates. Must be between -90 and 90.");
+    return null;
+  }
+  
+  if (customerCoordinates.lng < -180 || customerCoordinates.lng > 180 ||
+      restaurantCoordinates.lng < -180 || restaurantCoordinates.lng > 180) {
+    console.error("Invalid longitude coordinates. Must be between -180 and 180.");
+    return null;
+  }
+  
+  // Reject coordinates that are exactly (0, 0) as they're likely invalid/default
+  if ((customerCoordinates.lat === 0 && customerCoordinates.lng === 0) ||
+      (restaurantCoordinates.lat === 0 && restaurantCoordinates.lng === 0)) {
+    console.error("Invalid coordinates: (0, 0) is not a valid location.");
+    return null;
+  }
+  
+  // Validate coordinates are finite numbers (not NaN or Infinity)
+  if (!Number.isFinite(customerCoordinates.lat) || !Number.isFinite(customerCoordinates.lng) ||
+      !Number.isFinite(restaurantCoordinates.lat) || !Number.isFinite(restaurantCoordinates.lng)) {
+    console.error("Coordinates must be finite numbers.");
+    return null;
+  }
+  
+  // Get Mapbox access token from environment variables
+  const accessToken = process.env.MAPBOX_ACCESS_TOKEN;
+  
+  if (!accessToken) {
+    console.error("MAPBOX_ACCESS_TOKEN environment variable is not set in Convex. Please set it in Settings > Environment Variables.");
+    return null;
+  }
+
+  try {
+    // Format coordinates for Mapbox Directions API
+    // Format: {lng},{lat};{lng},{lat} (semicolon-separated)
+    // Start from restaurant, end at customer (or vice versa - doesn't matter for distance)
+    const coordinates = `${restaurantCoordinates.lng},${restaurantCoordinates.lat};${customerCoordinates.lng},${customerCoordinates.lat}`;
+    
+    // Use driving profile for route calculation
+    const profile = "mapbox/driving";
+    
+    // Build API URL
+    const url = `https://api.mapbox.com/directions/v5/${profile}/${coordinates}?access_token=${accessToken}`;
+    
+    // Call Mapbox Directions API
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      // Log only status code to avoid exposing sensitive API response data
+      console.error(`Mapbox Directions API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    // Check if route was found
+    if (data.code === "NoRoute" || !data.routes || data.routes.length === 0) {
+      console.warn(`No route found between coordinates. Restaurant: [${restaurantCoordinates.lng}, ${restaurantCoordinates.lat}], Customer: [${customerCoordinates.lng}, ${customerCoordinates.lat}]`);
+      return null;
+    }
+    
+    // Extract distance from first route (in meters)
+    const distance = data.routes[0]?.distance;
+    
+    if (typeof distance !== "number") {
+      // Log only error type, not full API response data which may contain sensitive route information
+      console.error("Invalid distance in API response: distance is not a number");
+      return null;
+    }
+    
+    return distance;
+  } catch (error) {
+    // Log only error message to avoid exposing sensitive data in error stack traces
+    console.error("Error calculating distance via Mapbox Directions API:", error instanceof Error ? error.message : "Unknown error");
+    return null;
+  }
+}
+
+/**
+ * Calculate delivery fee based on distance in meters
+ * Fee structure matches lib/order-utils.tsx:calculateDeliveryFee():
+ * - 0-0.5km (0-500m): 0 pesos (free)
+ * - 0.5-1km (500-1000m): 20 pesos
+ * - >1km: 20 pesos + (distanceInKm - 1) * feePerKilometer
+ * 
+ * @param distanceInMeters - Distance in meters between restaurant and customer
+ * @param feePerKilometer - Fee per kilometer for distances over 1km (default 15)
+ * @returns Delivery fee in pesos
+ */
+function calculateDeliveryFeeFromDistance(
+  distanceInMeters: number | null | undefined,
+  feePerKilometer: number = 15
+): number {
+  // If distance is not available, return 0 (free delivery)
+  if (distanceInMeters === null || distanceInMeters === undefined) {
+    return 0;
+  }
+
+  // If distance is invalid (negative), return 0 (treat as unavailable)
+  if (distanceInMeters < 0) {
+    return 0;
+  }
+
+  // If distance is 0 (same location), return 0 (free delivery)
+  if (distanceInMeters === 0) {
+    return 0;
+  }
+
+  // Convert meters to kilometers
+  const distanceInKm = distanceInMeters / 1000;
+
+  // 0-0.5km (0-500m): free delivery
+  // Note: Exactly 0.5km (500m) is included in the free tier
+  if (distanceInKm <= 0.5) {
+    return 0;
+  }
+
+  // 0.5-1km (500-1000m): flat rate of 20 pesos
+  // Note: Exactly 1km (1000m) is included in this tier
+  if (distanceInKm <= 1) {
+    return 20;
+  }
+
+  // >1km: 20 pesos base + (distance - 1) * feePerKilometer
+  const additionalDistance = distanceInKm - 1;
+  return 20 + additionalDistance * feePerKilometer;
+}
+
 // Separate user role lookup with better caching - eliminates user dependency from order queries
 export const getCurrentUserRole = query({
   args: {},
@@ -367,11 +509,8 @@ export const create = mutation({
     }
 
     // SECURITY: Delivery fee validation
-    // NOTE: Mutations cannot use fetch() or call actions, so we must accept client-calculated fee
-    // However, we add strict validation to prevent manipulation:
-    // 1. Require coordinates for delivery orders
-    // 2. Validate fee is within reasonable bounds (0 to 1000 pesos)
-    // 3. Validate coordinates are reasonable
+    // SECURITY: Server-side delivery fee calculation and validation
+    // Recalculate delivery fee using Mapbox Directions API to prevent client-side manipulation
     let calculatedDeliveryFee = 0;
     const isDelivery = args.orderType === "delivery" || 
       (args.orderType === "pre-order" && args.preOrderFulfillment === "delivery");
@@ -407,7 +546,36 @@ export const create = mutation({
         throw new Error("Invalid delivery fee. Please refresh and try again.");
       }
       
-      calculatedDeliveryFee = args.deliveryFee;
+      // SECURITY: Recalculate delivery fee server-side using Mapbox Directions API
+      const feePerKilometer = restaurant.feePerKilometer ?? 15;
+      
+      // Calculate distance using Mapbox Directions API
+      const distanceInMeters = await calculateDistanceServerSide(
+        args.customerCoordinates,
+        restaurant.coordinates
+      );
+      
+      // Calculate server-side delivery fee
+      const serverCalculatedFee = calculateDeliveryFeeFromDistance(distanceInMeters, feePerKilometer);
+      
+      // If Mapbox API fails, log warning but allow order to proceed with client-provided fee
+      // This ensures orders can still be placed if Mapbox API is temporarily unavailable
+      if (distanceInMeters === null) {
+        console.warn("Mapbox Directions API failed or returned null. Using client-provided delivery fee as fallback.");
+        calculatedDeliveryFee = args.deliveryFee;
+      } else {
+        // Compare server-calculated fee with client-provided fee
+        // Allow ±1 peso tolerance for rounding differences
+        const feeDifference = Math.abs(serverCalculatedFee - args.deliveryFee);
+        
+        if (feeDifference > 1) {
+          // Fee mismatch exceeds tolerance - reject order
+          throw new Error("Delivery fee mismatch. Please refresh and try again.");
+        }
+        
+        // Use server-calculated fee (authoritative source)
+        calculatedDeliveryFee = serverCalculatedFee;
+      }
     }
 
     // SECURITY: Validate and calculate voucher discount server-side

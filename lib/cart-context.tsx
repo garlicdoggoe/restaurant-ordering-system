@@ -49,7 +49,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           setCartItems(parsedCart)
         }
       }
-    } catch (error) {
+    } catch {
       // If there's an error parsing, clear the localStorage
       localStorage.removeItem(CART_STORAGE_KEY)
     }
@@ -59,7 +59,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems))
-    } catch (error) {
+    } catch {
+      // Silently fail if localStorage is unavailable
     }
   }, [cartItems])
 
@@ -113,7 +114,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCartItems([])
     try {
       localStorage.removeItem(CART_STORAGE_KEY)
-    } catch (error) {
+    } catch {
+      // Silently fail if localStorage is unavailable
     }
   }, [])
 

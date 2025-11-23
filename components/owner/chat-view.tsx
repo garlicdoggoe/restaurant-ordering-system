@@ -41,7 +41,8 @@ export function ChatView() {
   // Status filter options imported from lib for modularity
   const statusFilterOptions = chatStatusFilterOptions
 
-  const activeStatuses = new Set(["pre-order-pending", "pending", "accepted", "ready", "in-transit"])
+  // Memoize activeStatuses to prevent dependency changes on every render
+  const activeStatuses = useMemo(() => new Set(["pre-order-pending", "pending", "accepted", "ready", "in-transit"]), [])
 
   const withinDateRange = (t: number) => {
     if (!fromDate && !toDate) return true

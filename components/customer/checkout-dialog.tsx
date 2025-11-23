@@ -24,7 +24,7 @@ import { isValidPhoneNumber } from "@/lib/phone-validation"
 // Dynamically import AddressMapPicker with error handling and loading state
 // Using default export from address-map-picker
 const AddressMapPicker = dynamic(
-  () => import("@/components/ui/address-map-picker").catch((_err) => {
+  () => import("@/components/ui/address-map-picker").catch(() => {
     // Return a fallback component if import fails
     // Note: Dynamic import errors are handled gracefully with fallback UI
     return { default: () => (
