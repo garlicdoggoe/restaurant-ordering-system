@@ -966,7 +966,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
             {/* Date & Time for Pre-order */}
             {orderType === "pre-order" && (
               <div className="space-y-3">
-                <Label className="text-xs md:text-sm text-gray-500">Pickup/Delivery Date & Time</Label>
+                <Label className="text-xs md:text-sm text-gray-500">Order Date & Time</Label>
 
                 {restrictionsEnabled ? (
                   hasConfiguredDates ? (
