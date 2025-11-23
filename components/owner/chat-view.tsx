@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { MessageSquare } from "lucide-react"
 import { useData, type OrderStatus } from "@/lib/data-context"
 import { useQuery } from "convex/react"
@@ -13,7 +14,7 @@ import { StatusBadge } from "@/lib/status-badge"
 import { chatStatusFilterOptions } from "@/lib/status-filter-options"
 
 export function ChatView() {
-  const { orders } = useData()
+  const { orders, updateOrder } = useData()
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
 
@@ -164,16 +165,40 @@ export function ChatView() {
                     <p className="text-sm text-muted-foreground">No messages yet</p>
                   )}
 
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      setSelectedOrderId(order._id)
-                      setChatOpen(true)
-                    }}
-                  >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    {messageCount > 0 ? `View Chat (${messageCount})` : "Start Chat"}
-                  </Button>
+                  <div className="space-y-2">
+                    {/* Chat toggle button */}
+                    <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className={order.allowChat !== false ? "w-4 h-4 text-green-600" : "w-4 h-4 text-red-600"} />
+                        <span className="text-xs font-medium">
+                          {order.allowChat !== false ? "Chat Enabled" : "Chat Disabled"}
+                        </span>
+                      </div>
+                      <Switch
+                        checked={order.allowChat !== false}
+                        onCheckedChange={(checked) => {
+                          updateOrder(order._id, { allowChat: checked })
+                        }}
+                      />
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedOrderId(order._id)
+                        setChatOpen(true)
+                      }}
+                      variant={order.allowChat === false ? "outline" : "default"}
+                      disabled={order.allowChat === false}
+                    >
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      {order.allowChat === false
+                        ? "Chat Disabled"
+                        : messageCount > 0
+                          ? `View Chat (${messageCount})`
+                          : "Start Chat"}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )

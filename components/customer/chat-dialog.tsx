@@ -101,6 +101,8 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
   const customerId = currentUser?._id || ""
   const customerName = order?.customerName || "Customer"
   const allowCustomerImages = !!order?.allowCustomerImages
+  // Check if chat is allowed for this order (defaults to true for backward compatibility)
+  const allowChat = order?.allowChat !== false
 
   // Mutations for file upload
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
@@ -194,10 +196,13 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
 
   // Check if messaging should be disabled
   // Disable messaging if:
-  // 1. Order is in a final status (completed, delivered, or cancelled)
-  // 2. AND we're on a succeeding day (next day or later) compared to the order creation day
+  // 1. Chat is disallowed for this order (allowChat is false)
+  // 2. OR order is in a final status (completed, delivered, or cancelled) AND we're on a succeeding day (next day or later) compared to the order creation day
   // This allows customers to message on the same day the order was created, even if store is closed
   const isMessagingDisabled = (): boolean => {
+    // First check if chat is disallowed
+    if (!allowChat) return true
+    
     if (!order) return false
     
     const finalStatuses: Array<"completed" | "delivered" | "cancelled"> = ["completed", "delivered", "cancelled"]
@@ -483,19 +488,20 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
           </div>
         </ScrollArea>
 
-        <div 
-          className={cn(
-            "flex gap-2 pt-3 md:pt-4 border-t flex-shrink-0"
-          )}
-          style={{
-            // Use CSS safe area inset for mobile devices to handle notched devices and browser UI
-            // Add additional padding (56px) for the browser toolbar (address bar + bottom navigation)
-            // This prevents the browser toolbar from covering the input section on mobile devices
-            paddingBottom: typeof window !== 'undefined' && isMobile 
-              ? `calc(env(safe-area-inset-bottom) + 74px)`
-              : undefined
-          }}
-        >
+        <div className="border-t flex-shrink-0">
+          <div 
+            className={cn(
+              "flex gap-2 pt-3 md:pt-4"
+            )}
+            style={{
+              // Use CSS safe area inset for mobile devices to handle notched devices and browser UI
+              // Add additional padding (56px) for the browser toolbar (address bar + bottom navigation)
+              // This prevents the browser toolbar from covering the input section on mobile devices
+              paddingBottom: typeof window !== 'undefined' && isMobile 
+                ? `calc(env(safe-area-inset-bottom) + 74px)`
+                : undefined
+            }}
+          >
           {/* Image upload button (visible only if allowed) */}
           {allowCustomerImages && (
             <>
@@ -518,7 +524,13 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
             </>
           )}
           <Input
-            placeholder={messagingDisabled ? "Messaging is disabled for this order" : "Type your message..."}
+            placeholder={
+              !allowChat 
+                ? "Chat is disabled for this order" 
+                : messagingDisabled 
+                  ? "Messaging is disabled for this order" 
+                  : "Type your message..."
+            }
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -528,6 +540,7 @@ export function ChatDialog({ orderId, open, onOpenChange }: ChatDialogProps) {
           <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim() || messagingDisabled}>
             <Send className="w-4 h-4" />
           </Button>
+          </div>
         </div>
       </DialogContent>
 

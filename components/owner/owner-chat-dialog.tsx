@@ -114,6 +114,8 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
   const messagesQuery = useQuery(api.chat.listByOrder, { orderId })
   const messages: ChatMessage[] = useMemo(() => messagesQuery ?? [], [messagesQuery])
   const ownerId = currentUser?._id || ""
+  // Check if chat is allowed for this order (defaults to true for backward compatibility)
+  const allowChat = order?.allowChat !== false
 
   // Mutations for file upload
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
@@ -145,6 +147,8 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
 
   const handleSend = () => {
     if (!message.trim() || !ownerId) return
+    // Prevent sending if chat is disallowed
+    if (!allowChat) return
 
     sendMessage(orderId, ownerId, restaurant.name, "owner", message)
     setMessage("")
@@ -444,29 +448,37 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
           </div>
         </ScrollArea>
 
-        <div className="flex gap-2 pt-4 border-t">
-          {/* Quick replies dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" disabled={isUploading}>
-                <MessageSquare className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              {QUICK_REPLIES.map((reply, index) => (
-                <DropdownMenuItem key={index} onClick={() => handleQuickReply(reply)}>
-                  {reply}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="border-t">
+          {/* Show message if chat is disallowed */}
+          {!allowChat && (
+            <div className="p-2 bg-yellow-50 border-b border-yellow-200 text-sm text-yellow-800">
+              Chat is disabled for this order. Existing messages are visible but no new messages can be sent.
+            </div>
+          )}
+          
+          <div className="flex gap-2 pt-4">
+            {/* Quick replies dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" disabled={isUploading || !allowChat}>
+                  <MessageSquare className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {QUICK_REPLIES.map((reply, index) => (
+                  <DropdownMenuItem key={index} onClick={() => handleQuickReply(reply)}>
+                    {reply}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Image upload button */}
+            {/* Image upload button */}
           <Button
             variant="outline"
             size="icon"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
+            disabled={isUploading || !allowChat}
           >
             <ImageIcon className="w-4 h-4" />
           </Button>
@@ -476,18 +488,20 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
             accept="image/*"
             onChange={handleImageUpload}
             className="hidden"
+            disabled={!allowChat}
           />
 
           <Input
-            placeholder="Type your message..."
+            placeholder={allowChat ? "Type your message..." : "Chat is disabled for this order"}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={isUploading}
+            disabled={isUploading || !allowChat}
           />
-          <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim()}>
+          <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim() || !allowChat}>
             <Send className="w-4 h-4" />
           </Button>
+          </div>
         </div>
       </DialogContent>
 

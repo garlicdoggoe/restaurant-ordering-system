@@ -38,6 +38,80 @@ export const send = mutation({
     const order = await ctx.db.get(args.orderId as any);
     if (!order) throw new Error("Order not found");
 
+    // Get restaurant settings to check work day hours
+    const restaurant = await ctx.db.query("restaurant").first();
+    
+    // Check if chat should be automatically disabled based on work day grace period
+    // If order is in final status (completed, delivered, cancelled) and past work day closing time, disable chat
+    const finalStatuses = ["completed", "delivered", "cancelled"];
+    const orderStatus = (order as { status?: string }).status;
+    const isFinalStatus = orderStatus && finalStatuses.includes(orderStatus);
+    
+    if (isFinalStatus && restaurant) {
+      // Helper function to check if chat should be disabled after work day grace period
+      // Grace period logic:
+      // - If same day as when status changed: chat is always enabled (even after closing time)
+      // - If next day: chat enabled until closing time, then disabled after closing time
+      // - If more than 1 day later: chat is disabled
+      const shouldDisableChatAfterWorkDay = () => {
+        // Get the time when status changed (use updatedAt as proxy for when status reached final state)
+        const orderUpdatedAt = (order as { updatedAt?: number }).updatedAt || (order as { _creationTime?: number })._creationTime || 0;
+        const statusChangeDate = new Date(orderUpdatedAt);
+        const now = new Date();
+        
+        // Get the day when status changed (without time)
+        const statusDay = new Date(statusChangeDate.getFullYear(), statusChangeDate.getMonth(), statusChangeDate.getDate());
+        const currentDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        // Calculate days difference
+        const daysDiff = Math.floor((currentDay.getTime() - statusDay.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // If we're on the same day as when status changed, chat is always enabled
+        // (even after closing time - grace period for the day)
+        if (daysDiff === 0) {
+          return false;
+        }
+        
+        // If we're more than 1 day later, chat is disabled
+        if (daysDiff > 1) {
+          return true;
+        }
+        
+        // If we're on the next day (daysDiff === 1), check if past closing time
+        if (!restaurant?.closingTime) {
+          // If no closing time is set, allow chat for the entire next day
+          return false;
+        }
+        
+        // Parse closing time (format: "HH:MM")
+        const [closeHour, closeMin] = restaurant.closingTime.split(':').map(Number);
+        
+        // Create a date object for the next day (current day) at closing time
+        const closingTimeNextDay = new Date(now);
+        closingTimeNextDay.setHours(closeHour, closeMin, 0, 0);
+        
+        // If current time is past closing time on the next day, disable chat
+        return now > closingTimeNextDay;
+      };
+      
+      // If we should disable chat after work day, update the order and prevent message
+      if (shouldDisableChatAfterWorkDay()) {
+        // Update order to disable chat automatically (if not already disabled)
+        const currentAllowChat = (order as { allowChat?: boolean }).allowChat;
+        if (currentAllowChat !== false) {
+          await ctx.db.patch(args.orderId as any, { allowChat: false, updatedAt: Date.now() });
+        }
+        throw new Error("Chat is disabled for this order. The work day grace period has ended.");
+      }
+    }
+
+    // Check if chat is allowed for this order
+    // Default to true for backward compatibility (if allowChat is undefined, it means chat is allowed)
+    const allowChat = (order as { allowChat?: boolean }).allowChat !== false;
+    if (!allowChat) {
+      throw new Error("Chat is disabled for this order");
+    }
+
     // Customer can only access their own orders, owner can access all orders
     if (user.role === "customer" && (order as any).customerId !== (user._id as unknown as string)) {
       throw new Error("Unauthorized: You don't have access to this order");

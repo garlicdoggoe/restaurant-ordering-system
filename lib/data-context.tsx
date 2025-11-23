@@ -202,6 +202,8 @@ export interface Order {
   estimatedDeliveryTime?: number
   // Whether customer is allowed to send image attachments in chat
   allowCustomerImages?: boolean
+  // Whether chat is allowed for this order (defaults to true for backward compatibility)
+  allowChat?: boolean
   createdAt: number // Keep for backward compatibility
   updatedAt: number
 }
@@ -578,6 +580,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     estimatedPrepTime: o.estimatedPrepTime,
     estimatedDeliveryTime: o.estimatedDeliveryTime,
     allowCustomerImages: (o as { allowCustomerImages?: boolean }).allowCustomerImages ?? false,
+    allowChat: (o as { allowChat?: boolean }).allowChat ?? true,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
   }))
@@ -615,6 +618,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       estimatedPrepTime?: number
       estimatedDeliveryTime?: number
       allowCustomerImages?: boolean
+      allowChat?: boolean
       createdAt: number
       updatedAt: number
     }
@@ -649,6 +653,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     estimatedPrepTime: order.estimatedPrepTime,
     estimatedDeliveryTime: order.estimatedDeliveryTime,
     allowCustomerImages: order.allowCustomerImages ?? false,
+    allowChat: order.allowChat ?? true,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
   }
@@ -822,6 +827,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       remainingPaymentMethod: data.remainingPaymentMethod,
       remainingPaymentProofUrl: data.remainingPaymentProofUrl,
       allowCustomerImages: data.allowCustomerImages,
+      allowChat: data.allowChat,
     } })
   }, [patchOrder])
 

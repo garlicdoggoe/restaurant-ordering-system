@@ -520,6 +520,8 @@ export const create = mutation({
       specialInstructions: args.specialInstructions,
       // Default: customers cannot send images unless explicitly enabled by owner
       allowCustomerImages: false,
+      // Default: chat is allowed for all orders (backward compatibility)
+      allowChat: true,
       createdAt: now,
       updatedAt: now,
     });
@@ -604,6 +606,8 @@ export const update = mutation({
       )),
       // Toggle if customer can send images in chat for this order
       allowCustomerImages: v.optional(v.boolean()),
+      // Toggle if chat is allowed for this order
+      allowChat: v.optional(v.boolean()),
     }),
   },
   handler: async (ctx, { id, data }) => {
@@ -735,6 +739,14 @@ export const update = mutation({
         chatMessageSent = true;
       }
 
+      // Auto-disable chat after work day grace period for final status orders
+      // When order reaches final status, chat stays enabled:
+      // - For the rest of the day when status changed (even after closing time)
+      // - Until closing time of the NEXT work day
+      // After closing time of the next work day, chat is automatically disabled
+      // Note: Chat disable is checked in chat send mutation, not here
+      // This allows for real-time checking when users try to send messages
+
       // Auto-chat on denial with reason
       if (data.status === "denied") {
         const reason = data.denialReason ?? existing.denialReason ?? "No reason provided";
@@ -863,6 +875,14 @@ export const update = mutation({
       
       // Automatically send owner refund message
       const restaurant = await ctx.db.query("restaurant").first();
+      
+      // Auto-disable chat after work day grace period for cancelled orders
+      // When order is cancelled, chat stays enabled:
+      // - For the rest of the day when cancelled (even after closing time)
+      // - Until closing time of the NEXT work day
+      // After closing time of the next work day, chat is automatically disabled
+      // Note: Chat disable is checked in chat send mutation, not here
+      // This allows for real-time checking when users try to send messages
       const ownerUser = await ctx.db
         .query("users")
         .filter((q) => q.eq(q.field("role"), "owner"))

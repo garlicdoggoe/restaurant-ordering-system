@@ -161,6 +161,8 @@ export default defineSchema({
     estimatedDeliveryTime: v.optional(v.number()),
     // Whether the customer is allowed to send image attachments in chat for this order
     allowCustomerImages: v.optional(v.boolean()),
+    // Whether chat is allowed for this order (defaults to true for backward compatibility)
+    allowChat: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
