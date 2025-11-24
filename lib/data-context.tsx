@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode } from "react"
-import type { Id } from "@/convex/_generated/dataModel"
+import type { Doc, Id } from "@/convex/_generated/dataModel"
 import { useQuery, useMutation, useAction } from "convex/react"
 import { useUser } from "@clerk/nextjs"
 import { api } from "@/convex/_generated/api"
@@ -551,7 +551,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     isBundle: (m as { isBundle?: boolean }).isBundle,
     bundleItems: (m as { bundleItems?: Array<{ menuItemId: string; order: number }> }).bundleItems,
   }))
-  const orders: Order[] = ordersDocs.map((o: any) => ({
+  type ConvexOrderDoc = Doc<"orders">
+  const mapOrderDocToOrder = (o: ConvexOrderDoc): Order => ({
     _id: o._id as string,
     _creationTime: o._creationTime as number,
     customerId: o.customerId,
@@ -581,11 +582,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     specialInstructions: o.specialInstructions,
     estimatedPrepTime: o.estimatedPrepTime,
     estimatedDeliveryTime: o.estimatedDeliveryTime,
-    allowCustomerImages: (o as { allowCustomerImages?: boolean }).allowCustomerImages ?? false,
-    allowChat: (o as { allowChat?: boolean }).allowChat ?? true,
+    allowCustomerImages: o.allowCustomerImages ?? false,
+    allowChat: o.allowChat ?? true,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
-  }))
+  })
+  const orders: Order[] = ordersDocs.map(mapOrderDocToOrder)
   
   // NEW: Status-specific order arrays for owners - prevents full cache invalidation during status changes
   const transformOrderArray = (orderDocs: unknown[]) => orderDocs.map((o: unknown) => {
