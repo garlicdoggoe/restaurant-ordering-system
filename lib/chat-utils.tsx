@@ -52,7 +52,7 @@ export function ChatImageMessage({
   if (!isUrl) {
     // Not a URL, treat as regular text
     return (
-      <p className="text-xs md:text-fluid-sm break-all whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{message}</p>
+      <p className="text-xs md:text-fluid-sm break-words whitespace-pre-wrap" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>{message}</p>
     )
   }
   

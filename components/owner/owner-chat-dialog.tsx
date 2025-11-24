@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Send, Image as ImageIcon, MessageSquare } from "lucide-react"
+import { Send, Image as ImageIcon, MessageSquare, X } from "lucide-react"
 import { useData, type ChatMessage } from "@/lib/data-context"
 import { cn } from "@/lib/utils"
 import { useQuery, useMutation } from "convex/react"
@@ -48,6 +48,9 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
+  // Local image caching - store image file and preview before sending
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null)
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Detect mobile devices to apply additional padding for browser toolbar
@@ -82,6 +85,26 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
     setIsMobile(isMobileDevice)
   }, [])
 
+  // Cleanup: Revoke object URL when component unmounts or dialog closes
+  useEffect(() => {
+    return () => {
+      if (pendingImagePreview) {
+        URL.revokeObjectURL(pendingImagePreview)
+      }
+    }
+  }, [pendingImagePreview])
+
+  // Clear pending image when dialog closes
+  useEffect(() => {
+    if (!open) {
+      if (pendingImagePreview) {
+        URL.revokeObjectURL(pendingImagePreview)
+      }
+      setPendingImageFile(null)
+      setPendingImagePreview(null)
+    }
+  }, [open, pendingImagePreview])
+
   // Mark messages as read when dialog opens
   useEffect(() => {
     if (open && orderId) {
@@ -105,13 +128,64 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
     }
   }, [messages])
 
-  const handleSend = () => {
-    if (!message.trim() || !ownerId) return
+  const handleSend = async () => {
+    if (!message.trim() && !pendingImageFile) return
+    if (!ownerId) return
     // Prevent sending if chat is disallowed
     if (!allowChat) return
 
-    sendMessage(orderId, ownerId, restaurant.name, "owner", message)
-    setMessage("")
+    // If there's a pending image, upload it first
+    if (pendingImageFile) {
+      setIsUploading(true)
+      try {
+        // Compress the image before uploading to reduce file size
+        // This helps reduce storage costs and improves upload/download speeds
+        const compressedFile = await compressImage(pendingImageFile)
+        
+        // Generate upload URL
+        const uploadUrl = await generateUploadUrl({})
+        
+        // Upload compressed file to Convex storage
+        // Note: compressedFile.type will be "image/jpeg" as compression converts to JPEG
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": compressedFile.type },
+          body: compressedFile,
+        })
+        const { storageId } = await uploadResponse.json()
+        
+        // Immediately resolve storage ID to URL and store the URL directly
+        // This allows the image to be displayed directly without needing to resolve it later
+        const imageUrl = await getUrlFromStorageId({ storageId: storageId as Id<"_storage"> })
+        
+        if (imageUrl) {
+          // Send image message first
+          sendMessage(orderId, ownerId, restaurant.name, "owner", imageUrl)
+        } else {
+          throw new Error("Failed to get image URL")
+        }
+
+        // Clean up pending image
+        if (pendingImagePreview) {
+          URL.revokeObjectURL(pendingImagePreview)
+        }
+        setPendingImageFile(null)
+        setPendingImagePreview(null)
+      } catch (error) {
+        console.error("Failed to upload image:", error)
+        alert("Failed to upload image. Please try again.")
+        setIsUploading(false)
+        return
+      } finally {
+        setIsUploading(false)
+      }
+    }
+
+    // If there's text, send it as a separate message (after image if image was sent)
+    if (message.trim()) {
+      sendMessage(orderId, ownerId, restaurant.name, "owner", message)
+      setMessage("")
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -121,10 +195,10 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
     }
   }
 
-  // Handle image upload
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle image selection - cache locally and create preview (don't upload yet)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !ownerId) return
+    if (!file) return
 
     // Check if file is an image
     if (!file.type.startsWith("image/")) {
@@ -132,44 +206,29 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
       return
     }
 
-    setIsUploading(true)
-    try {
-      // Compress the image before uploading to reduce file size
-      // This helps reduce storage costs and improves upload/download speeds
-      const compressedFile = await compressImage(file)
-      
-      // Generate upload URL
-      const uploadUrl = await generateUploadUrl({})
-      
-      // Upload compressed file to Convex storage
-      // Note: compressedFile.type will be "image/jpeg" as compression converts to JPEG
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": compressedFile.type },
-        body: compressedFile,
-      })
-      const { storageId } = await uploadResponse.json()
-      
-      // Immediately resolve storage ID to URL and store the URL directly
-      // This allows the image to be displayed directly without needing to resolve it later
-      const imageUrl = await getUrlFromStorageId({ storageId: storageId as Id<"_storage"> })
-      
-      if (imageUrl) {
-        // Store the URL directly in the chat message (like customer chat does)
-        sendMessage(orderId, ownerId, restaurant.name, "owner", imageUrl)
-      } else {
-        throw new Error("Failed to get image URL")
-      }
-    } catch (error) {
-      console.error("Failed to upload image:", error)
-      alert("Failed to upload image. Please try again.")
-    } finally {
-      setIsUploading(false)
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
+    // Revoke previous preview URL if exists to prevent memory leaks
+    if (pendingImagePreview) {
+      URL.revokeObjectURL(pendingImagePreview)
     }
+
+    // Store file locally and create preview URL
+    setPendingImageFile(file)
+    const previewUrl = URL.createObjectURL(file)
+    setPendingImagePreview(previewUrl)
+
+    // Clear file input to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  // Remove pending image (cancel before sending)
+  const handleRemovePendingImage = () => {
+    if (pendingImagePreview) {
+      URL.revokeObjectURL(pendingImagePreview)
+    }
+    setPendingImageFile(null)
+    setPendingImagePreview(null)
   }
 
   // Handle quick reply selection
@@ -384,7 +443,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
                         }}
                       />
                     ) : (
-                      <p className="text-xs md:text-fluid-sm break-all whitespace-pre-wrap" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{parseMessage(msg.message)}</p>
+                      <p className="text-xs md:text-fluid-sm break-words whitespace-pre-wrap" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>{parseMessage(msg.message)}</p>
                     )}
                     <p className="text-xs opacity-70 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</p>
                   </div>
@@ -399,6 +458,31 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
           {!allowChat && (
             <div className="p-2 bg-yellow-50 border-b border-yellow-200 text-xs md:text-sm text-yellow-800">
               Chat is disabled for this order. Existing messages are visible but no new messages can be sent.
+            </div>
+          )}
+          
+          {/* Image preview thumbnail - shown above input when image is selected */}
+          {pendingImagePreview && (
+            <div className="px-3 pt-3 pb-2 flex items-start gap-2">
+              <div className="relative">
+                <Image
+                  src={pendingImagePreview}
+                  alt="Preview"
+                  width={64}
+                  height={64}
+                  className="rounded border object-cover"
+                  style={{ width: "64px", height: "64px" }}
+                />
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute -top-2 -right-2 h-5 w-5 rounded-full"
+                  onClick={handleRemovePendingImage}
+                  disabled={isUploading}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
           )}
           
@@ -457,7 +541,7 @@ export function OwnerChatDialog({ orderId, open, onOpenChange }: OwnerChatDialog
             className="text-xs md:text-fluid-sm"
             disabled={isUploading || !allowChat}
           />
-          <Button onClick={handleSend} size="icon" disabled={isUploading || !message.trim() || !allowChat}>
+          <Button onClick={handleSend} size="icon" disabled={isUploading || (!message.trim() && !pendingImageFile) || !allowChat}>
             <Send className="w-4 h-4" />
           </Button>
           </div>

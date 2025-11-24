@@ -708,8 +708,8 @@ export const create = mutation({
     // Use different message text for pre-order-pending status vs regular pending/other statuses
     // Both pre-orders and regular orders (including pending non-preorders) get initial messages
     const initialMessage = args.status === "pre-order-pending" 
-      ? `Pre-order placed. We'll review and confirm your order soon. Order #${orderId.toString().slice(-6).toUpperCase()} | View details: /owner?orderId=${orderId}`
-      : `Order placed. We'll review and confirm your order soon. Order #${orderId.toString().slice(-6).toUpperCase()} | View details: /owner?orderId=${orderId}`;
+      ? `Pre-order placed.\n\nWe'll review and confirm your order soon.\n\nOrder #${orderId.toString().slice(-6).toUpperCase()}\nView details: /owner?orderId=${orderId}`
+      : `Order placed.\n\nWe'll review and confirm your order soon.\n\nOrder #${orderId.toString().slice(-6).toUpperCase()}\nView details: /owner?orderId=${orderId}`;
     
     // Only seed message if owner exists (should always exist, but check for safety)
     if (ownerUser) {
@@ -821,13 +821,24 @@ export const update = mutation({
       // Trigger condition: status transitions from "pre-order-pending" to "pending"
       // This informs both customer and owner in the shared chat thread.
       if (existing.status === "pre-order-pending" && data.status === "pending") {
+        // Check if order has 50% downpayment with online remaining balance payment method
+        // In this case, notify customer to upload remaining balance payment proof
+        const isDownpaymentWithOnlineRemaining = 
+          existing.paymentPlan === "downpayment" && 
+          existing.remainingPaymentMethod === "online";
+        
+        // Use different message based on payment plan and remaining payment method
+        const message = isDownpaymentWithOnlineRemaining
+          ? `Pre-order acknowledged.\n\nPlease upload your remaining balance payment proof at the Pre-Orders tab or here:\n\nView details: /customer?orderId=${id}`
+          : `Pre-order acknowledged.\n\nWe'll notify you when it's being prepared.\n\nView details: /customer?orderId=${id}`;
+        
         await ctx.db.insert("chat_messages", {
           orderId: id as unknown as string,
           senderId: currentUser._id as unknown as string,
           senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
           senderRole: "owner",
           // Include a customer-friendly details link parsed by chat dialogs into a button
-          message: `Pre-order acknowledged. We'll notify you when it's being prepared. View details: /customer?orderId=${id}`,
+          message,
           timestamp: Date.now(),
         });
         chatMessageSent = true;
@@ -856,7 +867,7 @@ export const update = mutation({
           senderId: currentUser._id as unknown as string,
           senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
           senderRole: "owner",
-          message: `Your order is ready for pickup! View details: /customer?orderId=${id}`,
+          message: `Your order is ready for pickup!\n\nView details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
         chatMessageSent = true;
@@ -871,7 +882,7 @@ export const update = mutation({
           senderId: currentUser._id as unknown as string,
           senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
           senderRole: "owner",
-          message: `Your order is on the way! View details: /customer?orderId=${id}`,
+          message: `Your order is on the way!\n\nView details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
         chatMessageSent = true;
@@ -886,7 +897,7 @@ export const update = mutation({
           senderId: currentUser._id as unknown as string,
           senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
           senderRole: "owner",
-          message: `Your order has been delivered! Thank you for your order. View details: /customer?orderId=${id}`,
+          message: `Your order has been delivered!\n\nThank you for your order.\n\nView details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
         chatMessageSent = true;
@@ -901,7 +912,7 @@ export const update = mutation({
           senderId: currentUser._id as unknown as string,
           senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
           senderRole: "owner",
-          message: `Your order has been completed! Thank you for your order. View details: /customer?orderId=${id}`,
+          message: `Your order has been completed!\n\nThank you for your order.\n\nView details: /customer?orderId=${id}`,
           timestamp: Date.now(),
         });
         chatMessageSent = true;
@@ -923,7 +934,7 @@ export const update = mutation({
           senderId: currentUser._id as unknown as string,
           senderName: restaurant?.name || `${currentUser.firstName} ${currentUser.lastName}`,
           senderRole: "owner",
-          message: `Your order was not approved. Please wait while a representative reviews it and assists with the resolution. Reason: ${reason}`,
+          message: `Your order was not approved.\n\nPlease wait while a representative reviews it and assists with the resolution.\n\nReason: ${reason}`,
           timestamp: Date.now(),
         });
         chatMessageSent = true;
@@ -1064,7 +1075,7 @@ export const update = mutation({
           senderId: ownerUser._id as unknown as string,
           senderName: restaurant?.name || `${ownerUser.firstName} ${ownerUser.lastName}`,
           senderRole: "owner",
-          message: `Your refund is on the way! It will be processed within 1–3 business days. We'll send it to the GCash number you provided (+63) ${gcashNumber} and share a screenshot once completed 😊`,
+          message: `Order cancelled.\n\nIf a valid payment was made, your refund is on the way and will be processed within 1-3 business days. We'll send it to the GCash number you provided (+63) ${gcashNumber} and share a screenshot once completed.\n\nIf no valid payment was received, we'll notify you right away with the details and any next steps.😊`,
           timestamp: Date.now(),
         });
       }
