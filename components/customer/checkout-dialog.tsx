@@ -320,7 +320,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
   }, [restrictionsActive, scheduledDates, preOrderDate])
   // Initialize as undefined to require explicit selection
   const [paymentPlan, setPaymentPlan] = useState<"full" | "downpayment" | undefined>(undefined)
-  const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash">("online")
+  const [downpaymentMethod, setDownpaymentMethod] = useState<"online" | "cash" | undefined>(undefined)
   // Special instructions with auto-save to localStorage
   const [specialInstructions, setSpecialInstructions] = useState<string>("")
   
@@ -644,6 +644,13 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
           return
         }
         
+        // Validate downpayment method when payment plan is downpayment
+        if (paymentPlan === "downpayment" && !downpaymentMethod) {
+          setIsSubmitting(false)
+          toast.error("Please select remaining balance payment method")
+          return
+        }
+        
         if (restrictionsEnabledButEmpty) {
           setIsSubmitting(false)
           toast.error("Pre-orders are temporarily unavailable", {
@@ -753,7 +760,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         paymentPlan: orderType === "pre-order" ? paymentPlan : undefined,
         downpaymentAmount: orderType === "pre-order" && paymentPlan === "downpayment" ? finalTotal * 0.5 : undefined,
         downpaymentProofUrl: undefined,
-        remainingPaymentMethod: orderType === "pre-order" && paymentPlan === "downpayment" ? (downpaymentMethod === "online" ? "online" : "cash") : undefined,
+        remainingPaymentMethod: orderType === "pre-order" && paymentPlan === "downpayment" && downpaymentMethod ? (downpaymentMethod === "online" ? "online" : "cash") : undefined,
         status: orderType === "pre-order" ? "pre-order-pending" : "pending",
         paymentScreenshot: paymentScreenshotStorageId,
         specialInstructions: specialInstructions.trim() || undefined, 
@@ -831,6 +838,10 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
       }
       if (preOrderFulfillment === "delivery" && !isAddressWithinDeliveryCoverage) {
         missing.push("Delivery address within coverage area")
+      }
+      // Validate downpayment method when payment plan is downpayment
+      if (paymentPlan === "downpayment" && !downpaymentMethod) {
+        missing.push("Remaining balance payment method")
       }
     }
     
@@ -1013,10 +1024,12 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 {/* Downpayment Method - if downpayment is selected */}
                 {paymentPlan === "downpayment" && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Remaining balance payment method</p>
-                    <Select value={downpaymentMethod} onValueChange={(v: RemainingPaymentMethod) => setDownpaymentMethod(v)}>
+                    <p className="text-xs text-gray-500 mb-1">
+                      Remaining balance payment method <span className="text-red-500">*</span>
+                    </p>
+                    <Select value={downpaymentMethod ?? ""} onValueChange={(v: RemainingPaymentMethod) => setDownpaymentMethod(v)}>
                       <SelectTrigger className="w-full text-xs">
-                        <SelectValue placeholder="Balance Payment Method" className="text-gray-500" />
+                        <SelectValue placeholder="Select" className="text-gray-500" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="online" className="text-xs">Online</SelectItem>
@@ -1366,6 +1379,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 (orderType === "pre-order" && (
                   !preOrderFulfillment || // Require fulfillment method selection
                   !paymentPlan || // Require payment terms selection
+                  (paymentPlan === "downpayment" && !downpaymentMethod) || // Require downpayment method when downpayment is selected
                   restrictionsEnabledButEmpty ||
                   !preOrderDate || 
                   !preOrderTime || 
