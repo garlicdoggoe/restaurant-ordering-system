@@ -520,6 +520,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         averageDeliveryTime: restaurantDoc.averageDeliveryTime,
         platformFee: restaurantDoc.platformFee,
         platformFeeEnabled: restaurantDoc.platformFeeEnabled,
+        feePerKilometer: restaurantDoc.feePerKilometer,
         preorderSchedule: normalizePreorderSchedule(restaurantDoc.preorderSchedule),
         coordinates: restaurantDoc.coordinates,
         preorderNotification: restaurantDoc.preorderNotification,
@@ -536,6 +537,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         status: "open",
         averagePrepTime: 0,
         averageDeliveryTime: 0,
+        feePerKilometer: 15,
         preorderSchedule: normalizePreorderSchedule(undefined),
       } as Restaurant), [restaurantDoc])
 
