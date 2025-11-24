@@ -254,31 +254,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     // preOrderTime intentionally excluded from dependencies to prevent resetting while user types
   ])
 
-  // Restore any pending image from localStorage (if available)
-  useEffect(() => {
-    const key = "checkout_payment_image"
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null
-    if (!raw) return
-    try {
-      const stored = JSON.parse(raw) as { name: string; type: string; dataUrl: string }
-      if (!stored?.dataUrl) return
-      setPreviewUrl(stored.dataUrl)
-      // Recreate File from data URL so submit flow can upload it
-      fetch(stored.dataUrl)
-        .then((r) => r.blob())
-        .then((blob) => {
-          const file = new File([blob], stored.name || "payment.jpg", { type: stored.type || blob.type })
-          setPaymentScreenshot(file)
-        })
-        .catch(() => {
-          // If reconstruction fails, just clear the preview
-          setPreviewUrl(null)
-        })
-    } catch {
-      // Ignore corrupted localStorage
-    }
-  }, [])
-
   // Load saved special instructions
   useEffect(() => {
     try {
@@ -338,15 +313,12 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
       // Set the compressed file instead of the original
       setPaymentScreenshot(compressedFile)
       
-      // Create immediate preview and persist temporarily in localStorage
+      // Create immediate preview and keep it in-memory only
       const dataUrl = await fileToDataUrl(compressedFile)
       setPreviewUrl((prev) => {
         if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev)
         return dataUrl
       })
-      const key = "checkout_payment_image"
-      const payload = { name: compressedFile.name, type: compressedFile.type, dataUrl }
-      window.localStorage.setItem(key, JSON.stringify(payload))
     } catch (err) {
       console.error("Failed to compress or prepare image preview", err)
     }
@@ -528,10 +500,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         duration: 4000,
       })
 
-      // Clear the temporarily saved image from localStorage after success
-      try {
-        window.localStorage.removeItem("checkout_payment_image")
-      } catch {}
       if (previewUrl && previewUrl.startsWith("blob:")) {
         URL.revokeObjectURL(previewUrl)
       }
@@ -755,9 +723,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
               onRemoveImage={() => {
                 setPaymentScreenshot(null)
                 setPreviewUrl(null)
-                try {
-                  window.localStorage.removeItem("checkout_payment_image")
-                } catch {}
               }}
               onOpenModal={() => setPaymentModalOpen(true)}
               onCloseModal={() => setPaymentModalOpen(false)}

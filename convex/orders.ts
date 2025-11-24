@@ -163,20 +163,26 @@ export const getCurrentUserRole = query({
 
 // Optimized orders.list - no user lookup inside, eliminates user dependency
 export const list = query({
-  args: { 
-    userRole: v.union(v.literal("owner"), v.literal("customer")),
-    userId: v.string()
-  },
-  handler: async (ctx, { userRole, userId }) => {
-    if (userRole === "owner") {
-      // Use status index to enable partial cache hits
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    if (currentUser.role === "owner") {
+      // Owner can see all orders
       return await ctx.db.query("orders").collect();
     }
-    
-    // Customer: only own orders
+
     return await ctx.db
       .query("orders")
-      .withIndex("by_customerId", (q) => q.eq("customerId", userId))
+      .withIndex("by_customerId", (q) => q.eq("customerId", currentUser._id as unknown as string))
       .collect();
   },
 });
@@ -195,11 +201,19 @@ export const listByStatus = query({
       v.literal("delivered"),
       v.literal("pre-order-pending")
     )),
-    userRole: v.union(v.literal("owner"), v.literal("customer")),
-    userId: v.string()
   },
-  handler: async (ctx, { status, userRole, userId }) => {
-    if (userRole === "owner") {
+  handler: async (ctx, { status }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    if (currentUser.role === "owner") {
       if (status) {
         return await ctx.db
           .query("orders")
@@ -211,11 +225,10 @@ export const listByStatus = query({
     }
     
     // Customer filtered by customerId and optional status
-    let query = ctx.db
+    const results = await ctx.db
       .query("orders")
-      .withIndex("by_customerId", (q) => q.eq("customerId", userId));
-    
-    const results = await query.collect();
+      .withIndex("by_customerId", (q) => q.eq("customerId", currentUser._id as unknown as string))
+      .collect();
     return status ? results.filter(o => o.status === status) : results;
   },
 });
@@ -247,6 +260,22 @@ export const getById = query({
 export const getCustomerPendingOrder = query({
   args: { customerId: v.string() },
   handler: async (ctx, { customerId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    const isOwner = currentUser.role === "owner";
+    const isSelf = customerId === (currentUser._id as unknown as string);
+    if (!isOwner && !isSelf) {
+      throw new Error("Unauthorized to view pending orders for this customer");
+    }
+
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_customerId", (q) => q.eq("customerId", customerId))

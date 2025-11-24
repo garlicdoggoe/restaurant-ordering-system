@@ -58,7 +58,6 @@ export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
   // State for remaining payment proof upload - per order
   const [, setUploadingOrderId] = useState<string | null>(null)
   const [orderUploadStates, setOrderUploadStates] = useState<Record<string, { file: File | null; previewUrl: string | null }>>({})
-  const [hasRestoredFromStorage, setHasRestoredFromStorage] = useState(false)
   
   // State for expanded/collapsed order cards
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set())
@@ -89,46 +88,6 @@ export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
       return order.status === filter
     },
   })
-
-  // Restore pending proofs from localStorage for each order
-  // Key format: remaining_payment_proof_<orderId>
-  // Only restore once on mount to avoid re-restoring after cancel
-  React.useEffect(() => {
-    if (hasRestoredFromStorage) return
-
-    try {
-      const nextState: Record<string, { file: File | null; previewUrl: string | null }> = {}
-      filteredOrders.forEach((order) => {
-        if (order.remainingPaymentProofUrl) return
-        const key = `remaining_payment_proof_${order._id}`
-        const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null
-        if (!raw) return
-        try {
-          const stored = JSON.parse(raw) as { name: string; type: string; dataUrl: string }
-          if (!stored?.dataUrl) return
-          // Recreate File from data URL so confirm flow can upload it later
-          nextState[order._id] = { file: null, previewUrl: stored.dataUrl }
-          fetch(stored.dataUrl)
-            .then((r) => r.blob())
-            .then((blob) => {
-              const file = new File([blob], stored.name || "remaining-payment.jpg", { type: stored.type || blob.type })
-              setOrderUploadStates((prev) => ({ ...prev, [order._id]: { file, previewUrl: stored.dataUrl } }))
-            })
-            .catch(() => {
-              // Ignore failures, user can reselect
-            })
-        } catch {
-          // Ignore corrupted entry
-        }
-      })
-      if (Object.keys(nextState).length > 0) {
-        setOrderUploadStates((prev) => ({ ...nextState, ...prev }))
-      }
-      setHasRestoredFromStorage(true)
-    } catch {
-      // Ignore
-    }
-  }, [hasRestoredFromStorage, filteredOrders])
 
   const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -168,9 +127,6 @@ export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
         ...prev,
         [orderId]: { file, previewUrl: dataUrl },
       }))
-      const key = `remaining_payment_proof_${orderId}`
-      const payload = { name: file.name, type: file.type, dataUrl }
-      window.localStorage.setItem(key, JSON.stringify(payload))
       toast.success("Image ready. Click Confirm Upload to finalize.")
     } catch (err) {
       console.error("Failed to prepare image preview", err)
@@ -199,8 +155,7 @@ export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
       // Update the order with the storage ID - Convex will resolve to URL
       updateOrder(orderId, { remainingPaymentProofUrl: storageId })
 
-      // Clear local pending state and storage
-      try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
+      // Clear local pending state
       setOrderUploadStates((prev) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [orderId]: _, ...rest } = prev
@@ -217,8 +172,6 @@ export function OrderHistory({ onNavigateToInbox }: OrderHistoryProps) {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _handleCancelPendingRemainingPayment = (orderId: string) => {
-    // Clear localStorage immediately to prevent re-restoration by useEffect
-    try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
     // Clear from state synchronously to update UI immediately
     setOrderUploadStates((prev) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

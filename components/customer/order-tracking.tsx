@@ -56,42 +56,9 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
   // State for remaining payment proof upload - per order
   const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null)
   const [orderUploadStates, setOrderUploadStates] = useState<Record<string, { file: File | null; previewUrl: string | null }>>({})
-  const [hasRestoredFromStorage, setHasRestoredFromStorage] = useState(false)
 
   // Convex mutations and queries for file upload
   const generateUploadUrl = useMutation(api.files.generateUploadUrl)
-
-  // Restore pending proofs from localStorage for the current order
-  React.useEffect(() => {
-    if (hasRestoredFromStorage || !order) return
-
-    try {
-      if (order.remainingPaymentProofUrl) return
-      const key = `remaining_payment_proof_${order._id}`
-      const raw = typeof window !== "undefined" ? window.localStorage.getItem(key) : null
-      if (!raw) return
-      try {
-        const stored = JSON.parse(raw) as { name: string; type: string; dataUrl: string }
-        if (!stored?.dataUrl) return
-        // Recreate File from data URL so confirm flow can upload it later
-        setOrderUploadStates((prev) => ({ ...prev, [order._id]: { file: null, previewUrl: stored.dataUrl } }))
-        fetch(stored.dataUrl)
-          .then((r) => r.blob())
-          .then((blob) => {
-            const file = new File([blob], stored.name || "remaining-payment.jpg", { type: stored.type || blob.type })
-            setOrderUploadStates((prev) => ({ ...prev, [order._id]: { file, previewUrl: stored.dataUrl } }))
-          })
-          .catch(() => {
-            // Ignore failures, user can reselect
-          })
-      } catch {
-        // Ignore corrupted entry
-      }
-      setHasRestoredFromStorage(true)
-    } catch {
-      // Ignore
-    }
-  }, [hasRestoredFromStorage, order])
 
   if (!order) return null
 
@@ -129,9 +96,6 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
         ...prev,
         [orderId]: { file, previewUrl: dataUrl },
       }))
-      const key = `remaining_payment_proof_${orderId}`
-      const payload = { name: file.name, type: file.type, dataUrl }
-      window.localStorage.setItem(key, JSON.stringify(payload))
       toast.success("Image ready. Click Confirm Upload to finalize.")
     } catch (err) {
       console.error("Failed to prepare image preview", err)
@@ -159,8 +123,7 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
       // Update the order with the storage ID - Convex will resolve to URL
       updateOrder(orderId, { remainingPaymentProofUrl: storageId })
 
-      // Clear local pending state and storage
-      try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
+      // Clear local pending state
       setOrderUploadStates((prev) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [orderId]: _, ...rest } = prev
@@ -176,8 +139,6 @@ export function OrderTracking({ orderId }: OrderTrackingProps) {
   }
 
   const handleCancelPendingRemainingPayment = (orderId: string) => {
-    // Clear localStorage immediately to prevent re-restoration by useEffect
-    try { window.localStorage.removeItem(`remaining_payment_proof_${orderId}`) } catch {}
     // Clear from state synchronously to update UI immediately
     setOrderUploadStates((prev) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

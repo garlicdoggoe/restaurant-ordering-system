@@ -385,72 +385,70 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // NEW: Pass role and userId to avoid internal user lookup - eliminates user dependency
   const ordersDocs = useQuery(
     api.orders.list, 
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role && userRoleDoc.userId
-      ? { userRole: userRoleDoc.role, userId: userRoleDoc.userId }
-      : "skip"
+    shouldFetchOrders ? undefined : "skip"
   ) ?? []
   
   // NEW: Status-specific queries for owners to prevent full cache invalidation during status changes
   const pendingOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "pending", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "pending" }
       : "skip"
   ) ?? []
   
   const acceptedOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "accepted", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "accepted" }
       : "skip"
   ) ?? []
   
   const readyOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "ready", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "ready" }
       : "skip"
   ) ?? []
   
   const completedOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "completed", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "completed" }
       : "skip"
   ) ?? []
   
   const deniedOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "denied", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "denied" }
       : "skip"
   ) ?? []
   
   const cancelledOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "cancelled", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "cancelled" }
       : "skip"
   ) ?? []
   
   const inTransitOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "in-transit", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "in-transit" }
       : "skip"
   ) ?? []
   
   const deliveredOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "delivered", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "delivered" }
       : "skip"
   ) ?? []
   
   const preOrderPendingOrders = useQuery(
     api.orders.listByStatus,
-    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner" && userRoleDoc.userId
-      ? { status: "pre-order-pending", userRole: userRoleDoc.role, userId: userRoleDoc.userId }
+    shouldFetchOrders && userRoleDoc && userRoleDoc.role === "owner"
+      ? { status: "pre-order-pending" }
       : "skip"
   ) ?? []
   const vouchersDocs = useQuery(api.vouchers.list) ?? []

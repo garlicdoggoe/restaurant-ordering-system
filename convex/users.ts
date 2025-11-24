@@ -200,7 +200,26 @@ export const updateUserProfile = mutation({
 export const getUserById = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    return await ctx.db.get(userId);
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    const targetUser = await ctx.db.get(userId);
+    if (!targetUser) return null;
+
+    const isOwner = currentUser.role === "owner";
+    const isSelf = targetUser._id === currentUser._id;
+    if (!isOwner && !isSelf) {
+      throw new Error("Unauthorized: Access denied");
+    }
+
+    return targetUser;
   },
 });
 
@@ -208,9 +227,26 @@ export const getUserById = query({
 export const getUserByIdString = query({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
-    // Convert string ID to Convex ID type
-    const user = await ctx.db.get(userId as any);
-    return user;
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!currentUser) throw new Error("User not found");
+
+    const targetUser = await ctx.db.get(userId as any);
+    if (!targetUser) return null;
+
+    const isOwner = currentUser.role === "owner";
+    const isSelf = (targetUser._id as unknown as string) === userId || targetUser._id === currentUser._id;
+    if (!isOwner && !isSelf) {
+      throw new Error("Unauthorized: Access denied");
+    }
+
+    return targetUser;
   },
 });
 

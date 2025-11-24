@@ -766,20 +766,20 @@ export function RestaurantSettings() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="fee-per-kilometer">Delivery Fee per Kilometer (₱)</Label>
-                <Input
-                  id="fee-per-kilometer"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.feePerKilometer}
-                  onChange={(e) => setFormData({ ...formData, feePerKilometer: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Fee charged per kilometer for distances over 1km. First 0.5km is free, 0.5-1km is ₱20.
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="fee-per-kilometer">Delivery Fee per Kilometer (₱)</Label>
+              <Input
+                id="fee-per-kilometer"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.feePerKilometer}
+                onChange={(e) => setFormData({ ...formData, feePerKilometer: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Fee charged per kilometer for distances over 1km. First 0.5km is free, 0.5-1km is ₱20.
+              </p>
+            </div>
             </div>
 
             <Button type="submit" className="w-full">

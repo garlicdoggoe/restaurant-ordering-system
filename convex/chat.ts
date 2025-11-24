@@ -5,6 +5,25 @@ import { checkRateLimit } from "./rateLimit";
 export const listByOrder = query({
   args: { orderId: v.string() },
   handler: async (ctx, { orderId }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const clerkId = identity?.subject;
+    if (!clerkId) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
+      .first();
+    if (!user) throw new Error("User not found");
+
+    const order = await ctx.db.get(orderId as any);
+    if (!order) throw new Error("Order not found");
+
+    const isOwner = user.role === "owner";
+    const isCustomer = (order as any).customerId === (user._id as unknown as string);
+    if (!isOwner && !isCustomer) {
+      throw new Error("Unauthorized: You don't have access to this order");
+    }
+
     return await ctx.db
       .query("chat_messages")
       .withIndex("by_orderId", (q) => q.eq("orderId", orderId))
