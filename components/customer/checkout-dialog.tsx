@@ -2,46 +2,26 @@
 
 import type React from "react"
 
-import { useEffect, useMemo, useState, Suspense } from "react"
-import { ChevronDown } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-// Switched order type controls to dropdown Select components
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Separator } from "@/components/ui/separator"
-import { useData, type PreOrderFulfillment, type PaymentPlan, type RemainingPaymentMethod, type PreorderSchedule, type PreorderScheduleDate } from "@/lib/data-context"
+import { useData, type PreorderSchedule, type PreorderScheduleDate } from "@/lib/data-context"
 import { useCart } from "@/lib/cart-context"
 import { useMutation, useAction } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { toast } from "sonner"
 import { calculateDeliveryFee, isWithinDeliveryCoverage } from "@/lib/order-utils"
-import dynamic from "next/dynamic"
 import { isValidPhoneNumber } from "@/lib/phone-validation"
-
-// Dynamically import AddressMapPicker with error handling and loading state
-// Using default export from address-map-picker
-const AddressMapPicker = dynamic(
-  () => import("@/components/ui/address-map-picker").catch(() => {
-    // Return a fallback component if import fails
-    // Note: Dynamic import errors are handled gracefully with fallback UI
-    return { default: () => (
-      <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground border rounded-md">
-        Map unavailable. Please refresh the page.
-      </div>
-    ) };
-  }),
-  { 
-    ssr: false,
-    loading: () => <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground border rounded-md">Loading map...</div>
-  }
-)
-import { PaymentModal } from "@/components/ui/payment-modal"
 import { compressImage } from "@/lib/image-compression"
-import Image from "next/image"
-import { BundleItemsList } from "@/components/shared/bundle-items-list"
+import { getTodayIsoDate, DEFAULT_PREORDER_TIME, formatTimeRange12h, timeToMinutes } from "@/lib/time-utils"
+import { validatePreOrderDate, validatePreOrderTime, clampPreOrderDate, clampPreOrderTime } from "@/lib/checkout-validation"
+import { CheckoutDeliveryAddress } from "@/components/customer/checkout-delivery-address"
+import { CheckoutPreorderOptions } from "@/components/customer/checkout-preorder-options"
+import { CheckoutDateTime } from "@/components/customer/checkout-date-time"
+import { CheckoutPaymentOptions } from "@/components/customer/checkout-payment-options"
+import { CheckoutOrderSummary } from "@/components/customer/checkout-order-summary"
 
 interface CartItem {
   id: string
@@ -67,210 +47,6 @@ interface CheckoutDialogProps {
   onCloseCart?: () => void
 }
 
-const DEFAULT_PREORDER_TIME = "13:00"
-const HOURS_12 = Array.from({ length: 12 }, (_v, idx) => String(idx + 1).padStart(2, "0"))
-const MINUTES_60 = Array.from({ length: 60 }, (_v, idx) => String(idx).padStart(2, "0"))
-const PERIODS: Array<"AM" | "PM"> = ["AM", "PM"]
-
-const getTodayIsoDate = () => {
-  const now = new Date()
-  return now.toISOString().split("T")[0]
-}
-
-const timeToMinutes = (value: string | undefined) => {
-  if (!value) return null
-  const [hh, mm] = value.split(":").map(Number)
-  if (Number.isNaN(hh) || Number.isNaN(mm)) return null
-  return hh * 60 + mm
-}
-
-const to12HourParts = (value?: string) => {
-  if (!value) {
-    return { hour: "12", minute: "00", period: "PM" as "AM" | "PM" }
-  }
-  const [hhStr, mm] = value.split(":")
-  let hh = Number(hhStr)
-  const period = hh >= 12 ? "PM" : "AM"
-  hh = hh % 12
-  if (hh === 0) hh = 12
-  return {
-    hour: String(hh).padStart(2, "0"),
-    minute: mm ?? "00",
-    period,
-  }
-}
-
-const to24HourString = (hour: string, minute: string, period: "AM" | "PM") => {
-  let hh = Number(hour)
-  if (period === "PM" && hh !== 12) {
-    hh += 12
-  }
-  if (period === "AM" && hh === 12) {
-    hh = 0
-  }
-  const minuteClean = minute.padStart(2, "0")
-  return `${String(hh).padStart(2, "0")}:${minuteClean}`
-}
-
-const formatTime12h = (value?: string) => {
-  if (!value) return ""
-  const { hour, minute, period } = to12HourParts(value)
-  const minuteClean = minute ?? "00"
-  return `${Number(hour)}:${minuteClean} ${period}`
-}
-
-const formatTimeRange12h = (start?: string, end?: string) => {
-  if (!start || !end) return ""
-  return `${formatTime12h(start)} - ${formatTime12h(end)}`
-}
-
-interface NumericDropdownInputProps {
-  value: string
-  onChange: (value: string) => void
-  options: string[]
-  optionLabel?: (value: string) => string
-  disabled?: boolean
-  ariaLabel: string
-  size?: "sm" | "md"
-}
-
-const NumericDropdownInput = ({
-  value,
-  onChange,
-  options,
-  optionLabel,
-  disabled,
-  ariaLabel,
-  size = "md",
-}: NumericDropdownInputProps) => {
-  const [internal, setInternal] = useState(value)
-
-  useEffect(() => {
-    setInternal(value)
-  }, [value])
-
-  const sanitize = (input: string) => input.replace(/[^0-9]/g, "").slice(0, 2)
-
-  const commitValue = (next: string) => {
-    const fallback = options[0] ?? "00"
-    const normalized = next ? sanitize(next).padStart(2, "0") : fallback
-    setInternal(normalized)
-    onChange(normalized)
-  }
-
-  const inputClasses =
-    size === "sm"
-      ? "w-16 h-8 text-center text-xs px-2"
-      : "w-20 text-center"
-
-  const triggerClasses =
-    size === "sm"
-      ? "h-8 w-8"
-      : "w-10 h-10"
-
-  const iconClasses = size === "sm" ? "h-3 w-3" : "h-4 w-4"
-
-  const menuClasses = size === "sm" ? "text-xs" : ""
-
-  return (
-    <div className="flex items-center gap-1">
-      <Input
-        value={internal}
-        onChange={(e) => setInternal(sanitize(e.target.value))}
-        onBlur={() => commitValue(internal)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            commitValue((e.currentTarget as HTMLInputElement).value)
-          }
-        }}
-        disabled={disabled}
-        inputMode="numeric"
-        aria-label={ariaLabel}
-        className={inputClasses}
-      />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            disabled={disabled}
-            aria-label={`${ariaLabel} options`}
-            className={triggerClasses}
-          >
-            <ChevronDown className={iconClasses} />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="max-h-60 overflow-y-auto p-0 text-xs">
-          {options.map((option) => (
-            <DropdownMenuItem
-              key={`${ariaLabel}-${option}`}
-              onSelect={() => commitValue(option)}
-              className={menuClasses}
-            >
-              {optionLabel ? optionLabel(option) : option}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
-}
-
-interface TimePickerProps {
-  id: string
-  value: string
-  onChange: (value: string) => void
-  disabled?: boolean
-}
-
-const TimePicker = ({ id, value, onChange, disabled }: TimePickerProps) => {
-  const { hour, minute, period } = to12HourParts(value)
-
-  const updateValue = (next: Partial<{ hour: string; minute: string; period: "AM" | "PM" }>) => {
-    const merged = {
-      hour,
-      minute,
-      period,
-      ...next,
-    }
-    onChange(to24HourString(merged.hour, merged.minute, merged.period as "AM" | "PM"))
-  }
-
-  return (
-    <div className="flex flex-wrap gap-1.5" id={id}>
-      <NumericDropdownInput
-        value={hour}
-        onChange={(val) => updateValue({ hour: val })}
-        options={HOURS_12}
-        optionLabel={(val) => `${Number(val)}`}
-        disabled={disabled}
-        ariaLabel="Hour"
-        size="sm"
-      />
-      <NumericDropdownInput
-        value={minute}
-        onChange={(val) => updateValue({ minute: val })}
-        options={MINUTES_60}
-        disabled={disabled}
-        ariaLabel="Minute"
-        size="sm"
-      />
-      <Select value={period} onValueChange={(val: "AM" | "PM") => updateValue({ period: val })} disabled={disabled}>
-        <SelectTrigger className="w-18 h-8 text-xs">
-          <SelectValue className="text-xs" />
-        </SelectTrigger>
-        <SelectContent>
-          {PERIODS.map((option) => (
-            <SelectItem key={`period-${option}`} value={option} className="text-xs">
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  )
-}
 
 export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSuccess, onOpenSettings, onNavigateToView, onCloseCart }: CheckoutDialogProps) {
   const [orderType, setOrderType] = useState<"dine-in" | "takeaway" | "delivery" | "pre-order">("pre-order")
@@ -309,10 +85,10 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
   // Initialize as undefined to require explicit selection
   const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery" | undefined>(undefined)
   const [preOrderDate, setPreOrderDate] = useState<string>(() =>
-    restrictionsActive ? scheduledDates[0]?.date ?? "" : getTodayIsoDate(),
+    restrictionsActive ? "" : getTodayIsoDate(),
   )
   const [preOrderTime, setPreOrderTime] = useState<string>(() =>
-    restrictionsActive ? scheduledDates[0]?.startTime ?? "" : DEFAULT_PREORDER_TIME,
+    restrictionsActive ? "" : DEFAULT_PREORDER_TIME,
   )
   const selectedScheduleEntry = useMemo(() => {
     if (!restrictionsActive) return undefined
@@ -425,14 +201,24 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     }
 
     if (restrictionsActive) {
-      if (!selectedScheduleEntry) return
-      // Only update date if it doesn't match the selected entry
-      if (preOrderDate !== selectedScheduleEntry.date) {
-        setPreOrderDate(selectedScheduleEntry.date)
-        // When date changes, also reset time to the start time of the new date
-        setPreOrderTime(selectedScheduleEntry.startTime)
+      // Don't auto-select a date - require user to explicitly choose
+      // Only validate and reset if date is set
+      if (!preOrderDate) {
+        // No date selected - clear time and errors
+        setPreOrderTime("")
+        setDateError("")
+        setTimeError("")
         return
       }
+      
+      if (!selectedScheduleEntry) {
+        // Date is set but doesn't match any schedule entry - validate it
+        const dateError = validateDate(preOrderDate)
+        setDateError(dateError)
+        setPreOrderTime("")
+        return
+      }
+      
       // Only validate and reset time if it's outside the allowed window
       // This check runs when schedule changes, but not on every time change
       const startMinutes = timeToMinutes(selectedScheduleEntry.startTime)
@@ -444,8 +230,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         currentMinutes !== null &&
         (currentMinutes < startMinutes || currentMinutes > endMinutes)
       ) {
-        // Only reset if time is invalid - don't reset if user is typing a valid time
-        setPreOrderTime(selectedScheduleEntry.startTime)
+        // Only reset if time is invalid - reset to empty to require user selection
+        setPreOrderTime("")
       }
       setDateError("")
       setTimeError("")
@@ -532,42 +318,13 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     return `${friendlyDate} • ${formatTimeRange12h(entry.startTime, entry.endTime)}`
   }
 
-  // Validation + normalization helpers respect the owner's schedule
-  const validatePreOrderDate = (date: string): string => {
-    if (!date || !restrictionsEnabled) return ""
-    if (!hasConfiguredDates) {
-      return "Owner has not published any pre-order dates."
-    }
-    const allowed = scheduledDates.some((entry) => entry.date === date)
-    return allowed ? "" : "Please choose one of the published pre-order dates."
+  // Validation helpers using imported functions
+  const validateDate = (date: string): string => {
+    return validatePreOrderDate(date, restrictionsEnabled, hasConfiguredDates, scheduledDates)
   }
 
-  const clampPreOrderDate = (date: string): string => {
-    if (!date) return getTodayIsoDate()
-    return date
-  }
-
-  const validatePreOrderTime = (time: string, date: string): string => {
-    if (!time || !restrictionsEnabled) return ""
-    const entry = scheduledDates.find((d) => d.date === date)
-    if (!entry) {
-      return "Choose an available date first."
-    }
-    const selectedMinutes = timeToMinutes(time)
-    const startMinutes = timeToMinutes(entry.startTime)
-    const endMinutes = timeToMinutes(entry.endTime)
-    if (selectedMinutes === null || startMinutes === null || endMinutes === null) {
-      return "Invalid time format."
-    }
-    if (selectedMinutes < startMinutes || selectedMinutes > endMinutes) {
-      return `Time must be between ${formatTime12h(entry.startTime)} and ${formatTime12h(entry.endTime)}`
-    }
-    return ""
-    }
-
-  const clampPreOrderTime = (time: string): string => {
-    if (!time) return DEFAULT_PREORDER_TIME
-    return time
+  const validateTime = (time: string, date: string): string => {
+    return validatePreOrderTime(time, date, restrictionsEnabled, scheduledDates)
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -658,8 +415,8 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
           })
           return
         }
-        const dateValidationError = validatePreOrderDate(preOrderDate)
-        const timeValidationError = validatePreOrderTime(preOrderTime, preOrderDate)
+        const dateValidationError = validateDate(preOrderDate)
+        const timeValidationError = validateTime(preOrderTime, preOrderDate)
         
         if (dateValidationError || timeValidationError) {
           setDateError(dateValidationError)
@@ -801,9 +558,6 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
     }
   }
 
-  // Calculate total items
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-
   // Helper function to get missing field messages
   const getMissingFields = (): string[] => {
     const missing: string[] = []
@@ -832,6 +586,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
       }
       if (dateError) {
         missing.push("Valid pre-order date")
+      }
+      if (!preOrderTime || preOrderTime === "") {
+        missing.push("Preferred time within the window")
       }
       if (timeError) {
         missing.push("Valid pre-order time")
@@ -917,239 +674,53 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
           {/* Left Column - Form Fields */}
           <div className="flex-1 px-2 md:px-6 pb-2 md:pb-6 space-y-3 md:space-y-6">
             {/* Delivery Address - only for delivery orders */}
-            {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && (
-              <div className="space-y-3">
-                {/* Show map */}
-                <div className="rounded-lg border p-3 bg-white">
-                  <Suspense fallback={<div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">Loading map...</div>}>
-                    <AddressMapPicker
-                      address={customerAddress}
-                      onAddressChange={setCustomerAddress}
-                      coordinates={deliveryCoordinates || defaultCoordinates}
-                      onCoordinatesChange={setDeliveryCoordinates}
-                      mapHeightPx={180}
-                      interactive={false}
-                      disabled={true}
-                      showSearchBox={restaurant?.allowAddressSearchBox ?? true}
-                    />
-                  </Suspense>
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    className="text-[12px] text-yellow-600 hover:text-yellow-700 underline mt-[-7px]"
-                    onClick={() => {
-                      onClose()
-                      onCloseCart?.()
-                      onOpenSettings?.()
-                    }}
-                  >
-                    Change delivery address
-                  </button>
-                </div>
-                {/* Warning message for regular delivery orders when address is out of coverage */}
-                {orderType === "delivery" && !isAddressWithinDeliveryCoverage && (
-                  <div className="mt-1 space-y-1">
-                    <p className="text-xs text-red-500">
-                      Delivery not available. Your address is outside coverage (Libmanan, Sipocot, Cabusao only).
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      <button
-                        type="button"
-                        className="text-yellow-600 hover:text-yellow-700 underline"
-                        onClick={() => {
-                          onClose()
-                          onCloseCart?.()
-                          onOpenSettings?.()
-                        }}
-                      >
-                        change delivery address
-                      </button>
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            <CheckoutDeliveryAddress
+              customerAddress={customerAddress}
+              deliveryCoordinates={deliveryCoordinates}
+              defaultCoordinates={defaultCoordinates}
+              isAddressWithinDeliveryCoverage={isAddressWithinDeliveryCoverage}
+              orderType={orderType}
+              preOrderFulfillment={preOrderFulfillment}
+              allowAddressSearchBox={restaurant?.allowAddressSearchBox ?? true}
+              onClose={onClose}
+              onCloseCart={onCloseCart}
+              onOpenSettings={onOpenSettings}
+            />
 
             {/* Pre-order fulfillment and payment options */}
             {orderType === "pre-order" && (
-              <div className="space-y-3">
-                {/* Top Row - Fulfillment Method and Payment Terms */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">
-                      Fulfillment Method <span className="text-red-500">*</span>
-                    </p>
-                    <Select 
-                      value={preOrderFulfillment ?? ""} 
-                      onValueChange={(v: PreOrderFulfillment) => {
-                        setPreOrderFulfillment(v)
-                      }}
-                    >
-                      <SelectTrigger className="w-full text-xs">
-                        <SelectValue placeholder="Select" className="text-gray-500" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pickup" className="text-xs">Pickup</SelectItem>
-                        <SelectItem value="delivery" className="text-xs">
-                          Delivery
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">
-                      Payment Terms <span className="text-red-500">*</span>
-                    </p>
-                    <Select value={paymentPlan ?? ""} onValueChange={(v: PaymentPlan) => setPaymentPlan(v)}>
-                      <SelectTrigger className="w-full text-xs">
-                        <SelectValue placeholder="Select" className="text-gray-500" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="full" className="text-xs">Pay in full</SelectItem>
-                        <SelectItem value="downpayment" className="text-xs">50% downpayment</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {/* Warning message spans full width - show when delivery is selected and address is out of coverage */}
-                {preOrderFulfillment === "delivery" && !isAddressWithinDeliveryCoverage && (
-                  <div className="mt-1 space-y-1">
-                    <p className="text-xs text-red-500">
-                      Your address is outside delivery coverage.
-                    </p>
-                  </div>
-                )}
-                {/* Downpayment Method - if downpayment is selected */}
-                {paymentPlan === "downpayment" && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">
-                      Remaining balance payment method <span className="text-red-500">*</span>
-                    </p>
-                    <Select value={downpaymentMethod ?? ""} onValueChange={(v: RemainingPaymentMethod) => setDownpaymentMethod(v)}>
-                      <SelectTrigger className="w-full text-xs">
-                        <SelectValue placeholder="Select" className="text-gray-500" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="online" className="text-xs">Online</SelectItem>
-                        <SelectItem value="cash" className="text-xs">Cash</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
+              <CheckoutPreorderOptions
+                preOrderFulfillment={preOrderFulfillment}
+                paymentPlan={paymentPlan}
+                downpaymentMethod={downpaymentMethod}
+                isAddressWithinDeliveryCoverage={isAddressWithinDeliveryCoverage}
+                onFulfillmentChange={setPreOrderFulfillment}
+                onPaymentPlanChange={setPaymentPlan}
+                onDownpaymentMethodChange={setDownpaymentMethod}
+              />
             )}
 
             {/* Date & Time for Pre-order */}
             {orderType === "pre-order" && (
-              <div className="space-y-3">
-                <Label className="text-xs md:text-sm text-gray-500">Order Date & Time</Label>
-
-                {restrictionsEnabled ? (
-                  hasConfiguredDates ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <Label htmlFor="preorder-date-select" className="block text-[12px] text-gray-500 mb-1">
-                          Available dates
-                        </Label>
-                        <Select
-                          value={preOrderDate}
-                          onValueChange={(value) => {
-                            setPreOrderDate(value)
-                            const entry = scheduledDates.find((d) => d.date === value)
-                            if (entry) {
-                              setPreOrderTime(entry.startTime)
-                              setTimeError("")
-                            }
-                            setDateError(validatePreOrderDate(value))
-                          }}
-                        >
-                          <SelectTrigger id="preorder-date-select" className="w-full text-xs">
-                            <SelectValue placeholder="Choose a date" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {scheduledDates.map((entry) => (
-                              <SelectItem key={entry.date} value={entry.date} className="text-xs">
-                                {formatScheduleLabel(entry)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="preorder-time-window" className="block text-[12px] text-gray-500">
-                          Preferred time within the window
-                        </Label>
-                        <TimePicker
-                          id="preorder-time-window"
-                          value={preOrderTime}
-                          onChange={(value) => {
-                            setPreOrderTime(value)
-                            setTimeError(validatePreOrderTime(value, preOrderDate))
-                          }}
-                          disabled={!selectedScheduleEntry}
-                        />
-                        {selectedScheduleEntry && (
-                          <p className="text-[12px] text-muted-foreground">
-                            Allowed window: {formatTimeRange12h(selectedScheduleEntry.startTime, selectedScheduleEntry.endTime)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                      The restaurant has not published any pre-order dates yet. Please check back later or contact the store
-                      for updates.
-                    </div>
-                  )
-                ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="preorder-date" className="block text-[11px] text-gray-500 mb-1">
-                      Date
-                    </Label>
-                    <Input
-                      id="preorder-date"
-                      type="date"
-                      value={preOrderDate}
-                      onChange={(e) => {
-                        const rawDate = e.target.value
-                          const normalizedDate = clampPreOrderDate(rawDate)
-                          setPreOrderDate(normalizedDate)
-                          setDateError(validatePreOrderDate(normalizedDate))
-                      }}
-                      required
-                      className="w-full text-xs relative z-[100]"
-                      placeholder="mm/dd/yyyy"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="preorder-time" className="block text-[11px] text-gray-500 mb-1">
-                      Time
-                    </Label>
-                      <TimePicker
-                      id="preorder-time"
-                      value={preOrderTime}
-                        onChange={(value) => {
-                          const normalizedTime = clampPreOrderTime(value)
-                          setPreOrderTime(normalizedTime)
-                          setTimeError(validatePreOrderTime(normalizedTime, preOrderDate))
-                      }}
-                    />
-                  </div>
-                </div>
-                )}
-
-                {dateError && <p className="text-sm text-red-500 mt-1">{dateError}</p>}
-                {timeError && <p className="text-[12px] text-red-500 mt-1">{timeError}</p>}
-
-                {!restrictionsEnabled && !timeError && (
-                  <p className="text-[12px] font-medium text-yellow-600 text-muted-foreground">
-                    Pre-orders are open for any date and time while restrictions are disabled.
-                  </p>
-                )}
-              </div>
+              <CheckoutDateTime
+                restrictionsEnabled={restrictionsEnabled}
+                hasConfiguredDates={hasConfiguredDates}
+                scheduledDates={scheduledDates}
+                selectedScheduleEntry={selectedScheduleEntry}
+                preOrderDate={preOrderDate}
+                preOrderTime={preOrderTime}
+                dateError={dateError}
+                timeError={timeError}
+                onDateChange={setPreOrderDate}
+                onTimeChange={setPreOrderTime}
+                onDateErrorChange={setDateError}
+                onTimeErrorChange={setTimeError}
+                validatePreOrderDate={validateDate}
+                validatePreOrderTime={validateTime}
+                clampPreOrderDate={clampPreOrderDate}
+                clampPreOrderTime={clampPreOrderTime}
+                formatScheduleLabel={formatScheduleLabel}
+              />
             )}
 
             {/* Special Instructions */}
@@ -1176,233 +747,56 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
             </div>
 
             {/* Payment Options */}
-            <div className="space-y-3">
-              <h3 className="text-lg mt-5 md:text-2xl font-bold text-gray-800">Payment Options</h3>
-              {/* GCash Payment Method */}
-              {currentUser?.gcashNumber && (
-                <div className="flex items-center space-x-3">
-                  <Image src="/gcash.png" alt="GCash" width={100} height={32} className="h-8 w-auto" />
-                  <p className="text-xs text-gray-800">
-                    Manual GCash payment. Please send payment to {" "}
-                    <span className="text-blue-600 font-medium">L** G** (+63) 915-777-0545</span>.
-                  </p>
-                </div>
-              )}
-
-              {/* Notification */}
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
-                  <span className="text-[12px] text-white font-bold">i</span>
-                </div>
-                <p className="text-[12px] text-yellow-600">
-                  Other payment methods will be available soon
-                </p>
-              </div>
-
-              {/* Payment Proof Upload */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-500">
-                  Payment Proof <span className="text-red-500">*</span>
-                </p>
-              </div>
-              {!previewUrl ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer">
-                  <input
-                    id="payment-screenshot"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <label htmlFor="payment-screenshot" className="cursor-pointer">
-                    <div className="w-12 h-12 mx-auto mb-3 text-gray-400 flex items-center justify-center">
-                      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                        <path d="M14 7a1 1 0 11-2 0 1 1 0 012 0z" />
-                      </svg>
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      Click to upload payment proof
-                    </p>
-                  </label>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="relative w-full h-32">
-                    <Image 
-                      src={previewUrl} 
-                      alt="Payment proof" 
-                      fill
-                      className="rounded border object-contain cursor-pointer hover:opacity-90 transition-opacity" 
-                      onClick={() => setPaymentModalOpen(true)}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      id="payment-screenshot-change"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    <label 
-                      htmlFor="payment-screenshot-change" 
-                      className="flex-1 text-yellow-600 text-sm font-medium py-1 px-4 rounded-lg cursor-pointer text-center transition-colors"
-                    >
-                      Change Photo
-                    </label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setPaymentScreenshot(null)
-                        setPreviewUrl(null)
-                        // Clear from localStorage
-                        try {
-                          window.localStorage.removeItem("checkout_payment_image")
-                        } catch {}
-                      }}
-                      className="text-sm"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <CheckoutPaymentOptions
+              gcashNumber={currentUser?.gcashNumber}
+              previewUrl={previewUrl}
+              paymentModalOpen={paymentModalOpen}
+              onFileChange={handleFileChange}
+              onRemoveImage={() => {
+                setPaymentScreenshot(null)
+                setPreviewUrl(null)
+                try {
+                  window.localStorage.removeItem("checkout_payment_image")
+                } catch {}
+              }}
+              onOpenModal={() => setPaymentModalOpen(true)}
+              onCloseModal={() => setPaymentModalOpen(false)}
+            />
           </div>
 
           {/* Right Column - Order Summary */}
-          <div className="flex-1 px-2 md:px-6 pt-2 md:pt-6 pb-2 md:pb-6">
-            <div className="flex items-center justify-between mb-4 md:mb-6">
-              <h3 className="text-lg md:text-xl font-semibold">Order Summary</h3>
-              <span className="text-[12px] text-gray-600">Total items: {totalItems}</span>
-            </div>
-            
-            <div className="space-y-3 md:space-y-4">
-              {items.map((item, index) => (
-                <div key={`${item.id}-${index}`} className="space-y-2">
-                  <div className="flex items-center justify-between py-2 md:py-3">
-                  <div className="flex-1">
-                      <div className="font-medium text-sm md:text-base">
-                        {item.name}
-                      </div>
-                    {item.size && <div className="text-xs md:text-sm text-gray-600">{item.size}</div>}
-                      {/* Bundle items list */}
-                      {item.bundleItems && item.bundleItems.length > 0 && (
-                        <div className="mt-2">
-                          <BundleItemsList bundleItems={item.bundleItems} />
-                        </div>
-                      )}
-                  </div>
-                  <div className="flex items-center space-x-1 md:space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-6 h-6 md:w-8 md:h-8 p-0"
-                      onClick={() => {
-                        // Decrease quantity by 1
-                        const newQuantity = Math.max(0, item.quantity - 1)
-                        updateQuantity(item.id, newQuantity)
-                      }}
-                    >
-                      -
-                    </Button>
-                    <span className="w-6 md:w-8 text-center text-xs md:text-sm">{item.quantity}</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-6 h-6 md:w-8 md:h-8 p-0"
-                      onClick={() => {
-                        // Increase quantity by 1
-                        updateQuantity(item.id, item.quantity + 1)
-                      }}
-                    >
-                      +
-                    </Button>
-                    <span className="ml-1 md:ml-3 text-xs md:text-sm">
-                      ₱{(item.price * item.quantity).toFixed(2)}
-                    </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <Separator className="my-6" />
-            
-            <div className="space-y-2 text-xs md:space-y-3 text-sm md:text-base">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>₱{subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Platform fee</span>
-                <span>₱{platformFee.toFixed(2)}</span>
-              </div>
-              {(orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && isAddressWithinDeliveryCoverage && (
-                <div className="flex justify-between">
-                  <span>
-                    Delivery fee
-                    {isCalculatingDistance && <span className="text-xs text-muted-foreground ml-1">(calculating...)</span>}
-                  </span>
-                  <span>₱{deliveryFee.toFixed(2)}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex justify-between font-semibold text-base">
-                <span>Total</span>
-                <span>₱{(subtotal + platformFee + ((orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")) && isAddressWithinDeliveryCoverage ? deliveryFee : 0)).toFixed(2)}</span>
-              </div>
-            </div>
-            
-            {/* Missing fields indicator - only show when button is disabled and not submitting */}
-            {!isSubmitting && missingFields.length > 0 && (
-              <div className="mt-2 space-y-1">
-                <p className="text-xs text-red-500 font-medium">Please fill in the following:</p>
-                <ul className="text-xs text-red-500 list-disc list-inside space-y-0.5 ml-2">
-                  {missingFields.map((field, index) => (
-                    <li key={index}>{field}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <Button 
-              type="submit" 
-              className="w-full mt-4 md:mt-6 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 md:py-4 rounded-lg text-sm md:text-base"
-              disabled={
-                isSubmitting || 
-                !previewUrl || // Require payment proof image
-                (orderType === "pre-order" && (
-                  !preOrderFulfillment || // Require fulfillment method selection
-                  !paymentPlan || // Require payment terms selection
-                  (paymentPlan === "downpayment" && !downpaymentMethod) || // Require downpayment method when downpayment is selected
-                  restrictionsEnabledButEmpty ||
-                  !preOrderDate || 
-                  !preOrderTime || 
-                  !!dateError || 
-                  !!timeError ||
-                  (preOrderFulfillment === "delivery" && !isAddressWithinDeliveryCoverage)
-                )) ||
-                (orderType === "delivery" && !isAddressWithinDeliveryCoverage)
-              }
-            >
-              {isSubmitting ? "Placing Order..." : "Confirm order"}
-            </Button>
-          </div>
+          <CheckoutOrderSummary
+            items={items}
+            subtotal={subtotal}
+            platformFee={platformFee}
+            deliveryFee={deliveryFee}
+            isCalculatingDistance={isCalculatingDistance}
+            orderType={orderType}
+            preOrderFulfillment={preOrderFulfillment}
+            isAddressWithinDeliveryCoverage={isAddressWithinDeliveryCoverage}
+            isSubmitting={isSubmitting}
+            missingFields={missingFields}
+            isSubmitDisabled={
+              isSubmitting || 
+              !previewUrl || // Require payment proof image
+              (orderType === "pre-order" && (
+                !preOrderFulfillment || // Require fulfillment method selection
+                !paymentPlan || // Require payment terms selection
+                (paymentPlan === "downpayment" && !downpaymentMethod) || // Require downpayment method when downpayment is selected
+                restrictionsEnabledButEmpty ||
+                !preOrderDate || 
+                !preOrderTime || 
+                preOrderTime === "" || // Require time to be selected (not placeholder)
+                !!dateError || 
+                !!timeError ||
+                (preOrderFulfillment === "delivery" && !isAddressWithinDeliveryCoverage)
+              )) ||
+              (orderType === "delivery" && !isAddressWithinDeliveryCoverage)
+            }
+            onQuantityChange={updateQuantity}
+          />
         </form>
       </DialogContent>
-      
-      {/* Payment Modal for larger photo view */}
-      <PaymentModal 
-        open={paymentModalOpen} 
-        onOpenChange={setPaymentModalOpen} 
-        paymentUrl={previewUrl} 
-        title="Payment Proof Preview" 
-      />
     </Dialog>
   )
 }
