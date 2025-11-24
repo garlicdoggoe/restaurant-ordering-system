@@ -1,14 +1,14 @@
-import { mutation, query } from "./_generated/server";
+import { action, internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./rateLimit";
+import { api, internal } from "./_generated/api";
 
 /**
- * Calculate distance between customer and restaurant using Mapbox Directions API
- * This is a helper function for server-side delivery fee calculation
- * @param customerCoordinates - Customer location as {lng, lat}
- * @param restaurantCoordinates - Restaurant location as {lng, lat}
- * @returns Distance in meters, or null if route not found or API error
+ * Calculate distance between customer and restaurant using Mapbox Directions API.
+ * This helper is now called from an action (actions can use fetch) and the result
+ * is forwarded to an internal mutation so we keep the security guarantees while
+ * respecting Convex platform limits (queries/mutations cannot call fetch).
  */
 async function calculateDistanceServerSide(
   customerCoordinates: { lng: number; lat: number },
@@ -285,9 +285,8 @@ export const getCustomerPendingOrder = query({
   },
 });
 
-export const create = mutation({
+export const placeOrder: ReturnType<typeof action> = action({
   args: {
-    // customerId is derived from the authenticated user to prevent spoofing
     customerId: v.string(),
     customerName: v.string(),
     customerPhone: v.string(),
@@ -305,24 +304,25 @@ export const create = mutation({
         name: v.string(), 
         price: v.number(), 
         quantity: v.number(),
-        // Optional variant information for flexible pricing
         variantId: v.optional(v.string()),
         variantName: v.optional(v.string()),
         attributes: v.optional(v.record(v.string(), v.string())),
         unitPrice: v.optional(v.number()),
-        // Selected choices from choice groups - stores choice data directly (maps choiceGroupId -> { name: string, price: number, menuItemId?: string })
         selectedChoices: v.optional(v.record(v.string(), v.object({
           name: v.string(),
           price: v.number(),
-          menuItemId: v.optional(v.string()), // For bundle choices, reference to the menu item
+          menuItemId: v.optional(v.string()),
         }))),
-        // Bundle items - for bundle menu items, stores the actual items included (selected from choice groups + fixed items)
-        bundleItems: v.optional(v.array(v.object({
-          menuItemId: v.string(),
-          variantId: v.optional(v.string()),
-          name: v.string(),
-          price: v.number(),
-        }))),
+        bundleItems: v.optional(
+          v.array(
+            v.object({
+              menuItemId: v.string(),
+              variantId: v.optional(v.string()),
+              name: v.string(),
+              price: v.number(),
+            })
+          )
+        ),
       })
     ),
     subtotal: v.number(),
@@ -357,6 +357,111 @@ export const create = mutation({
     paymentScreenshot: v.optional(v.string()),
     voucherCode: v.optional(v.string()),
     specialInstructions: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<unknown> => {
+    const isDelivery =
+      args.orderType === "delivery" ||
+      (args.orderType === "pre-order" && args.preOrderFulfillment === "delivery");
+
+    let calculatedDistanceInMeters: number | null | undefined = undefined;
+
+    if (isDelivery) {
+      if (!args.customerCoordinates) {
+        throw new Error("Customer coordinates are required for delivery orders.");
+      }
+
+      const restaurant = await ctx.runQuery(api.restaurant.get, {});
+
+      if (!restaurant?.coordinates) {
+        calculatedDistanceInMeters = null;
+      } else {
+        calculatedDistanceInMeters = await calculateDistanceServerSide(
+          args.customerCoordinates,
+          restaurant.coordinates
+        );
+      }
+    }
+
+    return await ctx.runMutation(internal.orders.create, {
+      ...args,
+      calculatedDistanceInMeters,
+    });
+  },
+});
+
+export const create = internalMutation({
+  args: {
+    customerId: v.string(),
+    customerName: v.string(),
+    customerPhone: v.string(),
+    customerAddress: v.optional(v.string()),
+    customerCoordinates: v.optional(
+      v.object({
+        lng: v.number(),
+        lat: v.number(),
+      })
+    ), // Coordinates at time of order creation (isolated per order)
+    gcashNumber: v.optional(v.string()),
+    items: v.array(
+      v.object({ 
+        menuItemId: v.string(), 
+        name: v.string(), 
+        price: v.number(), 
+        quantity: v.number(),
+        variantId: v.optional(v.string()),
+        variantName: v.optional(v.string()),
+        attributes: v.optional(v.record(v.string(), v.string())),
+        unitPrice: v.optional(v.number()),
+        selectedChoices: v.optional(v.record(v.string(), v.object({
+          name: v.string(),
+          price: v.number(),
+          menuItemId: v.optional(v.string()), // For bundle choices, reference to the menu item
+        }))),
+        bundleItems: v.optional(
+          v.array(
+            v.object({
+              menuItemId: v.string(),
+              variantId: v.optional(v.string()),
+              name: v.string(),
+              price: v.number(),
+            })
+          )
+        ),
+      })
+    ),
+    subtotal: v.number(),
+    platformFee: v.number(),
+    deliveryFee: v.optional(v.number()), // Delivery fee calculated based on distance
+    discount: v.number(),
+    total: v.number(),
+    orderType: v.union(
+      v.literal("dine-in"),
+      v.literal("takeaway"),
+      v.literal("delivery"),
+      v.literal("pre-order")
+    ),
+    preOrderFulfillment: v.optional(v.union(v.literal("pickup"), v.literal("delivery"))),
+    preOrderScheduledAt: v.optional(v.number()),
+    paymentPlan: v.optional(v.union(v.literal("full"), v.literal("downpayment"))),
+    downpaymentAmount: v.optional(v.number()),
+    downpaymentProofUrl: v.optional(v.string()),
+    remainingPaymentMethod: v.optional(v.union(v.literal("online"), v.literal("cash"))),
+    remainingPaymentProofUrl: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("ready"),
+      v.literal("denied"),
+      v.literal("completed"),
+      v.literal("cancelled"),
+      v.literal("in-transit"),
+      v.literal("delivered"),
+      v.literal("pre-order-pending")
+    ),
+    paymentScreenshot: v.optional(v.string()),
+    voucherCode: v.optional(v.string()),
+    specialInstructions: v.optional(v.string()),
+    calculatedDistanceInMeters: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     // SECURITY: Rate limiting - prevent spam order creation
@@ -575,14 +680,10 @@ export const create = mutation({
         throw new Error("Invalid delivery fee. Please refresh and try again.");
       }
       
-      // SECURITY: Recalculate delivery fee server-side using Mapbox Directions API
       const feePerKilometer = restaurant.feePerKilometer ?? 15;
       
-      // Calculate distance using Mapbox Directions API
-      const distanceInMeters = await calculateDistanceServerSide(
-        args.customerCoordinates,
-        restaurant.coordinates
-      );
+      const distanceInMeters =
+        args.calculatedDistanceInMeters !== undefined ? args.calculatedDistanceInMeters : null;
       
       // Calculate server-side delivery fee
       const serverCalculatedFee = calculateDeliveryFeeFromDistance(distanceInMeters, feePerKilometer);

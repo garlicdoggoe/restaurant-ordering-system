@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode } from "react"
 import type { Id } from "@/convex/_generated/dataModel"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery, useMutation, useAction } from "convex/react"
 import { useUser } from "@clerk/nextjs"
 import { api } from "@/convex/_generated/api"
 // Use api directly instead of casting to any
@@ -471,7 +471,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const deleteVariantMut = useMutation(api.menu.deleteVariant)
   const setVariantAttributeMut = useMutation(api.menu.setVariantAttribute)
 
-  const createOrder = useMutation(api.orders.create)
+  const placeOrderAction = useAction(api.orders.placeOrder)
   const patchOrder = useMutation(api.orders.update)
   const updateOrderItemsMut = useMutation(api.orders.updateOrderItems)
   const addVoucherMut = useMutation(api.vouchers.add)
@@ -551,7 +551,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     isBundle: (m as { isBundle?: boolean }).isBundle,
     bundleItems: (m as { bundleItems?: Array<{ menuItemId: string; order: number }> }).bundleItems,
   }))
-  const orders: Order[] = ordersDocs.map((o) => ({
+  const orders: Order[] = ordersDocs.map((o: any) => ({
     _id: o._id as string,
     _creationTime: o._creationTime as number,
     customerId: o.customerId,
@@ -782,7 +782,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [setVariantAttributeMut])
 
   const addOrder = useCallback((order: Omit<Order, "_id" | "createdAt" | "updatedAt">) => {
-    void createOrder({
+    void placeOrderAction({
       // Backend will override customerId based on the authenticated user; we still pass for type compatibility
       customerId: order.customerId,
       customerName: order.customerName,
@@ -814,7 +814,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       voucherCode: order.voucherCode,
       specialInstructions: order.specialInstructions,
     })
-  }, [createOrder])
+  }, [placeOrderAction])
 
   const updateOrder = useCallback((id: string, data: Partial<Order>) => {
     void patchOrder({ id: id as Id<"orders">, data: {
