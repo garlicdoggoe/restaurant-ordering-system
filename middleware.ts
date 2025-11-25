@@ -1,11 +1,21 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
 const isProtectedRoute = createRouteMatcher(['/owner(.*)', '/customer(.*)']);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Protect all routes that require authentication
+  // Check if the route requires authentication
   if (isProtectedRoute(req)) {
-    await auth.protect();
+    // Get authentication status
+    const { userId } = await auth();
+    
+    // If user is not authenticated, redirect to homepage instead of Clerk's sign-in page
+    if (!userId) {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+    
+    // If authenticated, allow the request to proceed
+    // The page components will handle role-based redirects
   }
 });
 

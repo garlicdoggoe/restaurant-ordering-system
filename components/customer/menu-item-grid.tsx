@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useAuth } from "@clerk/nextjs"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus } from "lucide-react"
 import { MenuItemOrderDialog } from "./menu-item-order-dialog"
+import { AuthPromptDialog } from "@/components/auth-prompt-dialog"
 import { MenuItemImage } from "@/components/ui/menu-item-image"
 import type { CartItem } from "@/lib/cart-context"
 
@@ -22,7 +24,9 @@ interface MenuItemGridProps {
 }
 
 export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
+  const { isSignedIn } = useAuth()
   const [activeItem, setActiveItem] = useState<MenuItemGridProps["items"][0] | null>(null)
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
 
   // Sort items so available items come first, unavailable items come last
   const sortedItems = useMemo(() => {
@@ -96,7 +100,14 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
                   <Button
                     size="icon"
                     className="rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg flex-shrink-0 touch-target w-6 h-6 sm:w-8 sm:h-8 lg:w-9 lg:h-9"
-                    onClick={() => setActiveItem(item)}
+                    onClick={() => {
+                      // Check authentication before opening order dialog
+                      if (!isSignedIn) {
+                        setShowAuthPrompt(true)
+                      } else {
+                        setActiveItem(item)
+                      }
+                    }}
                   >
                     <Plus className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
                   </Button>
@@ -107,6 +118,12 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
         )
       })}
     </div>
+    {/* Show auth prompt dialog if user is not signed in */}
+    <AuthPromptDialog 
+      open={showAuthPrompt} 
+      onOpenChange={setShowAuthPrompt} 
+    />
+    {/* Show order dialog if user is signed in and clicked an item */}
     {activeItem && (
       <MenuItemOrderDialog
         item={activeItem}
