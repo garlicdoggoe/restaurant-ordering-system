@@ -49,7 +49,8 @@ export default function HomePage() {
   // For non-authenticated users, show the menu browser
   // Note: onAddToCart is a no-op here since MenuItemGrid will handle auth checks
   // and show the auth prompt dialog before calling this function
-  const handleAddToCart = (item: Omit<CartItem, "quantity">, quantity?: number, suppressToast?: boolean) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleAddToCart = (_item: Omit<CartItem, "quantity">, _quantity?: number, _suppressToast?: boolean) => {
     // This function should not be called for non-authenticated users
     // MenuItemGrid will check auth and show auth prompt dialog instead
     // But we provide it to satisfy the MenuBrowser interface
