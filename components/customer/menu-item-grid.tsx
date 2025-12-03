@@ -54,7 +54,9 @@ export function MenuItemGrid({ items, onAddToCart }: MenuItemGridProps) {
     <>
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-5">
       {sortedItems.map((item) => {
-        const isAvailable = item.available !== false // Default to true if not specified
+        // When user is not signed in, show all items as available
+        // When signed in, use normal availability logic
+        const isAvailable = !isSignedIn || item.available !== false
         // const isFavorite = favorites.has(item.id)
         return (
           <Card 
