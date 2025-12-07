@@ -84,6 +84,9 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
   // Pre-order fields
   // Initialize as undefined to require explicit selection
   const [preOrderFulfillment, setPreOrderFulfillment] = useState<"pickup" | "delivery" | undefined>(undefined)
+  
+  // Check if delivery is allowed
+  const allowDelivery = restaurant?.allowDelivery ?? true
   const [preOrderDate, setPreOrderDate] = useState<string>(() =>
     restrictionsActive ? "" : getTodayIsoDate(),
   )
@@ -128,6 +131,20 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
       setDeliveryCoordinates([currentUser.coordinates.lng, currentUser.coordinates.lat])
     }
   }, [currentUser, deliveryCoordinates])
+
+  // Reset order type if delivery is disabled and currently selected
+  useEffect(() => {
+    if (!allowDelivery && orderType === "delivery") {
+      setOrderType("pre-order")
+    }
+  }, [allowDelivery, orderType])
+
+  // Reset pre-order fulfillment if delivery is disabled and currently selected
+  useEffect(() => {
+    if (!allowDelivery && preOrderFulfillment === "delivery") {
+      setPreOrderFulfillment(undefined)
+    }
+  }, [allowDelivery, preOrderFulfillment])
 
   useEffect(() => {
     const wantsDelivery = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
@@ -348,8 +365,16 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
         return
       }
 
-      // Check if trying to place delivery order with out-of-scope address
+      // Check if trying to place delivery order
       const wantsDelivery = orderType === "delivery" || (orderType === "pre-order" && preOrderFulfillment === "delivery")
+      
+      // Check if delivery is allowed (client-side validation for UX)
+      // Server-side validation in orders.placeOrder action is authoritative and cannot be bypassed
+      if (wantsDelivery && !allowDelivery) {
+        setIsSubmitting(false)
+        toast.error("Delivery is currently disabled. Please select pickup instead.")
+        return
+      }
       if (wantsDelivery && !isAddressWithinDeliveryCoverage) {
         setIsSubmitting(false)
         toast.error("Delivery not available", {
@@ -619,7 +644,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                   variant={orderType === "delivery" ? "default" : "outline"}
                   className={`flex-1 h-8 text-xs font-medium py-5 ${orderType === "delivery" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"}`}
                   onClick={() => setOrderType("delivery")}
-                  disabled
+                  disabled={!allowDelivery}
                 >
                   DELIVERY
                 </Button>
@@ -662,6 +687,7 @@ export function CheckoutDialog({ items, subtotal, platformFee, onClose, onSucces
                 paymentPlan={paymentPlan}
                 downpaymentMethod={downpaymentMethod}
                 isAddressWithinDeliveryCoverage={isAddressWithinDeliveryCoverage}
+                allowDelivery={allowDelivery}
                 onFulfillmentChange={setPreOrderFulfillment}
                 onPaymentPlanChange={setPaymentPlan}
                 onDownpaymentMethodChange={setDownpaymentMethod}

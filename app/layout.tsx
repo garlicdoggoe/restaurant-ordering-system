@@ -120,6 +120,9 @@ const gilroy = localFont({
 export const metadata: Metadata = {
   title: "Blackpepper Camp's Pizza - Order Management System",
   description: "Blackpepper Camp's Pizza - Order Management System",
+  icons: {
+    icon: "/icon.jpg", // Using logo.jpg from img folder as the app icon
+  },
 }
 
 export default function RootLayout({

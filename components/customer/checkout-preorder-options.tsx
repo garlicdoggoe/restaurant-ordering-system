@@ -8,6 +8,7 @@ interface CheckoutPreorderOptionsProps {
   paymentPlan: PaymentPlan | undefined
   downpaymentMethod: RemainingPaymentMethod | undefined
   isAddressWithinDeliveryCoverage: boolean
+  allowDelivery?: boolean // Whether delivery fulfillment method is enabled (defaults to true)
   onFulfillmentChange: (value: PreOrderFulfillment) => void
   onPaymentPlanChange: (value: PaymentPlan) => void
   onDownpaymentMethodChange: (value: RemainingPaymentMethod) => void
@@ -18,6 +19,7 @@ export function CheckoutPreorderOptions({
   paymentPlan,
   downpaymentMethod,
   isAddressWithinDeliveryCoverage,
+  allowDelivery = true, // Default to true for backward compatibility
   onFulfillmentChange,
   onPaymentPlanChange,
   onDownpaymentMethodChange,
@@ -39,9 +41,11 @@ export function CheckoutPreorderOptions({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="pickup" className="text-xs">Pickup</SelectItem>
-              <SelectItem value="delivery" className="text-xs">
-                Delivery
-              </SelectItem>
+              {allowDelivery && (
+                <SelectItem value="delivery" className="text-xs">
+                  Delivery
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>

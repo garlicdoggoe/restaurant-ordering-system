@@ -363,6 +363,16 @@ export const placeOrder: ReturnType<typeof action> = action({
       args.orderType === "delivery" ||
       (args.orderType === "pre-order" && args.preOrderFulfillment === "delivery");
 
+    // Check if delivery is allowed
+    if (isDelivery) {
+      const restaurant = await ctx.runQuery(api.restaurant.get, {});
+      
+      // Reject delivery orders if delivery is disabled
+      if (restaurant && restaurant.allowDelivery === false) {
+        throw new Error("Delivery is currently disabled. Please select pickup instead.");
+      }
+    }
+
     let calculatedDistanceInMeters: number | null | undefined = undefined;
 
     if (isDelivery) {
@@ -648,6 +658,11 @@ export const create = internalMutation({
     let calculatedDeliveryFee = 0;
     const isDelivery = args.orderType === "delivery" || 
       (args.orderType === "pre-order" && args.preOrderFulfillment === "delivery");
+    
+    // Reject delivery orders if delivery is disabled
+    if (isDelivery && restaurant.allowDelivery === false) {
+      throw new Error("Delivery is currently disabled. Please select pickup instead.");
+    }
     
     if (isDelivery) {
       // Require coordinates for delivery orders

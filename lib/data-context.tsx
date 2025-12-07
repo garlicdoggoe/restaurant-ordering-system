@@ -72,6 +72,7 @@ export interface Restaurant {
   preorderNotification?: string // Notification message for pre-orders
   allowNewOrders?: boolean // Whether new orders (including pre-orders) are accepted
   allowAddressSearchBox?: boolean // Whether to show the address search box in the map picker (defaults to true)
+  allowDelivery?: boolean // Whether delivery fulfillment method is enabled (defaults to true for backward compatibility)
 }
 
 export interface DeliveryFee {
@@ -524,6 +525,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         preorderNotification: restaurantDoc.preorderNotification,
         allowNewOrders: restaurantDoc.allowNewOrders,
         allowAddressSearchBox: restaurantDoc.allowAddressSearchBox ?? true,
+        allowDelivery: restaurantDoc.allowDelivery ?? true,
       } as Restaurant)
     : ({
         _id: "",
@@ -700,6 +702,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       preorderNotification: data.preorderNotification !== undefined ? data.preorderNotification : restaurant.preorderNotification,
       allowNewOrders: data.allowNewOrders !== undefined ? data.allowNewOrders : restaurant.allowNewOrders,
       allowAddressSearchBox: data.allowAddressSearchBox !== undefined ? data.allowAddressSearchBox : restaurant.allowAddressSearchBox,
+      allowDelivery: data.allowDelivery !== undefined ? data.allowDelivery : restaurant.allowDelivery,
     }
     void upsertRestaurant(body)
   }, [restaurant, upsertRestaurant])

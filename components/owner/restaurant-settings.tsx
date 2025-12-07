@@ -24,6 +24,8 @@ export function RestaurantSettings() {
   const [allowNewOrders, setAllowNewOrders] = useState<boolean>(restaurant.allowNewOrders ?? true)
   // State for allowAddressSearchBox toggle - defaults to true for backward compatibility
   const [allowAddressSearchBox, setAllowAddressSearchBox] = useState<boolean>(restaurant.allowAddressSearchBox ?? true)
+  // State for allowDelivery toggle - defaults to true for backward compatibility
+  const [allowDelivery, setAllowDelivery] = useState<boolean>(restaurant.allowDelivery ?? true)
   const [formData, setFormData] = useState({
     name: restaurant.name,
     description: restaurant.description,
@@ -82,6 +84,9 @@ export function RestaurantSettings() {
     
     // Update allowAddressSearchBox when restaurant data changes - default to true for backward compatibility
     setAllowAddressSearchBox(restaurant.allowAddressSearchBox ?? true)
+    
+    // Update allowDelivery when restaurant data changes - default to true for backward compatibility
+    setAllowDelivery(restaurant.allowDelivery ?? true)
 
     const schedule = restaurant.preorderSchedule ?? { restrictionsEnabled: false, dates: [] }
     setPreorderRestrictionsEnabled(schedule.restrictionsEnabled)
@@ -463,6 +468,40 @@ export function RestaurantSettings() {
                 }}
               />
             </div>
+          </div>
+
+          {/* Delivery Fulfillment Method Toggle */}
+          <Separator />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="allow-delivery" className="text-base font-medium">
+                  Allow Delivery
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Toggle to enable or disable the delivery fulfillment method. When disabled, customers cannot select delivery for regular orders or pre-orders.
+                </p>
+              </div>
+              <Switch
+                id="allow-delivery"
+                checked={allowDelivery}
+                onCheckedChange={(checked) => {
+                  setAllowDelivery(checked)
+                  // Auto-save immediately when toggled
+                  updateRestaurant({
+                    allowDelivery: checked,
+                  })
+                }}
+                className={allowDelivery ? "" : "data-[state=checked]:bg-destructive"}
+              />
+            </div>
+            {!allowDelivery && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-sm text-destructive font-medium">
+                  ⚠️ Delivery is currently disabled. Customers cannot select delivery for regular orders or pre-orders.
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

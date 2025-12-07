@@ -63,6 +63,7 @@ export const upsert = mutation({
     preorderNotification: v.optional(v.string()), // Notification message for pre-orders
     allowNewOrders: v.optional(v.boolean()), // Whether new orders (including pre-orders) are accepted
     allowAddressSearchBox: v.optional(v.boolean()), // Whether to show the address search box in the map picker (defaults to true)
+    allowDelivery: v.optional(v.boolean()), // Whether delivery fulfillment method is enabled (defaults to true for backward compatibility)
   },
   handler: async (ctx, args) => {
     // SECURITY: Verify user is authenticated and is an owner
