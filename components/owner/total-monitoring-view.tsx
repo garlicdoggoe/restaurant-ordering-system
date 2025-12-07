@@ -31,8 +31,7 @@ interface TimelineEntry {
   fulfillment?: Order["preOrderFulfillment"]
   items: OrderItem[]
   total: number
-  primaryOrderId: string
-  orderIds: string[]
+  orderId: string
 }
 
 const PREORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
@@ -153,6 +152,7 @@ export function TotalMonitoringView() {
   }, [filteredPreOrders])
 
   // Build timeline entries so front-of-house knows the sequence.
+  // Each order gets its own timeline entry - no merging by customer.
   const timelineEntries = useMemo<TimelineEntry[]>(() => {
     const formatTime = (timestamp: number) =>
       new Intl.DateTimeFormat("en-US", {
@@ -160,50 +160,31 @@ export function TotalMonitoringView() {
         minute: "2-digit",
       }).format(timestamp)
 
-    const byCustomer = new Map<string, TimelineEntry>()
+    // Create one timeline entry per order - no grouping or merging
+    return filteredPreOrders
+      .map((order) => {
+        const timestamp = getOrderDate(order).getTime()
 
-    filteredPreOrders.forEach((order) => {
-      const timestamp = getOrderDate(order).getTime()
-      const existing = byCustomer.get(order.customerId)
+        // Recalculate total using deliveryFee from order
+        const orderTotal = calculateFullOrderTotal(
+          order.subtotal,
+          order.platformFee,
+          order.deliveryFee || 0,
+          order.discount
+        )
 
-      // Recalculate total using deliveryFee from order
-      const orderTotal = calculateFullOrderTotal(
-        order.subtotal,
-        order.platformFee,
-        order.deliveryFee || 0,
-        order.discount
-      )
-
-      if (!existing) {
-        byCustomer.set(order.customerId, {
-          id: `${order.customerId}-${timestamp}`,
+        return {
+          id: order._id,
           timestamp,
           timeLabel: formatTime(timestamp),
           customerName: order.customerName,
           fulfillment: order.preOrderFulfillment,
           items: [...order.items],
           total: orderTotal,
-          primaryOrderId: order._id,
-          orderIds: [order._id],
-        })
-        return
-      }
-
-      // Keep the earliest schedule so the list stays chronological per customer
-      if (timestamp < existing.timestamp) {
-        existing.timestamp = timestamp
-        existing.timeLabel = formatTime(timestamp)
-        existing.fulfillment = order.preOrderFulfillment ?? existing.fulfillment
-        existing.primaryOrderId = order._id
-      }
-
-      // Append every item so staff can see the complete haul per customer
-      existing.items = [...existing.items, ...order.items]
-      existing.total += orderTotal
-      existing.orderIds = [...existing.orderIds, order._id]
-    })
-
-    return Array.from(byCustomer.values()).sort((a, b) => a.timestamp - b.timestamp)
+          orderId: order._id,
+        }
+      })
+      .sort((a, b) => a.timestamp - b.timestamp)
   }, [filteredPreOrders])
 
   // High-level KPIs for the sticky summary pane.
@@ -399,16 +380,11 @@ export function TotalMonitoringView() {
                               variant="outline"
                               size="sm"
                               className="gap-2 w-full md:w-auto text-xs md:text-sm"
-                              onClick={() => setSelectedOrderId(entry.primaryOrderId)}
+                              onClick={() => setSelectedOrderId(entry.orderId)}
                             >
                               <Eye className="h-4 w-4" />
                               View Order Details
                             </Button>
-                            {entry.orderIds.length > 1 && (
-                              <Badge variant="outline" className="text-[11px] uppercase tracking-wide">
-                                {entry.orderIds.length} orders merged
-                              </Badge>
-                            )}
                           </div>
                         </article>
                       ))}
