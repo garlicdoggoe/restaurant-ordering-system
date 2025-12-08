@@ -590,6 +590,8 @@ export const create = internalMutation({
       const finalUnitPrice = itemUnitPrice + choicePriceAdjustment;
 
       // Validate bundle items if this is a bundle
+      // Note: We allow bundle orders even if individual bundle items are unavailable
+      // because bundles are sold as packages and individual item availability shouldn't block the order
       let validatedBundleItems = undefined;
       if (menuItemTyped.isBundle && item.bundleItems) {
         validatedBundleItems = [];
@@ -599,10 +601,8 @@ export const create = internalMutation({
             throw new Error("One or more bundle items are no longer available. Please refresh and try again.");
           }
           // Type guard: ensure this is a menu_item
-          if (!("available" in bundleMenuItem) || !bundleMenuItem.available) {
-            throw new Error("One or more bundle items are currently unavailable. Please refresh and try again.");
-          }
-          const bundleMenuItemTyped = bundleMenuItem as { _id: Id<"menu_items">; price: number; available: boolean };
+          // We skip availability check for bundle items - bundles can be ordered even if individual items are unavailable
+          const bundleMenuItemTyped = bundleMenuItem as { _id: Id<"menu_items">; price: number };
 
           let bundleItemPrice = bundleMenuItemTyped.price;
           if (bundleItem.variantId) {
