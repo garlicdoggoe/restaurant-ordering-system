@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Calendar, RefreshCcw, Clock4, Eye, ChevronDown, ChevronRight } from "lucide-react"
 import { OrderDetails } from "./order-details"
 import { calculateFullOrderTotal } from "@/lib/order-utils"
@@ -76,6 +75,8 @@ export function TotalMonitoringView() {
   const [selectedStatuses, setSelectedStatuses] = useState<OrderStatus[]>(() => [...ALL_PREORDER_STATUSES])
   // Keep the checkbox matrix hidden by default so the controls stay tidy until owners need them.
   const [showStateFilter, setShowStateFilter] = useState(false)
+  // Track which timeline cards are expanded to show/hide order items
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
 
   // Work only with pre-orders – this view is intentionally scoped.
   const preOrdersForDate = useMemo(() => {
@@ -119,6 +120,19 @@ export function TotalMonitoringView() {
 
   const clearStatuses = () => {
     setSelectedStatuses([])
+  }
+
+  // Toggle card expansion to show/hide order items
+  const toggleCardExpansion = (entryId: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev)
+      if (next.has(entryId)) {
+        next.delete(entryId)
+      } else {
+        next.add(entryId)
+      }
+      return next
+    })
   }
 
   // Build aggregated item totals so the kitchen can prep by quantity.
@@ -328,7 +342,7 @@ export function TotalMonitoringView() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="min-h-0 md:min-h-[400px]">
+            <Card>
               <CardHeader className="pb-2 md:pb-4">
                 <CardTitle className="text-base md:text-lg">Within-the-day Timeline</CardTitle>
                 <CardDescription className="text-xs md:text-sm">
@@ -339,57 +353,75 @@ export function TotalMonitoringView() {
                 {timelineEntries.length === 0 ? (
                   <EmptyState label="No pre-orders scheduled for this date." />
                 ) : (
-                  <ScrollArea className="max-h-[calc(100vh-300px)] md:max-h-[540px]">
-                    <div className="space-y-4 pr-2">
-                      {timelineEntries.map((entry) => (
+                  <div className="space-y-4">
+                    {timelineEntries.map((entry) => {
+                      const isExpanded = expandedCards.has(entry.id)
+                      return (
                         <article key={entry.id} className="rounded-xl border p-3 md:p-4 shadow-sm">
-                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs md:text-sm text-muted-foreground">{entry.timeLabel}</p>
-                              <h3 className="text-sm md:text-base font-semibold truncate">{entry.customerName}</h3>
+                          <button
+                            type="button"
+                            onClick={() => toggleCardExpansion(entry.id)}
+                            className="w-full text-left"
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3">
+                              <div className="min-w-0 flex-1 flex items-center gap-2">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs md:text-sm text-muted-foreground">{entry.timeLabel}</p>
+                                  <h3 className="text-sm md:text-base font-semibold truncate">{entry.customerName}</h3>
+                                </div>
+                              </div>
+                              <div className="flex items-center flex-wrap gap-1 md:gap-2">
+                                {entry.fulfillment && (
+                                  <Badge variant="outline" className="uppercase text-[10px]">
+                                    {entry.fulfillment}
+                                  </Badge>
+                                )}
+                                <Badge variant="secondary" className="text-xs md:text-sm">₱{entry.total.toFixed(2)}</Badge>
+                              </div>
                             </div>
-                            <div className="flex items-center flex-wrap gap-1 md:gap-2">
-                              {entry.fulfillment && (
-                                <Badge variant="outline" className="uppercase text-[10px]">
-                                  {entry.fulfillment}
-                                </Badge>
-                              )}
-                              <Badge variant="secondary" className="text-xs md:text-sm">₱{entry.total.toFixed(2)}</Badge>
-                            </div>
-                          </div>
-                          <ul className="mt-3 space-y-1">
-                            {entry.items.map((item, index) => (
-                              <li key={`${entry.id}-${index}`} className="flex justify-between text-xs md:text-sm text-muted-foreground gap-2">
-                                <span className="min-w-0 flex-1 break-words">
-                                  {item.quantity}× {item.name}
-                                  {item.variantName ? ` · ${item.variantName}` : ""}
-                                  {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
-                                    <span className="text-muted-foreground">
-                                      {" ("}
-                                      {Object.values(item.selectedChoices).map(c => c.name).join(", ")}
-                                      {")"}
+                          </button>
+                          {isExpanded && (
+                            <>
+                              <ul className="mt-3 space-y-1">
+                                {entry.items.map((item, index) => (
+                                  <li key={`${entry.id}-${index}`} className="flex justify-between text-xs md:text-sm text-muted-foreground gap-2">
+                                    <span className="min-w-0 flex-1 break-words">
+                                      {item.quantity}× {item.name}
+                                      {item.variantName ? ` · ${item.variantName}` : ""}
+                                      {item.selectedChoices && Object.keys(item.selectedChoices).length > 0 && (
+                                        <span className="text-muted-foreground">
+                                          {" ("}
+                                          {Object.values(item.selectedChoices).map(c => c.name).join(", ")}
+                                          {")"}
+                                        </span>
+                                      )}
                                     </span>
-                                  )}
-                                </span>
-                                <span className="flex-shrink-0">₱{((item.unitPrice ?? item.price) * item.quantity).toFixed(2)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2 w-full md:w-auto text-xs md:text-sm"
-                              onClick={() => setSelectedOrderId(entry.orderId)}
-                            >
-                              <Eye className="h-4 w-4" />
-                              View Order Details
-                            </Button>
-                          </div>
+                                    <span className="flex-shrink-0">₱{((item.unitPrice ?? item.price) * item.quantity).toFixed(2)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2 w-full md:w-auto text-xs md:text-sm"
+                                  onClick={() => setSelectedOrderId(entry.orderId)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  View Order Details
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </article>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                      )
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
