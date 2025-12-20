@@ -135,35 +135,109 @@ export function TotalMonitoringView() {
     })
   }
 
-  // Build aggregated item totals so the kitchen can prep by quantity.
-  const aggregatedItems = useMemo<AggregatedItem[]>(() => {
+  // Split items into regular items and bundle items
+  const regularItems = useMemo(() => {
+    return filteredPreOrders.flatMap(order =>
+      order.items.filter(item => !item.bundleItems || item.bundleItems.length === 0)
+    )
+  }, [filteredPreOrders])
+
+  const bundleItems = useMemo(() => {
+    return filteredPreOrders.flatMap(order =>
+      order.items.filter(item => item.bundleItems && item.bundleItems.length > 0)
+    )
+  }, [filteredPreOrders])
+
+  // Build aggregated regular item totals so the kitchen can prep by quantity.
+  const regularAggregatedItems = useMemo<AggregatedItem[]>(() => {
     const map = new Map<string, AggregatedItem>()
-    filteredPreOrders.forEach((order) => {
-      order.items.forEach((item) => {
-        const key = buildItemKey(item)
-        // Build item name with variant and choices
-        let itemDisplayName = item.name
-        if (item.variantName) {
-          itemDisplayName += ` · ${item.variantName}`
-        }
-        if (item.selectedChoices && Object.keys(item.selectedChoices).length > 0) {
-          const choicesText = Object.values(item.selectedChoices).map(c => c.name).join(", ")
-          itemDisplayName += ` (${choicesText})`
-        }
-        
-        const current = map.get(key) ?? {
-          key,
-          name: itemDisplayName,
-          quantity: 0,
-          total: 0,
-        }
-        current.quantity += item.quantity
-        current.total += (item.unitPrice ?? item.price) * item.quantity
-        map.set(key, current)
-      })
+    regularItems.forEach((item) => {
+      const key = buildItemKey(item)
+      // Build item name with variant and choices
+      let itemDisplayName = item.name
+      if (item.variantName) {
+        itemDisplayName += ` · ${item.variantName}`
+      }
+      if (item.selectedChoices && Object.keys(item.selectedChoices).length > 0) {
+        const choicesText = Object.values(item.selectedChoices).map(c => c.name).join(", ")
+        itemDisplayName += ` (${choicesText})`
+      }
+      
+      const current = map.get(key) ?? {
+        key,
+        name: itemDisplayName,
+        quantity: 0,
+        total: 0,
+      }
+      current.quantity += item.quantity
+      current.total += (item.unitPrice ?? item.price) * item.quantity
+      map.set(key, current)
     })
     return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity)
-  }, [filteredPreOrders])
+  }, [regularItems])
+
+  // Aggregate bundle items by bundle name (e.g., "Family Combo × 5")
+  const bundleAggregatedItems = useMemo<AggregatedItem[]>(() => {
+    const map = new Map<string, AggregatedItem>()
+    bundleItems.forEach((item) => {
+      // Use bundle name as key (including variant and choices if applicable)
+      const key = buildItemKey(item)
+      // Build bundle display name with variant and choices
+      let bundleDisplayName = item.name
+      if (item.variantName) {
+        bundleDisplayName += ` · ${item.variantName}`
+      }
+      if (item.selectedChoices && Object.keys(item.selectedChoices).length > 0) {
+        const choicesText = Object.values(item.selectedChoices).map(c => c.name).join(", ")
+        bundleDisplayName += ` (${choicesText})`
+      }
+      
+      const current = map.get(key) ?? {
+        key,
+        name: bundleDisplayName,
+        quantity: 0,
+        total: 0,
+      }
+      current.quantity += item.quantity
+      current.total += (item.unitPrice ?? item.price) * item.quantity
+      map.set(key, current)
+    })
+    return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity)
+  }, [bundleItems])
+
+  // Aggregate individual items from all bundles (breakdown)
+  // This shows what individual items need to be prepared from all bundles combined
+  // Each entry in bundleItems array represents one instance of that item in the bundle
+  // So we count each occurrence and multiply by the bundle quantity
+  const bundleBreakdownAggregatedItems = useMemo<AggregatedItem[]>(() => {
+    const map = new Map<string, AggregatedItem>()
+    bundleItems.forEach((bundleItem) => {
+      // Iterate through each bundle's individual items
+      // Each entry in bundleItems represents one instance of that item in one bundle
+      if (bundleItem.bundleItems) {
+        bundleItem.bundleItems.forEach((bundleSubItem) => {
+          // Create a key for the bundle sub-item (using menuItemId and variantId if available)
+          const key = `${bundleSubItem.menuItemId}-${bundleSubItem.variantId ?? "base"}`
+          
+          // Use the bundle sub-item name
+          const itemDisplayName = bundleSubItem.name
+          
+          const current = map.get(key) ?? {
+            key,
+            name: itemDisplayName,
+            quantity: 0,
+            total: 0,
+          }
+          // Each entry in bundleItems represents 1 instance per bundle, so multiply by bundleItem.quantity
+          // (e.g., if 5 Family Combos each contain 2 Pizzas, bundleItems will have Pizza twice, so we add 2*5 = 10)
+          current.quantity += bundleItem.quantity
+          current.total += bundleSubItem.price * bundleItem.quantity
+          map.set(key, current)
+        })
+      }
+    })
+    return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity)
+  }, [bundleItems])
 
   // Build timeline entries so front-of-house knows the sequence.
   // Each order gets its own timeline entry - no merging by customer.
@@ -315,29 +389,101 @@ export function TotalMonitoringView() {
                   </CardDescription>
                 </div>
                 <Badge variant="secondary" className="text-xs w-fit">
-                  {aggregatedItems.length} items
+                  {regularAggregatedItems.length + bundleAggregatedItems.length + bundleBreakdownAggregatedItems.length} items
                 </Badge>
               </CardHeader>
-              <CardContent className="p-3 md:p-6">
-                {aggregatedItems.length === 0 ? (
-                  <EmptyState label="No pre-orders for this date." />
-                ) : (
+              <CardContent className="p-3 md:p-6 space-y-6">
+                {/* Regular Items Section */}
+                {regularAggregatedItems.length > 0 && (
                   <div className="space-y-3">
-                    {aggregatedItems.map((item) => (
-                      <div
-                        key={item.key}
-                        className="flex items-center justify-between rounded-lg border px-3 py-2 md:px-4 md:py-3 shadow-sm bg-white/40"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm md:text-base truncate">{item.name}</p>
-                          <p className="text-xs md:text-sm text-muted-foreground">₱{item.total.toFixed(2)} total</p>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm md:text-base font-semibold">Regular Items</h3>
+                      <Badge variant="outline" className="text-xs">
+                        {regularAggregatedItems.length} items
+                      </Badge>
+                    </div>
+                    <div className="space-y-3">
+                      {regularAggregatedItems.map((item) => (
+                        <div
+                          key={item.key}
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 md:px-4 md:py-3 shadow-sm bg-white/40"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm md:text-base truncate">{item.name}</p>
+                            <p className="text-xs md:text-sm text-muted-foreground">₱{item.total.toFixed(2)} total</p>
+                          </div>
+                          <Badge className="text-sm md:text-base px-3 py-1 flex-shrink-0">
+                            ×{item.quantity}
+                          </Badge>
                         </div>
-                        <Badge className="text-sm md:text-base px-3 py-1 flex-shrink-0">
-                          ×{item.quantity}
-                        </Badge>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
+                )}
+
+                {/* Bundle Items Section */}
+                {bundleAggregatedItems.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm md:text-base font-semibold">Bundle Items</h3>
+                      <Badge variant="outline" className="text-xs">
+                        {bundleAggregatedItems.length} bundles
+                      </Badge>
+                    </div>
+                    <div className="space-y-3">
+                      {bundleAggregatedItems.map((item) => (
+                        <div
+                          key={item.key}
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 md:px-4 md:py-3 shadow-sm bg-blue-50/40 border-blue-200"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm md:text-base truncate">{item.name}</p>
+                            <p className="text-xs md:text-sm text-muted-foreground">₱{item.total.toFixed(2)} total</p>
+                          </div>
+                          <Badge className="text-sm md:text-base px-3 py-1 flex-shrink-0 bg-blue-100 text-blue-900">
+                            ×{item.quantity}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bundle Breakdown Section */}
+                {bundleBreakdownAggregatedItems.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm md:text-base font-semibold">Bundle Breakdown</h3>
+                      <Badge variant="outline" className="text-xs">
+                        {bundleBreakdownAggregatedItems.length} items
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Individual items from all bundles combined. Use this for detailed prep planning.
+                    </p>
+                    <div className="space-y-3">
+                      {bundleBreakdownAggregatedItems.map((item) => (
+                        <div
+                          key={item.key}
+                          className="flex items-center justify-between rounded-lg border px-3 py-2 md:px-4 md:py-3 shadow-sm bg-green-50/40 border-green-200"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm md:text-base truncate">{item.name}</p>
+                          </div>
+                          <Badge className="text-sm md:text-base px-3 py-1 flex-shrink-0 bg-green-100 text-green-900">
+                            ×{item.quantity}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State - show only if all sections are empty */}
+                {regularAggregatedItems.length === 0 && 
+                 bundleAggregatedItems.length === 0 && 
+                 bundleBreakdownAggregatedItems.length === 0 && (
+                  <EmptyState label="No pre-orders for this date." />
                 )}
               </CardContent>
             </Card>
