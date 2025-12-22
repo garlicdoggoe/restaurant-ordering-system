@@ -296,6 +296,32 @@ export function TotalMonitoringView() {
     return { totalOrders, totalItems, revenue, uniqueCustomers }
   }, [filteredPreOrders])
 
+  // CSV export – convert the current filtered pre-orders into a spreadsheet‑friendly file.
+  // Each ORDER becomes:
+  // 1) a header row with order-level columns filled and an empty `items` cell
+  // 2) one row per item where only the `items` column is filled so items expand vertically
+  const handleExportCsv = () => {
+    if (filteredPreOrders.length === 0) {
+      // No data to export – the button will already be disabled, but we keep a guard here for safety.
+      return
+    }
+
+    const csvContent = buildPreordersCsv(filteredPreOrders)
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement("a")
+    const datePart = selectedDate || formatInputDate(new Date())
+    link.href = url
+    link.download = `preorders-${datePart}.csv`
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-4 md:space-y-6">
       <header className="space-y-1 md:space-y-2">
@@ -345,6 +371,18 @@ export function TotalMonitoringView() {
               </TabsList>
             </Tabs>
           </div>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-xs md:text-sm"
+            onClick={handleExportCsv}
+            disabled={filteredPreOrders.length === 0}
+          >
+            Export to CSV
+          </Button>
         </div>
         <div className="space-y-2">
           <Button
@@ -744,4 +782,143 @@ function buildItemKey(item: OrderItem): string {
   return `${item.name}-${item.variantId ?? "base"}`
 }
 
+// CSV helpers – keep pure so they are easy to test and reuse.
+// NOTE: If column order ever changes, update both the headers array AND any index lookups below.
+const CSV_HEADERS = [
+  "customerName",
+  "customerAddress",
+  "customerPhone",
+  "deliveryFee",
+  "discount",
+  "downpaymentAmount",
+  "paymentPlan",
+  "preOrderFulfillment",
+  "preOrderScheduledAt",
+  "specialInstructions",
+  "total",
+  "items",
+] as const
 
+type CsvHeader = (typeof CSV_HEADERS)[number]
+
+function buildPreordersCsv(orders: Order[]): string {
+  const rows: string[][] = []
+
+  // Header row – fixed order so spreadsheets line up correctly.
+  rows.push([...CSV_HEADERS])
+
+  const itemsColIndex = CSV_HEADERS.indexOf("items")
+
+  orders.forEach((order) => {
+    // Order-level row: all columns except items.
+    const orderRow: string[] = CSV_HEADERS.map((header: CsvHeader) => {
+      switch (header) {
+        case "customerName":
+          return order.customerName ?? ""
+        case "customerAddress":
+          return order.customerAddress ?? ""
+        case "customerPhone":
+          return order.customerPhone ?? ""
+        case "deliveryFee":
+          return order.deliveryFee != null ? order.deliveryFee.toFixed(2) : ""
+        case "discount":
+          return order.discount != null ? order.discount.toFixed(2) : ""
+        case "downpaymentAmount":
+          return order.downpaymentAmount != null ? order.downpaymentAmount.toFixed(2) : ""
+        case "paymentPlan":
+          return order.paymentPlan ?? ""
+        case "preOrderFulfillment":
+          return order.preOrderFulfillment ?? ""
+        case "preOrderScheduledAt":
+          return order.preOrderScheduledAt != null
+            ? formatPreorderScheduledAt(order.preOrderScheduledAt)
+            : ""
+        case "specialInstructions":
+          return order.specialInstructions ?? ""
+        case "total":
+          // Use the stored total which already includes fees/discounts.
+          return order.total != null ? order.total.toFixed(2) : ""
+        case "items":
+          // Intentionally blank on the order header row so items can expand vertically.
+          return ""
+      }
+    })
+
+    rows.push(orderRow)
+
+    // Item rows: only the `items` column is filled, all others left blank.
+    order.items.forEach((item) => {
+      // Parent item (regular item or bundle parent)
+      const parentRow = new Array(CSV_HEADERS.length).fill("")
+      parentRow[itemsColIndex] = formatOrderItemForCsv(item)
+      rows.push(parentRow)
+
+      // If this is a bundle, also add separate rows for each sub-item so they are readable line by line.
+      if (item.bundleItems && item.bundleItems.length > 0) {
+        item.bundleItems.forEach((subItem) => {
+          const subRow = new Array(CSV_HEADERS.length).fill("")
+          subRow[itemsColIndex] = formatBundleSubItemForCsv(item, subItem)
+          rows.push(subRow)
+        })
+      }
+    })
+  })
+
+  // Join rows into a CSV string with proper escaping.
+  return rows
+    .map((row) => row.map(escapeCsvValue).join(","))
+    .join("\r\n")
+}
+
+function formatPreorderScheduledAt(timestamp: number): string {
+  // Convert to a simple `YYYY-MM-DD HH:MM` so spreadsheets parse it as a date/time.
+  const date = new Date(timestamp)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  const hours = String(date.getHours()).padStart(2, "0")
+  const minutes = String(date.getMinutes()).padStart(2, "0")
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
+function formatOrderItemForCsv(item: OrderItem): string {
+  // Start with quantity and base name.
+  let text = `${item.quantity}× ${item.name}`
+
+  // Append variant name when present.
+  if (item.variantName) {
+    text += ` · ${item.variantName}`
+  }
+
+  // Append selected choices (e.g., toppings) if any.
+  if (item.selectedChoices && Object.keys(item.selectedChoices).length > 0) {
+    const choicesText = Object.values(item.selectedChoices)
+      .map((choice) => choice.name)
+      .join(", ")
+    text += ` (${choicesText})`
+  }
+
+  return text
+}
+
+// For bundles, each sub-item also gets its own vertical row with a simple quantity × name format.
+// NOTE: Each bundleSubItem represents one unit per bundle; we multiply by the bundle quantity
+// so rows reflect the total pieces needed for that order.
+function formatBundleSubItemForCsv(bundleItem: OrderItem, subItem: { name: string }): string {
+  const totalQuantity = bundleItem.quantity
+  return `${totalQuantity}× ${subItem.name}`
+}
+
+function escapeCsvValue(value: string): string {
+  if (value === "") return ""
+
+  // Escape double quotes by doubling them per CSV spec.
+  let escaped = value.replace(/"/g, '""')
+
+  // Wrap in quotes if the value contains commas, quotes, or newlines.
+  if (/[",\n\r]/.test(escaped)) {
+    escaped = `"${escaped}"`
+  }
+
+  return escaped
+}
